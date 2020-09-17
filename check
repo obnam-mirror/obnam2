@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+# Run the automated tests for the project.
+
+set -eu
+
+quiet=-q
+hideok=chronic
+if [ "$#" -gt 0 ]
+then
+    case "$1" in
+	verbose | -v | --verbose)
+	    quiet=
+	    hideok=
+	    ;;
+    esac
+fi
+
+cargo build --all-targets $quiet
+cargo clippy $quiet
+$hideok cargo test $quiet
+
+if command -v rustfmt > /dev/null
+then
+    find src -type f -name '*.rs' -exec rustfmt --check '{}' +
+fi
+
+echo "Everything seems to be in order."
