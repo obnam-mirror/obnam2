@@ -92,7 +92,7 @@ impl ChunkMeta {
 impl FromStr for ChunkMeta {
     type Err = serde_json::error::Error;
 
-    /// Parse a JSON representation metdata.
+    /// Parse a JSON representation metadata.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         serde_json::from_str(s)
     }
