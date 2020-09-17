@@ -17,7 +17,7 @@ use uuid::Uuid;
 ///
 /// Because every identifier is meant to be different, there is no
 /// default value, since default values should be identical.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ChunkId {
     id: String,
 }
