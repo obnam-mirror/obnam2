@@ -1,0 +1,30 @@
+- given: "a chunk server"
+  function: start_chunk_server
+  cleanup: stop_chunk_server
+
+- given: >
+    a file (?P<filename>\\S+) containing "(?P<data>.*)"
+  regex: true
+  function: create_file_with_given_data
+
+- given: "a file {filename} containing some random data"
+  function: create_file_with_random_data
+
+- when: "I POST (?P<filename>\\S+) to (?P<path>\\S+), with (?P<header>\\S+): (?P<json>.*)"
+  regex: true
+  function: post_file
+
+- when: "I GET /chunks/<{var}>"
+  function: get_chunk
+
+- then: "HTTP status code is {status}"
+  function: status_code_is
+
+- then: "{header} is {value}"
+  function: header_is
+
+- then: "the JSON body has a field {field}, henceforth {var}"
+  function: remember_json_field
+
+- then: "the body matches file {filename}"
+  function: body_matches_file

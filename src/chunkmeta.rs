@@ -35,7 +35,7 @@ use std::str::FromStr;
 ///
 /// [ISO 8601]: https://en.wikipedia.org/wiki/ISO_8601
 /// [SHA256]: https://en.wikipedia.org/wiki/SHA-2
-#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ChunkMeta {
     sha256: String,
     // The remaining fields are Options so that JSON parsing doesn't

@@ -1,4 +1,5 @@
 use crate::chunkmeta::ChunkMeta;
+use serde::Serialize;
 
 /// Store an arbitrary chunk of data.
 ///
@@ -6,6 +7,7 @@ use crate::chunkmeta::ChunkMeta;
 ///
 /// A chunk also contains its associated metadata, except its
 /// identifier.
+#[derive(Debug, Serialize)]
 pub struct Chunk {
     meta: ChunkMeta,
     data: Vec<u8>,

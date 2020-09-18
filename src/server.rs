@@ -1,3 +1,4 @@
+use crate::chunk::Chunk;
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
 use serde::{Deserialize, Serialize};
@@ -21,15 +22,20 @@ impl Created {
 }
 
 /// Result of retrieving a chunk.
+
 #[derive(Debug, Serialize)]
 pub struct Fetched {
     id: ChunkId,
-    meta: ChunkMeta,
+    chunk: Chunk,
 }
 
 impl Fetched {
-    pub fn new(id: ChunkId, meta: ChunkMeta) -> Self {
-        Fetched { id, meta }
+    pub fn new(id: ChunkId, chunk: Chunk) -> Self {
+        Fetched { id, chunk }
+    }
+
+    pub fn to_json(&self) -> String {
+        serde_json::to_string(&self).unwrap()
     }
 }
 

@@ -21,4 +21,8 @@ cargo clippy $quiet
 cargo fmt -- --check
 $hideok cargo test $quiet
 
+sp-docgen obnam.md -o obnam.html
+sp-docgen obnam.md -o obnam.pdf
+$hideok sp-codegen obnam.md -o test.py --run
+
 echo "Everything seems to be in order."

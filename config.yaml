@@ -1,0 +1,4 @@
+port: 8888
+chunks: /home/liw/tmp/chunks
+tls_key: test.key
+tls_cert: test.pem
