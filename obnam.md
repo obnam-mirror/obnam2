@@ -47,9 +47,9 @@ and the body matches file data.dat
 title: "Obnam2&mdash;a backup system"
 author: Lars Wirzenius
 bindings:
-  - obnam.yaml
+  - subplot/obnam.yaml
 functions:
-  - obnam.py
-  - runcmd.py
-  - daemon.py
+  - subplot/obnam.py
+  - subplot/runcmd.py
+  - subplot/daemon.py
 ...
