@@ -47,7 +47,7 @@ pub struct SearchHits {
 
 impl SearchHits {
     pub fn insert(&mut self, id: ChunkId, meta: ChunkMeta) {
-        self.map.insert(format!("{}", id), meta);
+        self.map.insert(id.to_string(), meta);
     }
 
     pub fn from_json(s: &str) -> anyhow::Result<Self> {

@@ -57,9 +57,9 @@ mod test {
     use super::ChunkId;
 
     #[test]
-    fn displayable() {
+    fn to_string() {
         let id = ChunkId::new();
-        assert_ne!(format!("{}", id), "")
+        assert_ne!(id.to_string(), "")
     }
 
     #[test]
@@ -73,13 +73,13 @@ mod test {
     fn recreatable() {
         let id_str = "xyzzy"; // it doesn't matter what the string representation is
         let id: ChunkId = id_str.parse().unwrap();
-        assert_eq!(format!("{}", id), id_str);
+        assert_eq!(id.to_string(), id_str);
     }
 
     #[test]
     fn survives_round_trip() {
         let id = ChunkId::new();
-        let id_str = format!("{}", id);
+        let id_str = id.to_string();
         assert_eq!(id, id_str.parse().unwrap());
     }
 }

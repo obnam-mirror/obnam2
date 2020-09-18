@@ -174,7 +174,7 @@ impl warp::Reply for ChunkResult {
         match self {
             ChunkResult::Created(id) => {
                 let body = CreatedBody {
-                    chunk_id: format!("{}", id),
+                    chunk_id: id.to_string(),
                 };
                 let body = serde_json::to_string(&body).unwrap();
                 let mut r = warp::reply::Response::new(body.into());
