@@ -18,11 +18,7 @@ fi
 
 cargo build --all-targets $quiet
 cargo clippy $quiet
+cargo fmt -- --check
 $hideok cargo test $quiet
-
-if command -v rustfmt > /dev/null
-then
-    find src -type f -name '*.rs' -exec rustfmt --check '{}' +
-fi
 
 echo "Everything seems to be in order."
