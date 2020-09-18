@@ -1,4 +1,6 @@
+use serde::Serialize;
 use std::fmt;
+use std::hash::Hash;
 use std::str::FromStr;
 use uuid::Uuid;
 
@@ -17,7 +19,7 @@ use uuid::Uuid;
 ///
 /// Because every identifier is meant to be different, there is no
 /// default value, since default values should be identical.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash, Serialize)]
 pub struct ChunkId {
     id: String,
 }
