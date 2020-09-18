@@ -1,2 +1,6 @@
 /target
 Cargo.lock
+obnam.pdf
+obnam.html
+test.py
+test.log
