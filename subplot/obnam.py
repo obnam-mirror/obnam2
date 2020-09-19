@@ -1,6 +1,8 @@
+import json
 import logging
 import os
 import random
+import re
 import requests
 import shutil
 import socket
@@ -60,10 +62,29 @@ def post_file(ctx, filename=None, path=None, header=None, json=None):
     _request(ctx, requests.post, url, headers=headers, data=data)
 
 
-def get_chunk(ctx, var=None):
+def get_chunk_via_var(ctx, var=None):
     chunk_id = ctx["vars"][var]
+    get_chunk_by_id(ctx, chunk_id=chunk_id)
+
+
+def get_chunk_by_id(ctx, chunk_id=None):
     url = f"{ctx['url']}/chunks/{chunk_id}"
     _request(ctx, requests.get, url)
+
+
+def find_chunks_with_sha(ctx, sha=None):
+    url = f"{ctx['url']}/chunks?sha256={sha}"
+    _request(ctx, requests.get, url)
+
+
+def delete_chunk_via_var(ctx, var=None):
+    chunk_id = ctx["vars"][var]
+    delete_chunk_by_id(ctx, chunk_id=chunk_id)
+
+
+def delete_chunk_by_id(ctx, chunk_id=None):
+    url = f"{ctx['url']}/chunks/{chunk_id}"
+    _request(ctx, requests.delete, url)
 
 
 def status_code_is(ctx, status=None):
@@ -90,6 +111,18 @@ def body_matches_file(ctx, filename=None):
     logging.debug(f"  content: {content!r}")
     logging.debug(f"  body: {ctx['http.raw']!r}")
     assert_eq(ctx["http.raw"], content)
+
+
+def json_body_matches(ctx, wanted=None):
+    assert_eq = globals()["assert_eq"]
+    wanted = _expand_vars(ctx, wanted)
+    wanted = json.loads(wanted)
+    body = ctx["http.json"]
+    logging.debug(f"json_body_matches:")
+    logging.debug(f"  wanted: {wanted!r} ({type(wanted)}")
+    logging.debug(f"  body  : {body!r} ({type(body)}")
+    for key in wanted:
+        assert_eq(body.get(key, "not.there"), wanted[key])
 
 
 # Name of Rust binary, debug-build.
@@ -132,3 +165,21 @@ def _request(ctx, method, url, headers=None, data=None):
     if not r.ok:
         stderr = open(ctx["daemon"]["obnam-server"]["stderr"], "rb").read()
         logging.debug(f"  server stderr: {stderr!r}")
+
+
+# Expand variables ("<foo>") in a string with values from ctx.
+def _expand_vars(ctx, s):
+    v = ctx.get("vars")
+    if v is None:
+        return s
+    result = []
+    while True:
+        m = re.search(f"<(\\S+)>", s)
+        if not m:
+            result.append(s)
+            break
+        result.append(s[: m.start()])
+        value = v[m.group(1)]
+        result.append(value)
+        s = s[m.end() :]
+    return "".join(result)

@@ -15,7 +15,20 @@
   function: post_file
 
 - when: "I GET /chunks/<{var}>"
-  function: get_chunk
+  function: get_chunk_via_var
+
+- when: "I try to GET /chunks/{chunk_id}"
+  function: get_chunk_by_id
+
+- when: "I GET /chunks?sha256={sha}"
+  regex: false
+  function: find_chunks_with_sha
+
+- when: "I DELETE /chunks/<{var}>"
+  function: delete_chunk_via_var
+
+- when: "I try to DELETE /chunks/{chunk_id}"
+  function: delete_chunk_by_id
 
 - then: "HTTP status code is {status}"
   function: status_code_is
@@ -25,6 +38,10 @@
 
 - then: "the JSON body has a field {field}, henceforth {var}"
   function: remember_json_field
+
+- then: "the JSON body matches (?P<wanted>.*)"
+  regex: true
+  function: json_body_matches
 
 - then: "the body matches file {filename}"
   function: body_matches_file

@@ -44,4 +44,11 @@ impl Store {
         let data = std::fs::read(&self.filename(id, "data"))?;
         Ok(Chunk::new(meta, data))
     }
+
+    /// Delete a chunk from a store.
+    pub fn delete(&self, id: &ChunkId) -> anyhow::Result<()> {
+        std::fs::remove_file(&self.filename(id, "meta"))?;
+        std::fs::remove_file(&self.filename(id, "data"))?;
+        Ok(())
+    }
 }

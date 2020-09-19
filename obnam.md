@@ -241,15 +241,9 @@ These scenarios verify that the chunk server works on its own. The
 scenarios start a fresh, empty chunk server, and do some operations on
 it, and verify the results, and finally terminate the server.
 
-### Chunk management
+### Chunk management happy path
 
-This scenario verifies that a chunk can be uploaded and then
-retrieved, with its metadata, and then deleted. The chunk server has
-an API with just one endpoint, `/chunks`, and accepts the the POST,
-GET, and DELETE operations on it.
-
-To create a chunk, we use POST. We remember the identifier so we can
-retrieve the chunk later.
+We must be able to create a new chunk.
 
 ~~~scenario
 given a chunk server
@@ -260,7 +254,7 @@ and content-type is application/json
 and the JSON body has a field chunk_id, henceforth ID
 ~~~
 
-To retrieve a chunk, we use GET.
+We must be able to retrieve it.
 
 ~~~scenario
 when I GET /chunks/<ID>
@@ -270,10 +264,63 @@ and chunk-meta is {"sha256":"abc","generation":null,"ended":null}
 and the body matches file data.dat
 ~~~
 
-TODO: fetch non-existent chunk
+We must also be able to find it based on metadata.
 
-TODO: delete chunk
+~~~scenario
+when I GET /chunks?sha256=abc
+then HTTP status code is 200
+and content-type is application/json
+and the JSON body matches {"<ID>":{"sha256":"abc","generation":null,"ended":null}}
+~~~
 
+Finally, we must be able to delete it. After that, we must not be able
+to retrieve it, or find it using metadata.
+
+~~~scenario
+when I DELETE /chunks/<ID>
+then HTTP status code is 200
+
+when I GET /chunks/<ID>
+then HTTP status code is 404
+
+when I GET /chunks?sha256=abc
+then HTTP status code is 200
+and content-type is application/json
+and the JSON body matches {}
+~~~
+
+### Retrieve a chunk that does not exist
+
+We must get the right error if we try to retrieve a chunk that does
+not exist.
+
+~~~scenario
+given a chunk server
+when I try to GET /chunks/any.random.string
+then HTTP status code is 404
+~~~
+
+### Search without matches
+
+We must get an empty result if searching for chunks that don't exist.
+
+~~~scenario
+given a chunk server
+when I GET /chunks?sha256=abc
+then HTTP status code is 200
+and content-type is application/json
+and the JSON body matches {}
+~~~
+
+### Delete chunk that does not exist
+
+We must get the right error when deleting a chunk that doesn't exist.
+
+~~~scenario
+given a chunk server
+when I try to DELETE /chunks/any.random.string
+then HTTP status code is 404
+~~~
 
 ## Smoke test
 

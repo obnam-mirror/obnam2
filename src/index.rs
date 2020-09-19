@@ -30,6 +30,11 @@ impl Index {
         }
     }
 
+    pub fn remove(&mut self, key: &str, value: &str) {
+        let kv = kv(key, value);
+        self.map.remove(&kv);
+    }
+
     pub fn find(&self, key: &str, value: &str) -> Vec<ChunkId> {
         let kv = kv(key, value);
         if let Some(v) = self.map.get(&kv) {
@@ -41,6 +46,15 @@ impl Index {
 
     pub fn insert_generation(&mut self, id: ChunkId) {
         self.generations.push(id)
+    }
+
+    pub fn remove_generation(&mut self, id: &ChunkId) {
+        self.generations = self
+            .generations
+            .iter()
+            .cloned()
+            .filter(|x| x != id)
+            .collect();
     }
 
     pub fn find_generations(&self) -> Vec<ChunkId> {
@@ -82,6 +96,16 @@ mod test {
     }
 
     #[test]
+    fn removes_inserted() {
+        let id: ChunkId = "id001".parse().unwrap();
+        let mut idx = Index::default();
+        idx.insert(id.clone(), "sha256", "abc");
+        idx.remove("sha256", "abc");
+        let ids: Vec<ChunkId> = idx.find("sha256", "abc");
+        assert_eq!(ids, vec![]);
+    }
+
+    #[test]
     fn has_no_generations_initially() {
         let idx = Index::default();
         assert_eq!(idx.find_generations(), vec![]);
@@ -93,5 +117,14 @@ mod test {
         let mut idx = Index::default();
         idx.insert_generation(id.clone());
         assert_eq!(idx.find_generations(), vec![id]);
+    }
+
+    #[test]
+    fn removes_generaion() {
+        let id: ChunkId = "id001".parse().unwrap();
+        let mut idx = Index::default();
+        idx.insert_generation(id.clone());
+        idx.remove_generation(&id);
+        assert_eq!(idx.find_generations(), vec![]);
     }
 }
