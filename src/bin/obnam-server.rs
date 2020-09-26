@@ -279,67 +279,91 @@ impl warp::Reply for ChunkResult {
                     chunk_id: id.to_string(),
                 };
                 let body = serde_json::to_string(&body).unwrap();
-                let mut r = warp::reply::Response::new(body.into());
-                r.headers_mut().insert(
-                    warp::http::header::CONTENT_TYPE,
-                    warp::http::header::HeaderValue::from_static("application/json"),
-                );
-                *r.status_mut() = StatusCode::CREATED;
-                r
+                json_response(StatusCode::CREATED, body, None)
             }
             ChunkResult::Fetched(chunk) => {
-                let mut r = warp::reply::Response::new(chunk.data().to_vec().into());
-                r.headers_mut().insert(
-                    warp::http::header::CONTENT_TYPE,
-                    warp::http::header::HeaderValue::from_static("application/octet-stream"),
+                let mut headers = HashMap::new();
+                headers.insert(
+                    "chunk-meta".to_string(),
+                    serde_json::to_string(&chunk.meta()).unwrap(),
                 );
-                r.headers_mut().insert(
-                    "chunk-meta",
-                    warp::http::header::HeaderValue::from_str(
-                        &serde_json::to_string(&chunk.meta()).unwrap(),
-                    )
-                    .unwrap(),
-                );
-                *r.status_mut() = StatusCode::OK;
-                r
+                into_response(
+                    StatusCode::OK,
+                    chunk.data(),
+                    "application/octet-stream",
+                    Some(headers),
+                )
             }
-            ChunkResult::Found(hits) => {
-                let mut r = warp::reply::Response::new(hits.to_json().into());
-                r.headers_mut().insert(
-                    warp::http::header::CONTENT_TYPE,
-                    warp::http::header::HeaderValue::from_static("application/json"),
-                );
-                *r.status_mut() = StatusCode::OK;
-                r
-            }
-            ChunkResult::Deleted => {
-                let mut r = warp::reply::Response::new("".into());
-                *r.status_mut() = StatusCode::OK;
-                r
-            }
-            ChunkResult::BadRequest => {
-                let mut r = warp::reply::Response::new("".into());
-                r.headers_mut().insert(
-                    warp::http::header::CONTENT_TYPE,
-                    warp::http::header::HeaderValue::from_static("application/json"),
-                );
-                *r.status_mut() = StatusCode::BAD_REQUEST;
-                r
-            }
-            ChunkResult::NotFound => {
-                let mut r = warp::reply::Response::new("".into());
-                *r.status_mut() = StatusCode::NOT_FOUND;
-                r
-            }
-            ChunkResult::InternalServerError => {
-                let mut r = warp::reply::Response::new("".into());
-                r.headers_mut().insert(
-                    warp::http::header::CONTENT_TYPE,
-                    warp::http::header::HeaderValue::from_static("application/json"),
-                );
-                *r.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-                r
-            }
+            ChunkResult::Found(hits) => json_response(StatusCode::OK, hits.to_json(), None),
+            ChunkResult::Deleted => status_response(StatusCode::OK),
+            ChunkResult::BadRequest => status_response(StatusCode::BAD_REQUEST),
+            ChunkResult::NotFound => status_response(StatusCode::NOT_FOUND),
+            ChunkResult::InternalServerError => status_response(StatusCode::INTERNAL_SERVER_ERROR),
         }
     }
+}
+
+// Construct a response with a JSON and maybe some extra headers.
+fn json_response(
+    status: StatusCode,
+    json: String,
+    headers: Option<HashMap<String, String>>,
+) -> warp::reply::Response {
+    into_response(status, json.as_bytes(), "application/json", headers)
+}
+
+// Construct a body-less response with just a status.
+fn status_response(status: StatusCode) -> warp::reply::Response {
+    into_response(status, b"", "text/json", None)
+}
+
+// Construct a custom HTTP response.
+//
+// If constructing the response fails, return an internal server
+// error. If constructing that response also fails, panic.
+fn into_response(
+    status: StatusCode,
+    body: &[u8],
+    content_type: &str,
+    headers: Option<HashMap<String, String>>,
+) -> warp::reply::Response {
+    match response(status, body, content_type, headers) {
+        Ok(x) => x,
+        Err(_) => response(StatusCode::INTERNAL_SERVER_ERROR, b"", "text/plain", None).unwrap(),
+    }
+}
+
+// Construct a warp::reply::Response if possible.
+//
+// Note that this can fail. If so the caller needs to handle that in some way.
+fn response(
+    status: StatusCode,
+    body: &[u8],
+    content_type: &str,
+    headers: Option<HashMap<String, String>>,
+) -> anyhow::Result<warp::reply::Response> {
+    // Create a new Response, using the generic body we've been given.
+    let mut r = warp::reply::Response::new(body.to_vec().into());
+
+    // Insert the content-type header.
+    r.headers_mut().insert(
+        warp::http::header::CONTENT_TYPE,
+        warp::http::header::HeaderValue::from_str(content_type)?,
+    );
+
+    // Insert custom headers, if any.
+    if let Some(h) = headers {
+        for (h, v) in h.iter() {
+            r.headers_mut().insert(
+                warp::http::header::HeaderName::from_lowercase(h.as_bytes())?,
+                warp::http::header::HeaderValue::from_str(v)?,
+            );
+        }
+    }
+
+    // Set the HTTP status code.
+    *r.status_mut() = status;
+
+    // Everything went well.
+    Ok(r)
 }
