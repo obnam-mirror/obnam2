@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use log::{debug, error, info};
 use obnam::{chunk::Chunk, chunkid::ChunkId, chunkmeta::ChunkMeta, index::Index, store::Store};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -19,6 +20,8 @@ struct Opt {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    pretty_env_logger::init();
+
     let opt = Opt::from_args();
     let config = Config::read_config(&opt.config).unwrap();
     let config_bare = config.clone();
@@ -27,6 +30,9 @@ async fn main() -> anyhow::Result<()> {
 
     let index = Arc::new(Mutex::new(Index::default()));
     let index = warp::any().map(move || Arc::clone(&index));
+
+    info!("Obnam server starting up");
+    debug!("Configuration: {:?}", config_bare);
 
     let create = warp::post()
         .and(warp::path("chunks"))
@@ -58,9 +64,9 @@ async fn main() -> anyhow::Result<()> {
 
     let webroot = create.or(fetch).or(search).or(delete);
     warp::serve(webroot)
-        .tls()
-        .key_path(config_bare.tls_key)
-        .cert_path(config_bare.tls_cert)
+        // .tls()
+        // .key_path(config_bare.tls_key)
+        // .cert_path(config_bare.tls_cert)
         .run(([127, 0, 0, 1], config_bare.port))
         .await;
     Ok(())
@@ -148,6 +154,7 @@ pub async fn create_chunk(
         index.insert_generation(id.clone());
     }
 
+    info!("created chunk {}: {:?}", id, meta);
     Ok(ChunkResult::Created(id))
 }
 

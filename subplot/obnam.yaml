@@ -30,6 +30,9 @@
 - when: "I try to DELETE /chunks/{chunk_id}"
   function: delete_chunk_by_id
 
+- when: "I back up {dirname} with obnam-backup"
+  function: back_up_directory
+
 - then: "HTTP status code is {status}"
   function: status_code_is
 
@@ -45,3 +48,6 @@
 
 - then: "the body matches file {filename}"
   function: body_matches_file
+
+- then: "backup command is successful"
+  function: command_is_successful

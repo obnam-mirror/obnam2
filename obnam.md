@@ -329,6 +329,13 @@ one directory can be backed up and restored, and the restored files
 and their metadata are identical to the original. This is the simplest
 possible, but still useful requirement for a backup system.
 
+~~~scenario
+given a chunk server
+and a file live/data.dat containing some random data
+when I back up live with obnam-backup
+then backup command is successful
+~~~
+
 ## Backups and restores
 
 These scenarios verify that every kind of file system object can be

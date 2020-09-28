@@ -6,6 +6,7 @@ import re
 import requests
 import shutil
 import socket
+import tarfile
 import time
 import urllib3
 import yaml
@@ -33,7 +34,7 @@ def start_chunk_server(ctx):
     logging.debug(f"Picked randomly port for obnam-server: {config['port']}")
     ctx["config"] = config
 
-    ctx["url"] = f"https://localhost:{port}"
+    ctx["url"] = f"http://localhost:{port}"
 
     start_daemon(ctx, "obnam-server", [_binary("obnam-server"), filename])
 
@@ -51,6 +52,9 @@ def stop_chunk_server(ctx):
 def create_file_with_random_data(ctx, filename=None):
     N = 128
     data = "".join(chr(random.randint(0, 255)) for i in range(N)).encode("UTF-8")
+    dirname = os.path.dirname(filename) or "."
+    logging.debug(f"create_file_with_random_data: dirname={dirname}")
+    os.makedirs(dirname, exist_ok=True)
     with open(filename, "wb") as f:
         f.write(data)
 
@@ -123,6 +127,32 @@ def json_body_matches(ctx, wanted=None):
     logging.debug(f"  body  : {body!r} ({type(body)}")
     for key in wanted:
         assert_eq(body.get(key, "not.there"), wanted[key])
+
+
+def back_up_directory(ctx, dirname=None):
+    runcmd = globals()["runcmd"]
+
+    runcmd(ctx, ["pgrep", "-laf", "obnam"])
+
+    config = {"server_name": "localhost", "server_port": ctx["config"]["port"]}
+    config = yaml.safe_dump(config)
+    logging.debug(f"back_up_directory: {config}")
+    filename = "client.yaml"
+    with open(filename, "w") as f:
+        f.write(config)
+
+    tarball = f"{dirname}.tar"
+    t = tarfile.open(name=tarball, mode="w")
+    t.add(dirname, arcname=".")
+    t.close()
+
+    with open(tarball, "rb") as f:
+        runcmd(ctx, [_binary("obnam-backup"), filename], stdin=f)
+
+
+def command_is_successful(ctx):
+    exit_code_zero = globals()["exit_code_zero"]
+    exit_code_zero(ctx)
 
 
 # Name of Rust binary, debug-build.
