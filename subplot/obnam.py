@@ -130,9 +130,9 @@ def json_body_matches(ctx, wanted=None):
 
 
 def back_up_directory(ctx, dirname=None):
-    runcmd = globals()["runcmd"]
+    runcmd_run = globals()["runcmd_run"]
 
-    runcmd(ctx, ["pgrep", "-laf", "obnam"])
+    runcmd_run(ctx, ["pgrep", "-laf", "obnam"])
 
     config = {"server_name": "localhost", "server_port": ctx["config"]["port"]}
     config = yaml.safe_dump(config)
@@ -147,12 +147,12 @@ def back_up_directory(ctx, dirname=None):
     t.close()
 
     with open(tarball, "rb") as f:
-        runcmd(ctx, [_binary("obnam-backup"), filename], stdin=f)
+        runcmd_run(ctx, [_binary("obnam-backup"), filename], stdin=f)
 
 
 def command_is_successful(ctx):
-    exit_code_zero = globals()["exit_code_zero"]
-    exit_code_zero(ctx)
+    runcmd_exit_code_is_zero = globals()["runcmd_exit_code_is_zero"]
+    runcmd_exit_code_is_zero(ctx)
 
 
 # Name of Rust binary, debug-build.

@@ -10,8 +10,8 @@ import time
 
 # Start a process in the background.
 def start_daemon(ctx, name, argv):
-    runcmd = globals()["runcmd"]
-    exit_code_is = globals()["exit_code_is"]
+    runcmd_run = globals()["runcmd_run"]
+    runcmd_exit_code_is = globals()["runcmd_exit_code_is"]
 
     logging.debug(f"Starting daemon {name}")
     logging.debug(f"  ctx={ctx.as_dict()}")
@@ -26,7 +26,7 @@ def start_daemon(ctx, name, argv):
         "stderr": f"{name}.stderr",
         "stdout": f"{name}.stdout",
     }
-    runcmd(
+    runcmd_run(
         ctx,
         [
             "/usr/sbin/daemonize",
@@ -44,10 +44,11 @@ def start_daemon(ctx, name, argv):
 
     # Wait for a bit for daemon to start and maybe find a problem and die.
     time.sleep(3)
-    if ctx["exit"] != 0:
-        logging.error(f"obnam-server stderr: {ctx['stderr']}")
+    ns = ctx.declare("_runcmd")
+    if ns["exit"] != 0:
+        logging.error(f"obnam-server stderr: {ns['stderr']}")
 
-    exit_code_is(ctx, 0)
+    runcmd_exit_code_is(ctx, 0)
     this["pid"] = int(open(this["pid-file"]).read().strip())
     assert process_exists(this["pid"])
 
