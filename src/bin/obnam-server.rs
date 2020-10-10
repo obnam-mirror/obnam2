@@ -134,8 +134,8 @@ pub async fn create_chunk(
 
     let meta: ChunkMeta = match meta.parse() {
         Ok(s) => s,
-        Err(_) => {
-            eprintln!("bad meta");
+        Err(e) => {
+            error!("chunk-meta header is bad: {}", e);
             return Ok(ChunkResult::BadRequest);
         }
     };
@@ -144,8 +144,8 @@ pub async fn create_chunk(
 
     match store.save(&id, &chunk) {
         Ok(_) => (),
-        Err(_) => {
-            eprintln!("no meta file");
+        Err(e) => {
+            error!("could not write chunk to disk: {}", e);
             return Ok(ChunkResult::InternalServerError);
         }
     }
@@ -167,14 +167,13 @@ pub async fn fetch_chunk(
     let config = config.lock().await;
     let store = Store::new(&config.chunks);
     let id: ChunkId = id.parse().unwrap();
-    eprintln!("fetch: {:?}", id);
     match store.load(&id) {
         Ok(chunk) => {
-            eprintln!("loaded: {:?}", chunk.meta());
+            info!("found chunk {}: {:?}", id, chunk.meta());
             Ok(ChunkResult::Fetched(chunk))
         }
         Err(e) => {
-            eprintln!("error loading: {:?}", e);
+            error!("chunk not found: {}: {:?}", id, e);
             Ok(ChunkResult::NotFound)
         }
     }
@@ -193,22 +192,34 @@ pub async fn search_chunks(
     let mut query = query.iter();
     let found = if let Some((key, value)) = query.next() {
         if query.next() != None {
+            error!("search has more than one key to search for");
             return Ok(ChunkResult::BadRequest);
         }
         index.find(&key, &value)
     } else {
+        error!("search has no key to search for");
         return Ok(ChunkResult::BadRequest);
     };
 
     let mut hits = SearchHits::default();
     for chunk_id in found {
         let meta = match store.load_meta(&chunk_id) {
-            Ok(meta) => meta,
-            Err(_) => return Ok(ChunkResult::InternalServerError),
+            Ok(meta) => {
+                info!("search found chunk {}", chunk_id);
+                meta
+            }
+            Err(_) => {
+                error!(
+                    "search found chunk {} in index, but but not on disk",
+                    chunk_id
+                );
+                return Ok(ChunkResult::InternalServerError);
+            }
         };
         hits.insert(&chunk_id, meta);
     }
 
+    info!("search found {} hits", hits.len());
     Ok(ChunkResult::Found(hits))
 }
 
@@ -225,6 +236,10 @@ impl SearchHits {
     fn to_json(&self) -> String {
         serde_json::to_string(&self.map).unwrap()
     }
+
+    fn len(&self) -> usize {
+        self.map.len()
+    }
 }
 
 pub async fn delete_chunk(
@@ -237,14 +252,13 @@ pub async fn delete_chunk(
     let store = Store::new(&config.chunks);
     let id: ChunkId = id.parse().unwrap();
 
-    eprintln!("delete: {:?}", id);
     let chunk = match store.load(&id) {
         Ok(chunk) => {
-            eprintln!("loaded: {:?}", chunk.meta());
+            debug!("found chunk to delete: {}", id);
             chunk
         }
         Err(e) => {
-            eprintln!("error loading: {:?}", e);
+            error!("could not find chunk to delete: {}: {:?}", id, e);
             return Ok(ChunkResult::NotFound);
         }
     };
@@ -255,11 +269,11 @@ pub async fn delete_chunk(
 
     match store.delete(&id) {
         Ok(_) => {
-            eprintln!("deleted: {:?}", id);
+            info!("chunk deleted: {}", id);
             Ok(ChunkResult::Deleted)
         }
         Err(e) => {
-            eprintln!("error deleting: {:?}", e);
+            error!("could not delete chunk {}: {:?}", id, e);
             Ok(ChunkResult::NotFound)
         }
     }
