@@ -62,7 +62,9 @@ async fn main() -> anyhow::Result<()> {
         .and(index.clone())
         .and_then(delete_chunk);
 
-    let webroot = create.or(fetch).or(search).or(delete);
+    let log = warp::log("obnam");
+    let webroot = create.or(fetch).or(search).or(delete).with(log);
+
     warp::serve(webroot)
         // .tls()
         // .key_path(config_bare.tls_key)
