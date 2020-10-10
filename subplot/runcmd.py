@@ -9,6 +9,38 @@ import subprocess
 # Helper functions.
 #
 
+# Get exit code or other stored data about the latest command run by
+# runcmd_run.
+
+
+def _runcmd_get(ctx, name):
+    ns = ctx.declare("_runcmd")
+    return ns[name]
+
+
+def runcmd_get_exit_code(ctx):
+    return _runcmd_get(ctx, "exit")
+
+
+def runcmd_get_stdout(ctx):
+    return _runcmd_get(ctx, "stdout")
+
+
+def runcmd_get_stdout_raw(ctx):
+    return _runcmd_get(ctx, "stdout.raw")
+
+
+def runcmd_get_stderr(ctx):
+    return _runcmd_get(ctx, "stderr")
+
+
+def runcmd_get_stderr_raw(ctx):
+    return _runcmd_get(ctx, "stderr.raw")
+
+
+def runcmd_get_argv(ctx):
+    return _runcmd_get(ctx, "argv")
+
 
 # Run a command, given an argv and other arguments for subprocess.Popen.
 #
@@ -88,8 +120,7 @@ def runcmd_exit_code_is_zero(ctx):
 
 def runcmd_exit_code_is(ctx, exit=None):
     assert_eq = globals()["assert_eq"]
-    ns = ctx.declare("_runcmd")
-    assert_eq(ns["exit"], int(exit))
+    assert_eq(runcmd_get_exit_code(ctx), int(exit))
 
 
 def runcmd_exit_code_is_nonzero(ctx):
@@ -98,8 +129,7 @@ def runcmd_exit_code_is_nonzero(ctx):
 
 def runcmd_exit_code_is_not(ctx, exit=None):
     assert_ne = globals()["assert_ne"]
-    ns = ctx.declare("_runcmd")
-    assert_ne(ns["exit"], int(exit))
+    assert_ne(runcmd_get_exit_code(ctx), int(exit))
 
 
 #
@@ -108,23 +138,19 @@ def runcmd_exit_code_is_not(ctx, exit=None):
 
 
 def runcmd_stdout_is(ctx, text=None):
-    ns = ctx.declare("_runcmd")
-    _runcmd_output_is(ns["stdout"], text)
+    _runcmd_output_is(runcmd_get_stdout(ctx), text)
 
 
 def runcmd_stdout_isnt(ctx, text=None):
-    ns = ctx.declare("_runcmd")
-    _runcmd_output_isnt(ns["stdout"], text)
+    _runcmd_output_isnt(runcmd_get_stdout(ctx), text)
 
 
 def runcmd_stderr_is(ctx, text=None):
-    ns = ctx.declare("_runcmd")
-    _runcmd_output_is(ns["stderr"], text)
+    _runcmd_output_is(runcmd_get_stderr(ctx), text)
 
 
 def runcmd_stderr_isnt(ctx, text=None):
-    ns = ctx.declare("_runcmd")
-    _runcmd_output_isnt(ns["stderr"], text)
+    _runcmd_output_isnt(runcmd_get_stderr(ctx), text)
 
 
 def _runcmd_output_is(actual, wanted):
@@ -146,23 +172,19 @@ def _runcmd_output_isnt(actual, wanted):
 
 
 def runcmd_stdout_contains(ctx, text=None):
-    ns = ctx.declare("_runcmd")
-    _runcmd_output_contains(ns["stdout"], text)
+    _runcmd_output_contains(runcmd_get_stdout(ctx), text)
 
 
 def runcmd_stdout_doesnt_contain(ctx, text=None):
-    ns = ctx.declare("_runcmd")
-    _runcmd_output_doesnt_contain(ns["stdout"], text)
+    _runcmd_output_doesnt_contain(runcmd_get_stdout(ctx), text)
 
 
 def runcmd_stderr_contains(ctx, text=None):
-    ns = ctx.declare("_runcmd")
-    _runcmd_output_contains(ns["stderr"], text)
+    _runcmd_output_contains(runcmd_get_stderr(ctx), text)
 
 
 def runcmd_stderr_doesnt_contain(ctx, text=None):
-    ns = ctx.declare("_runcmd")
-    _runcmd_output_doesnt_contain(ns["stderr"], text)
+    _runcmd_output_doesnt_contain(runcmd_get_stderr(ctx), text)
 
 
 def _runcmd_output_contains(actual, wanted):
@@ -184,23 +206,19 @@ def _runcmd_output_doesnt_contain(actual, wanted):
 
 
 def runcmd_stdout_matches_regex(ctx, regex=None):
-    ns = ctx.declare("_runcmd")
-    _runcmd_output_matches_regex(ns["stdout"], regex)
+    _runcmd_output_matches_regex(runcmd_get_stdout(ctx), regex)
 
 
 def runcmd_stdout_doesnt_match_regex(ctx, regex=None):
-    ns = ctx.declare("_runcmd")
-    _runcmd_output_doesnt_match_regex(ns["stdout"], regex)
+    _runcmd_output_doesnt_match_regex(runcmd_get_stdout(ctx), regex)
 
 
 def runcmd_stderr_matches_regex(ctx, regex=None):
-    ns = ctx.declare("_runcmd")
-    _runcmd_output_matches_regex(ns["stderr"], regex)
+    _runcmd_output_matches_regex(runcmd_get_stderr(ctx), regex)
 
 
 def runcmd_stderr_doesnt_match_regex(ctx, regex=None):
-    ns = ctx.declare("_runcmd")
-    _runcmd_output_doesnt_match_regex(ns["stderr"], regex)
+    _runcmd_output_doesnt_match_regex(runcmd_get_stderr(ctx), regex)
 
 
 def _runcmd_output_matches_regex(actual, regex):

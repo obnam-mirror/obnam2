@@ -12,6 +12,8 @@ import time
 def start_daemon(ctx, name, argv):
     runcmd_run = globals()["runcmd_run"]
     runcmd_exit_code_is = globals()["runcmd_exit_code_is"]
+    runcmd_get_exit_code = globals()["runcmd_get_exit_code"]
+    runcmd_get_stderr = globals()["runcmd_get_stderr"]
 
     logging.debug(f"Starting daemon {name}")
     logging.debug(f"  ctx={ctx.as_dict()}")
@@ -44,9 +46,10 @@ def start_daemon(ctx, name, argv):
 
     # Wait for a bit for daemon to start and maybe find a problem and die.
     time.sleep(3)
-    ns = ctx.declare("_runcmd")
-    if ns["exit"] != 0:
-        logging.error(f"obnam-server stderr: {ns['stderr']}")
+    exit = runcmd_get_exit_code(ctx)
+    stderr = runcmd_get_stderr(ctx)
+    if exit != 0:
+        logging.error(f"obnam-server stderr: {stderr}")
 
     runcmd_exit_code_is(ctx, 0)
     this["pid"] = int(open(this["pid-file"]).read().strip())
