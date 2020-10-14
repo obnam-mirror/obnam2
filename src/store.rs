@@ -26,8 +26,8 @@ impl Store {
     }
 
     /// Save a chunk into a store.
-    pub fn save(&self, id: &ChunkId, chunk: &Chunk) -> anyhow::Result<()> {
-        std::fs::write(&self.filename(id, "meta"), chunk.meta().to_json())?;
+    pub fn save(&self, id: &ChunkId, meta: &ChunkMeta, chunk: &Chunk) -> anyhow::Result<()> {
+        std::fs::write(&self.filename(id, "meta"), meta.to_json())?;
         std::fs::write(&self.filename(id, "data"), chunk.data())?;
         Ok(())
     }
@@ -39,10 +39,10 @@ impl Store {
     }
 
     /// Load a chunk from a store.
-    pub fn load(&self, id: &ChunkId) -> anyhow::Result<Chunk> {
+    pub fn load(&self, id: &ChunkId) -> anyhow::Result<(ChunkMeta, Chunk)> {
         let meta = self.load_meta(id)?;
         let data = std::fs::read(&self.filename(id, "data"))?;
-        Ok(Chunk::new(meta, data))
+        Ok((meta, Chunk::new(data)))
     }
 
     /// Delete a chunk from a store.

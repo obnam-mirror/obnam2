@@ -1,4 +1,3 @@
-use crate::chunkmeta::ChunkMeta;
 use serde::Serialize;
 
 /// Store an arbitrary chunk of data.
@@ -9,19 +8,13 @@ use serde::Serialize;
 /// identifier.
 #[derive(Debug, Serialize)]
 pub struct Chunk {
-    meta: ChunkMeta,
     data: Vec<u8>,
 }
 
 impl Chunk {
     /// Construct a new chunk.
-    pub fn new(meta: ChunkMeta, data: Vec<u8>) -> Self {
-        Chunk { meta, data }
-    }
-
-    /// Return a chunk's metadata.
-    pub fn meta(&self) -> &ChunkMeta {
-        &self.meta
+    pub fn new(data: Vec<u8>) -> Self {
+        Chunk { data }
     }
 
     /// Return a chunk's data.

@@ -140,9 +140,9 @@ pub async fn create_chunk(
         }
     };
 
-    let chunk = Chunk::new(meta.clone(), data.to_vec());
+    let chunk = Chunk::new(data.to_vec());
 
-    match store.save(&id, &chunk) {
+    match store.save(&id, &meta, &chunk) {
         Ok(_) => (),
         Err(e) => {
             error!("could not write chunk to disk: {}", e);
@@ -168,9 +168,9 @@ pub async fn fetch_chunk(
     let store = Store::new(&config.chunks);
     let id: ChunkId = id.parse().unwrap();
     match store.load(&id) {
-        Ok(chunk) => {
-            info!("found chunk {}: {:?}", id, chunk.meta());
-            Ok(ChunkResult::Fetched(chunk))
+        Ok((meta, chunk)) => {
+            info!("found chunk {}: {:?}", id, meta);
+            Ok(ChunkResult::Fetched(meta, chunk))
         }
         Err(e) => {
             error!("chunk not found: {}: {:?}", id, e);
@@ -252,10 +252,10 @@ pub async fn delete_chunk(
     let store = Store::new(&config.chunks);
     let id: ChunkId = id.parse().unwrap();
 
-    let chunk = match store.load(&id) {
-        Ok(chunk) => {
+    let (meta, _) = match store.load(&id) {
+        Ok((meta, chunk)) => {
             debug!("found chunk to delete: {}", id);
-            chunk
+            (meta, chunk)
         }
         Err(e) => {
             error!("could not find chunk to delete: {}: {:?}", id, e);
@@ -263,7 +263,6 @@ pub async fn delete_chunk(
         }
     };
 
-    let meta = chunk.meta();
     index.remove("sha256", meta.sha256());
     index.remove_generation(&id);
 
@@ -281,7 +280,7 @@ pub async fn delete_chunk(
 
 enum ChunkResult {
     Created(ChunkId),
-    Fetched(Chunk),
+    Fetched(ChunkMeta, Chunk),
     Found(SearchHits),
     Deleted,
     NotFound,
@@ -304,11 +303,11 @@ impl warp::Reply for ChunkResult {
                 let body = serde_json::to_string(&body).unwrap();
                 json_response(StatusCode::CREATED, body, None)
             }
-            ChunkResult::Fetched(chunk) => {
+            ChunkResult::Fetched(meta, chunk) => {
                 let mut headers = HashMap::new();
                 headers.insert(
                     "chunk-meta".to_string(),
-                    serde_json::to_string(&chunk.meta()).unwrap(),
+                    serde_json::to_string(&meta).unwrap(),
                 );
                 into_response(
                     StatusCode::OK,

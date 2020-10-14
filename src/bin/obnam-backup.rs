@@ -41,11 +41,11 @@ fn main() -> anyhow::Result<()> {
     loop {
         match read_chunk(&mut stdin)? {
             None => break,
-            Some(chunk) => {
+            Some((meta, chunk)) => {
                 let n = chunk.data().len() as u64;
-                if !has_chunk(&client, &config, &chunk.meta())? {
+                if !has_chunk(&client, &config, &meta)? {
                     pb.inc(n);
-                    upload_chunk(&client, &config, chunk)?;
+                    upload_chunk(&client, &config, meta, chunk)?;
                 } else {
                     dup += n;
                 }
@@ -75,7 +75,7 @@ impl Config {
     }
 }
 
-fn read_chunk<H>(handle: &mut H) -> anyhow::Result<Option<Chunk>>
+fn read_chunk<H>(handle: &mut H) -> anyhow::Result<Option<(ChunkMeta, Chunk)>>
 where
     H: Read + BufRead,
 {
@@ -101,13 +101,14 @@ where
     let hash = format!("{:x}", hash);
     let meta = ChunkMeta::new(&hash);
 
-    let chunk = Chunk::new(meta, buffer.to_vec());
-    Ok(Some(chunk))
+    let chunk = Chunk::new(buffer.to_vec());
+    Ok(Some((meta, chunk)))
 }
 
 fn upload_chunk(
     client: &reqwest::blocking::Client,
     config: &Config,
+    meta: ChunkMeta,
     chunk: Chunk,
 ) -> anyhow::Result<()> {
     let url = format!(
@@ -117,7 +118,7 @@ fn upload_chunk(
 
     client
         .post(&url)
-        .header("chunk-meta", chunk.meta().to_json())
+        .header("chunk-meta", meta.to_json())
         .body(chunk.data().to_vec())
         .send()?;
     Ok(())
