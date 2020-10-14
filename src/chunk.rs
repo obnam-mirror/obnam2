@@ -7,14 +7,14 @@ use serde::Serialize;
 /// A chunk also contains its associated metadata, except its
 /// identifier.
 #[derive(Debug, Serialize)]
-pub struct Chunk {
+pub struct DataChunk {
     data: Vec<u8>,
 }
 
-impl Chunk {
+impl DataChunk {
     /// Construct a new chunk.
     pub fn new(data: Vec<u8>) -> Self {
-        Chunk { data }
+        Self { data }
     }
 
     /// Return a chunk's data.

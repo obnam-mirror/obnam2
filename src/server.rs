@@ -1,4 +1,4 @@
-use crate::chunk::Chunk;
+use crate::chunk::DataChunk;
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
 use serde::{Deserialize, Serialize};
@@ -26,11 +26,11 @@ impl Created {
 #[derive(Debug, Serialize)]
 pub struct Fetched {
     id: ChunkId,
-    chunk: Chunk,
+    chunk: DataChunk,
 }
 
 impl Fetched {
-    pub fn new(id: ChunkId, chunk: Chunk) -> Self {
+    pub fn new(id: ChunkId, chunk: DataChunk) -> Self {
         Fetched { id, chunk }
     }
 

@@ -1,7 +1,7 @@
 // Read stdin, split into chunks, upload new chunks to chunk server.
 
 use indicatif::{ProgressBar, ProgressStyle};
-use obnam::chunk::Chunk;
+use obnam::chunk::DataChunk;
 use obnam::chunkmeta::ChunkMeta;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -75,7 +75,7 @@ impl Config {
     }
 }
 
-fn read_chunk<H>(handle: &mut H) -> anyhow::Result<Option<(ChunkMeta, Chunk)>>
+fn read_chunk<H>(handle: &mut H) -> anyhow::Result<Option<(ChunkMeta, DataChunk)>>
 where
     H: Read + BufRead,
 {
@@ -101,7 +101,7 @@ where
     let hash = format!("{:x}", hash);
     let meta = ChunkMeta::new(&hash);
 
-    let chunk = Chunk::new(buffer.to_vec());
+    let chunk = DataChunk::new(buffer.to_vec());
     Ok(Some((meta, chunk)))
 }
 
@@ -109,7 +109,7 @@ fn upload_chunk(
     client: &reqwest::blocking::Client,
     config: &Config,
     meta: ChunkMeta,
-    chunk: Chunk,
+    chunk: DataChunk,
 ) -> anyhow::Result<()> {
     let url = format!(
         "http://{}:{}/chunks",

@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use log::{debug, error, info};
-use obnam::{chunk::Chunk, chunkid::ChunkId, chunkmeta::ChunkMeta, index::Index, store::Store};
+use obnam::{chunk::DataChunk, chunkid::ChunkId, chunkmeta::ChunkMeta, index::Index, store::Store};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::default::Default;
@@ -140,7 +140,7 @@ pub async fn create_chunk(
         }
     };
 
-    let chunk = Chunk::new(data.to_vec());
+    let chunk = DataChunk::new(data.to_vec());
 
     match store.save(&id, &meta, &chunk) {
         Ok(_) => (),
@@ -280,7 +280,7 @@ pub async fn delete_chunk(
 
 enum ChunkResult {
     Created(ChunkId),
-    Fetched(ChunkMeta, Chunk),
+    Fetched(ChunkMeta, DataChunk),
     Found(SearchHits),
     Deleted,
     NotFound,

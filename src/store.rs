@@ -1,4 +1,4 @@
-use crate::chunk::Chunk;
+use crate::chunk::DataChunk;
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
 use std::path::{Path, PathBuf};
@@ -26,7 +26,7 @@ impl Store {
     }
 
     /// Save a chunk into a store.
-    pub fn save(&self, id: &ChunkId, meta: &ChunkMeta, chunk: &Chunk) -> anyhow::Result<()> {
+    pub fn save(&self, id: &ChunkId, meta: &ChunkMeta, chunk: &DataChunk) -> anyhow::Result<()> {
         std::fs::write(&self.filename(id, "meta"), meta.to_json())?;
         std::fs::write(&self.filename(id, "data"), chunk.data())?;
         Ok(())
@@ -39,10 +39,10 @@ impl Store {
     }
 
     /// Load a chunk from a store.
-    pub fn load(&self, id: &ChunkId) -> anyhow::Result<(ChunkMeta, Chunk)> {
+    pub fn load(&self, id: &ChunkId) -> anyhow::Result<(ChunkMeta, DataChunk)> {
         let meta = self.load_meta(id)?;
         let data = std::fs::read(&self.filename(id, "data"))?;
-        Ok((meta, Chunk::new(data)))
+        Ok((meta, DataChunk::new(data)))
     }
 
     /// Delete a chunk from a store.
