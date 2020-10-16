@@ -67,15 +67,12 @@ impl ChunkMeta {
 
     /// Is this a generation chunk?
     pub fn is_generation(&self) -> bool {
-        match self.generation {
-            Some(true) => true,
-            _ => false,
-        }
+        matches!(self.generation, Some(true))
     }
 
     /// When did this generation end?
     pub fn ended(&self) -> Option<&str> {
-        self.ended.as_deref().map(|s| s)
+        self.ended.as_deref()
     }
 
     /// SHA256 checksum of the content of the chunk.
