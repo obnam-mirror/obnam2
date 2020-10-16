@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::hash::Hash;
 use std::str::FromStr;
@@ -19,7 +19,7 @@ use uuid::Uuid;
 ///
 /// Because every identifier is meant to be different, there is no
 /// default value, since default values should be identical.
-#[derive(Debug, Eq, PartialEq, Clone, Hash, Serialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash, Serialize, Deserialize)]
 pub struct ChunkId {
     id: String,
 }
@@ -43,10 +43,15 @@ impl fmt::Display for ChunkId {
     }
 }
 
+impl From<&String> for ChunkId {
+    fn from(s: &String) -> Self {
+        ChunkId { id: s.to_string() }
+    }
+}
+
 impl FromStr for ChunkId {
     type Err = ();
 
-    /// Parse a string representation of an identifier.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(ChunkId { id: s.to_string() })
     }
