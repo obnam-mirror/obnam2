@@ -90,8 +90,8 @@ The first milestone for the Obnam2 &ndash; the minimum viable product
 &ndash; does not try to fulfil all the requirements for Obnam2.
 Instead, the following semi-subset is the goal:
 
-* _Not done:_ **Can do a backup my own data and restore** This is the
-  minimum functionality for a backup program.
+* _Not done:_ **Can do a backup of my own data and restore it:** This
+  is the minimum functionality for a backup program.
 * _Not done:_ **Fast backups and restores:** a backup or restore of 10
   GiB of live data, between two VMs on my big home server take less
   than 200 seconds.
@@ -140,11 +140,11 @@ digraph "arch" {
 }
 ~~~
 
-The server side is not very smart. I handles storage of chunks and
+The server side is not very smart. It handles storage of chunks and
 their metadata only. The client is smarter:
 
 * it scans live data for files to back up
-* it splits those files into chunks, and stores the chunks in the
+* it splits those files into chunks, and stores the chunks on the
   server
 * it constructs an SQLite database file, with all filenames, file
   metadata, and the chunks associated with each live data file
@@ -374,7 +374,7 @@ acceptable speed.
 
 ### Can restore 10 GiB in 200 seconds
 
-This scenario verifies that the system can restored backed up data at
+This scenario verifies that the system can restore backed up data at
 an acceptable speed.
 
 

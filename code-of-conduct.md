@@ -55,7 +55,7 @@ further defined and clarified by project maintainers.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior
-may be reported by contacting the project team at via the GitLab issue
+may be reported by contacting the project team via the GitLab issue
 tracker. All complaints will be reviewed and investigated and will
 result in a response that is deemed necessary and appropriate to the
 circumstances. The project team is obligated to maintain
