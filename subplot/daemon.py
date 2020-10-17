@@ -14,6 +14,7 @@ def start_daemon(ctx, name, argv):
     runcmd_exit_code_is = globals()["runcmd_exit_code_is"]
     runcmd_get_exit_code = globals()["runcmd_get_exit_code"]
     runcmd_get_stderr = globals()["runcmd_get_stderr"]
+    runcmd_prepend_to_path = globals()["runcmd_prepend_to_path"]
 
     logging.debug(f"Starting daemon {name}")
     logging.debug(f"  ctx={ctx.as_dict()}")
@@ -28,10 +29,13 @@ def start_daemon(ctx, name, argv):
         "stderr": f"{name}.stderr",
         "stdout": f"{name}.stdout",
     }
+    # Debian up to 10 installs `daemonize` to /usr/sbin, which isn't part of
+    # the minimal environment that Subplot sets up.
+    runcmd_prepend_to_path(ctx, "/usr/sbin")
     runcmd_run(
         ctx,
         [
-            "/usr/sbin/daemonize",
+            "daemonize",
             "-c",
             os.getcwd(),
             "-p",
