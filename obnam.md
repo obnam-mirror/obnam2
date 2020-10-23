@@ -47,36 +47,35 @@ in an automated way:
 * _Not done:_ **Easy to install:** available as a Debian package in an
   APT repository.
 * _Not done:_ **Easy to configure:** only need to configure things
-  that are inherently specific to a client and for which sensible
-  defaults are impossible.
-* _Not done:_ **Easy to run:** a single command line that's always the
-  same works for making a backup.
+  that are inherently specific to a client, when sensible defaults are
+  impossible.
+* _Not done:_ **Easy to run:** making a backup is a single command
+  line that's always the same.
 * _Not done:_ **Detects corruption:** if a file in the repository is
   modified or deleted, the software notices it automatically.
-* _Not done:_ **Corrects any 1-bit error:** if a file in the
-  repository is changed by one bit, the software automatically
-  corrects it.
 * _Not done:_ **Repository is encrypted:** all data stored in the
-  repository is encrypted with a key only the client has.
+  repository is encrypted with a key known only to the client.
 * _Not done:_ **Fast backups and restores:** when a client and server
-  both have sufficient CPU, RAM, and disk bandwidth, the software make
-  a backup or restore a backup over a gigabit Ethernet using at least
-  50% of the network bandwidth.
-* _Not done:_ **Snapshots:** Each backup generation is an independent
-  snapshot: it can be deleted without affecting any other generation.
+  both have sufficient CPU, RAM, and disk bandwidth, the software
+  makes a backup or restores a backup over a gigabit Ethernet using at
+  least 50% of the network bandwidth.
+* _Not done:_ **Snapshots:** Each backup is an independent snapshot:
+  it can be deleted without affecting any other snapshot.
 * _Not done:_ **Deduplication:** Identical chunks of data are stored
   only once in the backup repository.
 * _Not done:_ **Compressed:** Data stored in the backup repository is
   compressed.
 * _Not done:_ **Large numbers of live data files:** The system must
-  handle ten million files in live data.
+  handle at least ten million files of live data. (Preferably much
+  more, but I want some concrete number to start with.)
 * _Not done:_ **Live data in the terabyte range:** The system must
-  handle a terabyte of live data.
+  handle a terabyte of live data. (Again, preferably more.)
 * _Not done:_ **Many clients:** The system must handle a thousand
-  total clients and one hundred clients using the server concurrently.
+  total clients and one hundred clients using the server concurrently,
+  on one physical server.
 * _Not done:_ **Shared repository:** The system should allow people
   who don't trust each other to share a repository without fearing
-  their own data leaks, or even its existence leaks, to anyone.
+  that their own data leaks, or even its existence leaks, to anyone.
 * _Not done:_ **Shared backups:** People who do trust each other
   should be able to share backed up data in the repository.
 
