@@ -49,6 +49,10 @@ in an automated way:
 * _Not done:_ **Easy to configure:** only need to configure things
   that are inherently specific to a client, when sensible defaults are
   impossible.
+* _Not done:_ **Excellent documentation:** although software ideally
+  does not need documentation, in practice is usually does, and Obnam
+  should have documentation that is clear, correct, helpful,
+  unambiguous, and well-liked.
 * _Not done:_ **Easy to run:** making a backup is a single command
   line that's always the same.
 * _Not done:_ **Detects corruption:** if a file in the repository is
