@@ -1,2 +1,4 @@
 server_name: localhost
 server_port: 8888
+root: /home/liw/pers/debian-ansible
+dbname: foo.db
