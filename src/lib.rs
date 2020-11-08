@@ -1,6 +1,11 @@
 pub mod chunk;
+pub mod chunker;
 pub mod chunkid;
 pub mod chunkmeta;
+pub mod client;
+pub mod fsentry;
+pub mod fsiter;
+pub mod generation;
 pub mod index;
 pub mod server;
 pub mod store;
