@@ -1,3 +1,5 @@
+use rusqlite::types::ToSqlOutput;
+use rusqlite::ToSql;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::hash::Hash;
@@ -31,6 +33,14 @@ impl ChunkId {
         ChunkId {
             id: Uuid::new_v4().to_string(),
         }
+    }
+}
+
+impl ToSql for ChunkId {
+    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput> {
+        Ok(ToSqlOutput::Owned(rusqlite::types::Value::Text(
+            self.id.clone(),
+        )))
     }
 }
 
