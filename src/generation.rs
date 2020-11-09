@@ -38,7 +38,7 @@ impl Generation {
         Ok(())
     }
 
-    pub fn insert_iter<'a>(
+    pub fn insert_iter(
         &mut self,
         entries: impl Iterator<Item = anyhow::Result<(FilesystemEntry, Vec<ChunkId>)>>,
     ) -> anyhow::Result<()> {

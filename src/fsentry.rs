@@ -16,6 +16,7 @@ pub struct FilesystemEntry {
     len: u64,
 }
 
+#[allow(clippy::len_without_is_empty)]
 impl FilesystemEntry {
     fn new(kind: FilesystemKind, path: &Path, len: u64) -> Self {
         Self {
