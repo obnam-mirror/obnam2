@@ -32,6 +32,12 @@ impl ClientConfig {
 pub enum ClientError {
     #[error("Server successful response to creating chunk lacked chunk id")]
     NoCreatedChunkId,
+
+    #[error("Server does not have chunk {0}")]
+    ChunkNotFound(String),
+
+    #[error("Server does not have generation {0}")]
+    GenerationNotFound(String),
 }
 
 pub struct BackupClient {
@@ -177,5 +183,35 @@ impl BackupClient {
         let map: HashMap<String, ChunkMeta> = serde_yaml::from_slice(&body)?;
         debug!("list_generations: map={:?}", map);
         Ok(map.keys().into_iter().map(|key| key.into()).collect())
+    }
+
+    pub fn fetch_chunk(&self, chunk_id: &ChunkId) -> anyhow::Result<DataChunk> {
+        let url = format!("{}/{}", self.base_url(), chunk_id);
+        trace!("fetch_chunk: url={:?}", url);
+        let req = self.client.get(&url).build()?;
+        let res = self.client.execute(req)?;
+        debug!("fetch_chunk: status={}", res.status());
+        if res.status() != 200 {
+            return Err(ClientError::ChunkNotFound(chunk_id.to_string()).into());
+        }
+
+        let body = res.bytes()?;
+        Ok(DataChunk::new(body.to_vec()))
+    }
+
+    pub fn fetch_generation(&self, gen_id: &str) -> anyhow::Result<GenerationChunk> {
+        let url = format!("{}/{}", self.base_url(), gen_id);
+        trace!("fetch_generation: url={:?}", url);
+        let req = self.client.get(&url).build()?;
+        let res = self.client.execute(req)?;
+        debug!("fetch_generation: status={}", res.status());
+        if res.status() != 200 {
+            return Err(ClientError::GenerationNotFound(gen_id.to_string()).into());
+        }
+
+        let text = res.text()?;
+        debug!("fetch_generation: text={:?}", text);
+        let gen = serde_json::from_str(&text)?;
+        Ok(gen)
     }
 }
