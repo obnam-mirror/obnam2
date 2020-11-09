@@ -165,6 +165,15 @@ impl BackupClient {
     }
 
     pub fn list_generations(&self) -> anyhow::Result<Vec<ChunkId>> {
-        Ok(vec![])
+        let url = format!("{}/?generation=true", self.base_url());
+        trace!("list_generations: url={:?}", url);
+        let req = self.client.get(&url).build()?;
+        let res = self.client.execute(req)?;
+        debug!("list_generations: status={}", res.status());
+        let body = res.bytes()?;
+        debug!("list_generationgs: body={:?}", body);
+        let map: HashMap<String, ChunkMeta> = serde_yaml::from_slice(&body)?;
+        debug!("list_generations: map={:?}", map);
+        Ok(map.keys().into_iter().map(|key| key.into()).collect())
     }
 }
