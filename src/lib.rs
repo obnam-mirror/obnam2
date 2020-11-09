@@ -1,3 +1,4 @@
+pub mod checksummer;
 pub mod chunk;
 pub mod chunker;
 pub mod chunkid;

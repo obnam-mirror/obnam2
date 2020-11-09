@@ -1,3 +1,4 @@
+use crate::checksummer::sha256;
 use crate::chunk::DataChunk;
 use crate::chunk::GenerationChunk;
 use crate::chunker::Chunker;
@@ -62,7 +63,8 @@ impl BackupClient {
     pub fn upload_generation(&self, filename: &Path, size: usize) -> anyhow::Result<ChunkId> {
         let ids = self.read_file(filename, size)?;
         let gen = GenerationChunk::new(ids);
-        let meta = ChunkMeta::new_generation("checksum", "endtime");
+        let data = gen.to_data_chunk()?;
+        let meta = ChunkMeta::new_generation(&sha256(data.data()), "timestamp");
         let gen_id = self.upload_gen_chunk(meta, gen)?;
         Ok(gen_id)
     }
