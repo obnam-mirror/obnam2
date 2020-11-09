@@ -163,4 +163,8 @@ impl BackupClient {
 
         Ok(chunk_ids)
     }
+
+    pub fn list_generations(&self) -> anyhow::Result<Vec<ChunkId>> {
+        Ok(vec![])
+    }
 }
