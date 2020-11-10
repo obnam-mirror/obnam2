@@ -1,32 +1,13 @@
-// Fetch a backup generation's chunks, write to stdout.
-
-use log::{debug, info, trace};
-use obnam::chunk::{DataChunk, GenerationChunk};
-use obnam::chunkid::ChunkId;
+use log::{debug, info};
+use obnam::client::BackupClient;
+use obnam::fsentry::{FilesystemEntry, FilesystemKind};
+use obnam::generation::Generation;
 //use obnam::chunkmeta::ChunkMeta;
 use serde::Deserialize;
-use std::io::{stdout, Write};
+use std::fs::File;
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
-
-#[derive(Debug, thiserror::Error)]
-enum ClientError {
-    #[error("Server does not have generation {0}")]
-    GenerationNotFound(String),
-
-    #[error("Server does not have chunk {0}")]
-    ChunkNotFound(String),
-}
-
-#[derive(Debug, StructOpt)]
-#[structopt(name = "obnam-backup", about = "Simplistic backup client")]
-struct Opt {
-    #[structopt(parse(from_os_str))]
-    config: PathBuf,
-
-    #[structopt()]
-    gen_id: String,
-}
 
 fn main() -> anyhow::Result<()> {
     pretty_env_logger::init();
@@ -38,20 +19,40 @@ fn main() -> anyhow::Result<()> {
     info!("opt: {:?}", opt);
     info!("config: {:?}", config);
 
-    let client = reqwest::blocking::Client::builder()
-        .danger_accept_invalid_certs(true)
-        .build()?;
-    let mut stdout = stdout();
+    let client = BackupClient::new(&config.server_name, config.server_port)?;
+    let gen_chunk = client.fetch_generation(&opt.gen_id)?;
+    debug!("gen: {:?}", gen_chunk);
+    {
+        let mut dbfile = File::create(&opt.dbname)?;
+        for id in gen_chunk.chunk_ids() {
+            let chunk = client.fetch_chunk(id)?;
+            dbfile.write_all(chunk.data())?;
+        }
+    }
+    info!("downloaded generation to {}", opt.dbname.display());
 
-    let gen = fetch_generation(&client, &config, &opt.gen_id)?;
-    debug!("gen: {:?}", gen);
-    for id in gen.chunk_ids() {
-        let chunk = fetch_chunk(&client, &config, id)?;
-        debug!("got chunk: {}", id);
-        stdout.write_all(chunk.data())?;
+    let gen = Generation::open(&opt.dbname)?;
+    for (fileid, entry) in gen.files()? {
+        restore(&client, &gen, fileid, entry, &opt.to)?;
     }
 
     Ok(())
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(name = "obnam-backup", about = "Simplistic backup client")]
+struct Opt {
+    #[structopt(parse(from_os_str))]
+    config: PathBuf,
+
+    #[structopt()]
+    gen_id: String,
+
+    #[structopt(parse(from_os_str))]
+    dbname: PathBuf,
+
+    #[structopt(parse(from_os_str))]
+    to: PathBuf,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -68,52 +69,54 @@ impl Config {
     }
 }
 
-fn fetch_generation(
-    client: &reqwest::blocking::Client,
-    config: &Config,
-    gen_id: &str,
-) -> anyhow::Result<GenerationChunk> {
-    let url = format!(
-        "http://{}:{}/chunks/{}",
-        config.server_name, config.server_port, gen_id,
-    );
+fn restore(
+    client: &BackupClient,
+    gen: &Generation,
+    fileid: u64,
+    entry: FilesystemEntry,
+    to: &Path,
+) -> anyhow::Result<()> {
+    println!("restoring {}:{}", fileid, entry.path().display());
 
-    trace!("fetch_generation: url={:?}", url);
-    let req = client.get(&url).build()?;
+    let path = if entry.path().is_absolute() {
+        entry.path().strip_prefix("/")?
+    } else {
+        entry.path()
+    };
+    let to = to.join(path);
+    debug!("  to: {}", to.display());
 
-    let res = client.execute(req)?;
-    debug!("fetch_generation: status={}", res.status());
-    if res.status() != 200 {
-        debug!("fetch_generation: error from server");
-        return Err(ClientError::GenerationNotFound(gen_id.to_string()).into());
+    match entry.kind() {
+        FilesystemKind::Regular => restore_regular(client, &gen, &to, fileid, &entry)?,
+        FilesystemKind::Directory => restore_directory(&to)?,
     }
-
-    let text = res.text()?;
-    debug!("fetch_generation: text={:?}", text);
-    let gen = serde_json::from_str(&text)?;
-    Ok(gen)
+    Ok(())
 }
 
-fn fetch_chunk(
-    client: &reqwest::blocking::Client,
-    config: &Config,
-    chunk_id: &ChunkId,
-) -> anyhow::Result<DataChunk> {
-    let url = format!(
-        "http://{}:{}/chunks/{}",
-        config.server_name, config.server_port, chunk_id,
-    );
+fn restore_directory(path: &Path) -> anyhow::Result<()> {
+    debug!("restoring directory {}", path.display());
+    std::fs::create_dir_all(path)?;
+    Ok(())
+}
 
-    trace!("fetch_chunk: url={:?}", url);
-    let req = client.get(&url).build()?;
-
-    let res = client.execute(req)?;
-    debug!("fetch_chunk: status={}", res.status());
-    if res.status() != 200 {
-        debug!("fetch_chunk: error from server");
-        return Err(ClientError::ChunkNotFound(chunk_id.to_string()).into());
+fn restore_regular(
+    client: &BackupClient,
+    gen: &Generation,
+    path: &Path,
+    fileid: u64,
+    _entry: &FilesystemEntry,
+) -> anyhow::Result<()> {
+    debug!("restoring regular {}", path.display());
+    let parent = path.parent().unwrap();
+    debug!("  mkdir {}", parent.display());
+    std::fs::create_dir_all(parent)?;
+    {
+        let mut file = std::fs::File::create(path)?;
+        for chunkid in gen.chunkids(fileid)? {
+            let chunk = client.fetch_chunk(&chunkid)?;
+            file.write_all(chunk.data())?;
+        }
     }
-
-    let body = res.bytes()?;
-    Ok(DataChunk::new(body.to_vec()))
+    debug!("restored regular {}", path.display());
+    Ok(())
 }

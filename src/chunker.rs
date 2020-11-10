@@ -1,6 +1,6 @@
+use crate::checksummer::sha256;
 use crate::chunk::DataChunk;
 use crate::chunkmeta::ChunkMeta;
-use sha2::{Digest, Sha256};
 use std::io::prelude::*;
 
 pub struct Chunker {
@@ -36,12 +36,8 @@ impl Chunker {
         }
 
         let buffer = &self.buf.as_slice()[..used];
-        let mut hasher = Sha256::new();
-        hasher.update(buffer);
-        let hash = hasher.finalize();
-        let hash = format!("{:x}", hash);
+        let hash = sha256(buffer);
         let meta = ChunkMeta::new(&hash);
-
         let chunk = DataChunk::new(buffer.to_vec());
         Ok(Some((meta, chunk)))
     }

@@ -195,7 +195,11 @@ pub async fn search_chunks(
             error!("search has more than one key to search for");
             return Ok(ChunkResult::BadRequest);
         }
-        index.find(&key, &value)
+        if key == "generation" && value == "true" {
+            index.find_generations()
+        } else {
+            index.find(&key, &value)
+        }
     } else {
         error!("search has no key to search for");
         return Ok(ChunkResult::BadRequest);
