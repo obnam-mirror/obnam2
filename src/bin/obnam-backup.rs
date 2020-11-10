@@ -17,7 +17,7 @@ fn main() -> anyhow::Result<()> {
     let client = BackupClient::new(&config.server_name, config.server_port)?;
 
     {
-        let mut gen = Generation::new(&config.dbname)?;
+        let mut gen = Generation::create(&config.dbname)?;
         gen.insert_iter(FsIterator::new(&config.root).map(|entry| match entry {
             Err(err) => Err(err),
             Ok(entry) => client.upload_filesystem_entry(entry, BUFFER_SIZE),
