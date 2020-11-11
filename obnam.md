@@ -87,33 +87,6 @@ The detailed, automatically verified acceptance criteria are
 documented in the ["Acceptance criteria"](#acceptance) chapter.
 
 
-## Requirements for a minimum viable product
-
-The first milestone for the Obnam2 &ndash; the minimum viable product
-&ndash; does not try to fulfil all the requirements for Obnam2.
-Instead, the following semi-subset is the goal:
-
-* _Not done:_ **Can do a backup of my own data and restore it:** This
-  is the minimum functionality for a backup program.
-* _Not done:_ **Fast backups and restores:** a backup or restore of 10
-  GiB of live data, between two VMs on my big home server take less
-  than 200 seconds.
-* _Not done:_ **Snapshots:** Each backup generation is an independent
-  snapshot: it can be deleted without affecting any other generation.
-* _Not done:_ **Deduplication:** Identical files are stored only once
-  in the backup repository.
-* _Not done:_ **Single client:** Only a single client per server is
-  supported.
-* _Not done:_ **No authentication:** The client does note authenticate
-  itself to the server.
-* _Not done:_ **No encryption:** Client sends data to the server in
-  cleartext.
-
-This document currently only documents the detailed acceptance
-criteria for the MVP. When the MVP is finished, this document will
-start documenting more.
-
-
 # Architecture
 
 For the minimum viable product, Obnam2 will be split into a server and
