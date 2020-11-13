@@ -222,7 +222,8 @@ it, and verify the results, and finally terminate the server.
 We must be able to create a new chunk.
 
 ~~~scenario
-given a chunk server
+given an installed obnam
+and a running chunk server
 and a file data.dat containing some random data
 when I POST data.dat to /chunks, with chunk-meta: {"sha256":"abc"}
 then HTTP status code is 201
@@ -271,7 +272,8 @@ We must get the right error if we try to retrieve a chunk that does
 not exist.
 
 ~~~scenario
-given a chunk server
+given an installed obnam
+and a running chunk server
 when I try to GET /chunks/any.random.string
 then HTTP status code is 404
 ~~~
@@ -281,7 +283,8 @@ then HTTP status code is 404
 We must get an empty result if searching for chunks that don't exist.
 
 ~~~scenario
-given a chunk server
+given an installed obnam
+and a running chunk server
 when I GET /chunks?sha256=abc
 then HTTP status code is 200
 and content-type is application/json
@@ -293,7 +296,8 @@ and the JSON body matches {}
 We must get the right error when deleting a chunk that doesn't exist.
 
 ~~~scenario
-given a chunk server
+given an installed obnam
+and a running chunk server
 when I try to DELETE /chunks/any.random.string
 then HTTP status code is 404
 ~~~
@@ -307,15 +311,13 @@ possible, but still useful requirement for a backup system.
 
 ~~~scenario
 given an installed obnam
-and a chunk server
+and a running chunk server
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
-when I invoke obnam backup smoke.yaml
-then backup command is successful
-and backup generation is GEN
-when I invoke obnam list smoke.yaml
-then backup command is successful
-and generation list contains <GEN>
+when I run obnam backup smoke.yaml
+then backup generation is GEN
+when I run obnam list smoke.yaml
+then generation list contains <GEN>
 when I invoke obnam restore smoke.yaml <GEN> restore.db rest
 then data in live and rest match
 ~~~
@@ -377,10 +379,14 @@ title: "Obnam2&mdash;a backup system"
 author: Lars Wirzenius
 documentclass: report
 bindings:
-  - subplot/obnam.yaml
+  - subplot/server.yaml
+  - subplot/client.yaml
+  - subplot/data.yaml
   - subplot/vendored/runcmd.yaml
 functions:
-  - subplot/obnam.py
+  - subplot/server.py
+  - subplot/client.py
+  - subplot/data.py
   - subplot/daemon.py
   - subplot/vendored/runcmd.py
 classes:

@@ -6,8 +6,6 @@ import re
 import requests
 import shutil
 import socket
-import subprocess
-import tarfile
 import time
 import urllib3
 import yaml
@@ -39,7 +37,11 @@ def start_chunk_server(ctx):
     ctx["server_port"] = port
     ctx["url"] = f"http://localhost:{port}"
 
-    start_daemon(ctx, "obnam-server", [_binary("obnam-server"), filename])
+    start_daemon(
+        ctx,
+        "obnam-server",
+        [os.path.join(srcdir, "target", "debug", "obnam-server"), filename],
+    )
 
     if not port_open("localhost", port, 5.0):
         stderr = open(ctx["daemon"]["obnam-server"]["stderr"]).read()
@@ -50,16 +52,6 @@ def stop_chunk_server(ctx):
     logging.debug("Stopping obnam-server")
     stop_daemon = globals()["stop_daemon"]
     stop_daemon(ctx, "obnam-server")
-
-
-def create_file_with_random_data(ctx, filename=None):
-    N = 128
-    data = "".join(chr(random.randint(0, 255)) for i in range(N)).encode("UTF-8")
-    dirname = os.path.dirname(filename) or "."
-    logging.debug(f"create_file_with_random_data: dirname={dirname}")
-    os.makedirs(dirname, exist_ok=True)
-    with open(filename, "wb") as f:
-        f.write(data)
 
 
 def post_file(ctx, filename=None, path=None, header=None, json=None):
@@ -132,38 +124,6 @@ def json_body_matches(ctx, wanted=None):
         assert_eq(body.get(key, "not.there"), wanted[key])
 
 
-def back_up_directory(ctx, dirname=None):
-    runcmd_run = globals()["runcmd_run"]
-
-    runcmd_run(ctx, ["pgrep", "-laf", "obnam"])
-
-    config = {"server_name": "localhost", "server_port": ctx["config"]["port"]}
-    config = yaml.safe_dump(config)
-    logging.debug(f"back_up_directory: {config}")
-    filename = "client.yaml"
-    with open(filename, "w") as f:
-        f.write(config)
-
-    tarball = f"{dirname}.tar"
-    t = tarfile.open(name=tarball, mode="w")
-    t.add(dirname, arcname=".")
-    t.close()
-
-    with open(tarball, "rb") as f:
-        runcmd_run(ctx, [_binary("obnam-backup"), filename], stdin=f)
-
-
-def command_is_successful(ctx):
-    runcmd_exit_code_is_zero = globals()["runcmd_exit_code_is_zero"]
-    runcmd_exit_code_is_zero(ctx)
-
-
-# Name of Rust binary, debug-build.
-def _binary(name):
-    srcdir = globals()["srcdir"]
-    return os.path.abspath(os.path.join(srcdir, "target", "debug", name))
-
-
 # Wait for a port to be open
 def port_open(host, port, timeout):
     logging.debug(f"Waiting for port localhost:{port} to be available")
@@ -216,75 +176,3 @@ def _expand_vars(ctx, s):
         result.append(value)
         s = s[m.end() :]
     return "".join(result)
-
-
-def install_obnam(ctx):
-    runcmd_prepend_to_path = globals()["runcmd_prepend_to_path"]
-    srcdir = globals()["srcdir"]
-
-    # Add the directory with built Rust binaries to the path.
-    runcmd_prepend_to_path(ctx, dirname=os.path.join(srcdir, "target", "debug"))
-
-
-def configure_client(ctx, filename=None):
-    get_file = globals()["get_file"]
-
-    config = get_file(filename)
-    ctx["client-config"] = yaml.safe_load(config)
-
-
-def run_obnam_backup(ctx, filename=None):
-    runcmd_run = globals()["runcmd_run"]
-
-    _write_obnam_client_config(ctx, filename)
-    runcmd_run(ctx, ["env", "RUST_LOG=obnam", "obnam", "backup", filename])
-
-
-def run_obnam_list(ctx, filename=None):
-    runcmd_run = globals()["runcmd_run"]
-
-    _write_obnam_client_config(ctx, filename)
-    runcmd_run(ctx, ["env", "RUST_LOG=obnam", "obnam", "list", filename])
-
-
-def _write_obnam_client_config(ctx, filename):
-    config = ctx["client-config"]
-    config["server_name"] = ctx["server_name"]
-    config["server_port"] = ctx["server_port"]
-    with open(filename, "w") as f:
-        yaml.safe_dump(config, stream=f)
-
-
-def run_obnam_restore(ctx, filename=None, genid=None, dbname=None, todir=None):
-    runcmd_run = globals()["runcmd_run"]
-
-    genid = ctx["vars"][genid]
-    _write_obnam_client_config(ctx, filename)
-    runcmd_run(
-        ctx,
-        ["env", "RUST_LOG=obnam", "obnam", "restore", filename, genid, dbname, todir],
-    )
-
-
-def capture_generation_id(ctx, varname=None):
-    runcmd_get_stdout = globals()["runcmd_get_stdout"]
-
-    stdout = runcmd_get_stdout(ctx)
-    gen_id = "unknown"
-    for line in stdout.splitlines():
-        if line.startswith("gen id:"):
-            gen_id = line.split()[-1]
-
-    v = ctx.get("vars", {})
-    v[varname] = gen_id
-    ctx["vars"] = v
-
-
-def live_and_restored_data_match(ctx, live=None, restore=None):
-    subprocess.check_call(["diff", "-rq", f"{live}/.", f"{restore}/{live}/."])
-
-
-def generation_list_contains(ctx, gen_id=None):
-    runcmd_stdout_contains = globals()["runcmd_stdout_contains"]
-    gen_id = ctx["vars"][gen_id]
-    runcmd_stdout_contains(ctx, text=gen_id)

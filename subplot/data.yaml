@@ -1,0 +1,10 @@
+- given: >
+    a file (?P<filename>\\S+) containing "(?P<data>.*)"
+  regex: true
+  function: create_file_with_given_data
+
+- given: "a file {filename} containing some random data"
+  function: create_file_with_random_data
+
+- then: "data in {live} and {restore} match"
+  function: live_and_restored_data_match
