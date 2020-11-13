@@ -306,10 +306,20 @@ and their metadata are identical to the original. This is the simplest
 possible, but still useful requirement for a backup system.
 
 ~~~scenario
-given a chunk server
+given an installed obnam
+and a chunk server
+and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
-when I back up live with obnam-backup
+when I invoke obnam-backup smoke.yaml
 then backup command is successful
+and backup generation is GEN
+when I invoke obnam-restore smoke.yaml <GEN> restore.db rest
+then data in live and rest match
+~~~
+
+~~~{#smoke.yaml .file .yaml .numberLines}
+root: live
+dbname: tmp.db
 ~~~
 
 ## Backups and restores

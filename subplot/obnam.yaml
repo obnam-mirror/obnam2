@@ -1,3 +1,9 @@
+- given: "an installed obnam"
+  function: install_obnam
+
+- given: "a client config based on {filename}"
+  function: configure_client
+
 - given: "a chunk server"
   function: start_chunk_server
   cleanup: stop_chunk_server
@@ -33,6 +39,12 @@
 - when: "I back up {dirname} with obnam-backup"
   function: back_up_directory
 
+- when: "I invoke obnam-backup {filename}"
+  function: run_obnam_backup
+
+- when: "I invoke obnam-restore {filename} <{genid}> {dbname} {todir}"
+  function: run_obnam_restore
+
 - then: "HTTP status code is {status}"
   function: status_code_is
 
@@ -51,3 +63,9 @@
 
 - then: "backup command is successful"
   function: command_is_successful
+
+- then: "backup generation is {varname}"
+  function: capture_generation_id
+
+- then: "data in {live} and {restore} match"
+  function: live_and_restored_data_match
