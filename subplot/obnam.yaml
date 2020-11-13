@@ -39,10 +39,13 @@
 - when: "I back up {dirname} with obnam-backup"
   function: back_up_directory
 
-- when: "I invoke obnam-backup {filename}"
+- when: "I invoke obnam backup {filename}"
   function: run_obnam_backup
 
-- when: "I invoke obnam-restore {filename} <{genid}> {dbname} {todir}"
+- when: "I invoke obnam list {filename}"
+  function: run_obnam_list
+
+- when: "I invoke obnam restore {filename} <{genid}> {dbname} {todir}"
   function: run_obnam_restore
 
 - then: "HTTP status code is {status}"
@@ -69,3 +72,6 @@
 
 - then: "data in {live} and {restore} match"
   function: live_and_restored_data_match
+
+- then: "generation list contains <{gen_id}>"
+  function: generation_list_contains

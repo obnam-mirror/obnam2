@@ -1,7 +1,7 @@
+use crate::client::BackupClient;
+use crate::fsentry::{FilesystemEntry, FilesystemKind};
+use crate::generation::Generation;
 use log::{debug, info};
-use obnam::client::BackupClient;
-use obnam::fsentry::{FilesystemEntry, FilesystemKind};
-use obnam::generation::Generation;
 //use obnam::chunkmeta::ChunkMeta;
 use serde::Deserialize;
 use std::fs::File;
@@ -9,31 +9,24 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
-fn main() -> anyhow::Result<()> {
-    pretty_env_logger::init();
-
-    let opt = Opt::from_args();
-    let config = Config::read_config(&opt.config).unwrap();
-
-    info!("obnam-restore starts up");
-    info!("opt: {:?}", opt);
-    info!("config: {:?}", config);
+pub fn restore(config: &Path, gen_id: &str, dbname: &Path, to: &Path) -> anyhow::Result<()> {
+    let config = Config::read_config(&config).unwrap();
 
     let client = BackupClient::new(&config.server_name, config.server_port)?;
-    let gen_chunk = client.fetch_generation(&opt.gen_id)?;
+    let gen_chunk = client.fetch_generation(&gen_id)?;
     debug!("gen: {:?}", gen_chunk);
     {
-        let mut dbfile = File::create(&opt.dbname)?;
+        let mut dbfile = File::create(&dbname)?;
         for id in gen_chunk.chunk_ids() {
             let chunk = client.fetch_chunk(id)?;
             dbfile.write_all(chunk.data())?;
         }
     }
-    info!("downloaded generation to {}", opt.dbname.display());
+    info!("downloaded generation to {}", dbname.display());
 
-    let gen = Generation::open(&opt.dbname)?;
+    let gen = Generation::open(&dbname)?;
     for (fileid, entry) in gen.files()? {
-        restore(&client, &gen, fileid, entry, &opt.to)?;
+        restore_generation(&client, &gen, fileid, entry, &to)?;
     }
 
     Ok(())
@@ -69,7 +62,7 @@ impl Config {
     }
 }
 
-fn restore(
+fn restore_generation(
     client: &BackupClient,
     gen: &Generation,
     fileid: u64,

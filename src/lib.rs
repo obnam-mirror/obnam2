@@ -4,6 +4,7 @@ pub mod chunker;
 pub mod chunkid;
 pub mod chunkmeta;
 pub mod client;
+pub mod cmd;
 pub mod fsentry;
 pub mod fsiter;
 pub mod generation;
