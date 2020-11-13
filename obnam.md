@@ -131,7 +131,7 @@ their metadata only. The client is smarter:
 * it splits those files into chunks, and stores the chunks on the
   server
 * it constructs an SQLite database file, with all filenames, file
-  metadata, and the chunks associated with each live data file
+  metadata, and the identifiers of chunks for each live data file
 * it stores the database on the server, as chunks
 * it stores a chunk specially marked as a generation on the server
 
@@ -143,8 +143,6 @@ database. When the client needs to restore data:
 * it downloads the generation chunk, and the associated SQLite
   database, and then all the backed up files, as listed in the
   database
-
-This is the simplest architecture I can think of for the MVP.
 
 ## Chunk server API
 
@@ -163,8 +161,9 @@ When creating or retrieving a chunk, its metadata is carried in a
 
 * `sha256` &ndash; the SHA256 checksum of the chunk contents as
   determined by the client
-  - this must be set for every chunk, including generation chunks
-  - note that the server doesn't verify this in any way
+  - this MUST be set for every chunk, including generation chunks
+  - note that the server doesn't verify this in any way, to pave way
+    for future client-side encryption of the chunk data
 * `generation` &ndash; set to `true` if the chunk represents a
   generation
   - may also be set to `false` or `null` or be missing entirely
@@ -172,6 +171,7 @@ When creating or retrieving a chunk, its metadata is carried in a
   - note that the server doesn't process this in anyway, the contents
     is entirely up to the client
   - may be set to the empty string, `null`, or be missing entirely
+  - this can't be used in searches
 
 HTTP status codes are used to indicate if a request succeeded or not,
 using the customary meanings.
@@ -194,7 +194,7 @@ The identifier is a [UUID4][], but the client should not assume that.
 When a chunk is retrieved, the chunk metadata is returned in the
 `Chunk-Meta` header, and the contents in the response body.
 
-Note that it is not possible to update a chunk or its metadata.
+It is not possible to update a chunk or its metadata.
 
 When searching for chunks, any matching chunk's identifiers and
 metadata are returned in a JSON object:
