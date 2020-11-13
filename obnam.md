@@ -1,6 +1,6 @@
 # Introduction
 
-Obnam2 is a project to develop a backup system.
+Obnam2 is a backup system.
 
 In 2004 I started a project to develop a backup program for myself,
 which in 2006 I named Obnam. In 2017 I retired the project, because it
@@ -12,14 +12,14 @@ In 2020, with Obnam2 I'm starting over from scratch. The new software
 is not, and will not become, compatible with Obnam1 in any way. I aim
 the new software to be more reliable and faster than Obnam1, without
 sacrificing security or ease of use, while being maintainable in the
-long run.
+long run. I also intend to have fun while developing the new software.
 
 Part of that maintainability is going to be achieved by using Rust as
 the programming language (strong, static type system) rather than
 Python (dynamic, comparatively weak type system). Another part is more
 strongly aiming for simplicity and elegance. Obnam1 used an elegant,
-but not very simple copy-on-write B-tree structure; Obnam2 will at
-least initially use [SQLite][].
+but not very simple copy-on-write B-tree structure; Obnam2 will use
+[SQLite][].
 
 [SQLite]: https://sqlite.org/index.html
 
@@ -28,15 +28,16 @@ least initially use [SQLite][].
 This document uses some specific terminology related to backups. Here
 is a glossary of such terms.
 
-* **chunk** is a relatively small amount of live data or metadata
+* a **chunk** is a relatively small amount of live data or metadata
   about live data, as chosen by the client
-* **client** is the computer system where the live data lives, also the part of
-  Obnam2 running on that computer
-* **generation** is a snapshot of live data
+* a **client** is the computer system where the live data lives, also
+  the part of Obnam running on that computer
+* a **generation** is a snapshot of live data, also known as **a
+  backup**
 * **live data** is the data that gets backed up
-* **repository** is where the backups get stored
-* **server** is the computer system where the repository resides, also
-  the part of Obnam2 running on that computer
+* a **repository** is where the backups get stored
+* a **server** is the computer system where the repository resides,
+  also the part of Obnam running on that computer
 
 
 # Requirements
@@ -45,7 +46,8 @@ The following high-level requirements are not meant to be verifiable
 in an automated way:
 
 * _Not done:_ **Easy to install:** available as a Debian package in an
-  APT repository.
+  APT repository. Other installation packages will also be provided,
+  hopefully.
 * _Not done:_ **Easy to configure:** only need to configure things
   that are inherently specific to a client, when sensible defaults are
   impossible.
@@ -53,8 +55,8 @@ in an automated way:
   does not need documentation, in practice is usually does, and Obnam
   should have documentation that is clear, correct, helpful,
   unambiguous, and well-liked.
-* _Not done:_ **Easy to run:** making a backup is a single command
-  line that's always the same.
+* _Done_: **Easy to run:** making a backup is a single command line
+  that's always the same.
 * _Not done:_ **Detects corruption:** if a file in the repository is
   modified or deleted, the software notices it automatically.
 * _Not done:_ **Repository is encrypted:** all data stored in the
@@ -63,10 +65,13 @@ in an automated way:
   both have sufficient CPU, RAM, and disk bandwidth, the software
   makes a backup or restores a backup over a gigabit Ethernet using at
   least 50% of the network bandwidth.
-* _Not done:_ **Snapshots:** Each backup is an independent snapshot:
-  it can be deleted without affecting any other snapshot.
-* _Not done:_ **Deduplication:** Identical chunks of data are stored
-  only once in the backup repository.
+* _Done:_ **Snapshots:** Each backup is an independent snapshot: it
+  can be deleted without affecting any other snapshot.
+* _Done:_ **Deduplication:** Identical chunks of data are stored only
+  once in the backup repository.
+  - Note: The chunking is very simplistic, for now, but that can be
+    improved later. The changes will only affect the backup part of
+    the client.
 * _Not done:_ **Compressed:** Data stored in the backup repository is
   compressed.
 * _Not done:_ **Large numbers of live data files:** The system must
@@ -84,10 +89,13 @@ in an automated way:
   should be able to share backed up data in the repository.
 
 The detailed, automatically verified acceptance criteria are
-documented in the ["Acceptance criteria"](#acceptance) chapter.
+documented below, as _scenarios_ described for the [Subplot][] tool.
+The scenarios describe specific sequences of events and the expected
+outcomes.
 
+[Subplot]: https://subplot.liw.fi/
 
-# Architecture
+# Software architecture
 
 For the minimum viable product, Obnam2 will be split into a server and
 one or more clients. The server handles storage of chunks, and access
@@ -123,7 +131,7 @@ their metadata only. The client is smarter:
 * it splits those files into chunks, and stores the chunks on the
   server
 * it constructs an SQLite database file, with all filenames, file
-  metadata, and the chunks associated with each live data file
+  metadata, and the identifiers of chunks for each live data file
 * it stores the database on the server, as chunks
 * it stores a chunk specially marked as a generation on the server
 
@@ -135,8 +143,6 @@ database. When the client needs to restore data:
 * it downloads the generation chunk, and the associated SQLite
   database, and then all the backed up files, as listed in the
   database
-
-This is the simplest architecture I can think of for the MVP.
 
 ## Chunk server API
 
@@ -155,8 +161,9 @@ When creating or retrieving a chunk, its metadata is carried in a
 
 * `sha256` &ndash; the SHA256 checksum of the chunk contents as
   determined by the client
-  - this must be set for every chunk, including generation chunks
-  - note that the server doesn't verify this in any way
+  - this MUST be set for every chunk, including generation chunks
+  - note that the server doesn't verify this in any way, to pave way
+    for future client-side encryption of the chunk data
 * `generation` &ndash; set to `true` if the chunk represents a
   generation
   - may also be set to `false` or `null` or be missing entirely
@@ -164,6 +171,7 @@ When creating or retrieving a chunk, its metadata is carried in a
   - note that the server doesn't process this in anyway, the contents
     is entirely up to the client
   - may be set to the empty string, `null`, or be missing entirely
+  - this can't be used in searches
 
 HTTP status codes are used to indicate if a request succeeded or not,
 using the customary meanings.
@@ -186,7 +194,7 @@ The identifier is a [UUID4][], but the client should not assume that.
 When a chunk is retrieved, the chunk metadata is returned in the
 `Chunk-Meta` header, and the contents in the response body.
 
-Note that it is not possible to update a chunk or its metadata.
+It is not possible to update a chunk or its metadata.
 
 When searching for chunks, any matching chunk's identifiers and
 metadata are returned in a JSON object:
@@ -203,15 +211,7 @@ metadata are returned in a JSON object:
 
 There can be any number of chunks in the response.
 
-# Acceptance criteria {#acceptance}
-
-[Subplot]: https://subplot.liw.fi/
-
-This chapter documents detailed acceptance criteria and how they are
-verified as scenarios for the [Subplot][] tool. At this time, only
-criteria for the minimum viable product are included.
-
-## Chunk server
+# Acceptance criteria for the chunk server
 
 These scenarios verify that the chunk server works on its own. The
 scenarios start a fresh, empty chunk server, and do some operations on
@@ -219,7 +219,9 @@ it, and verify the results, and finally terminate the server.
 
 ### Chunk management happy path
 
-We must be able to create a new chunk.
+We must be able to create a new chunk, retrieve it, find it via a
+search, and delete it. This is needed so the client can manage the
+storage of backed up data.
 
 ~~~scenario
 given an installed obnam
@@ -302,12 +304,13 @@ when I try to DELETE /chunks/any.random.string
 then HTTP status code is 404
 ~~~
 
-## Smoke test
+
+# Smoke test for Obnam as a whole
 
 This scenario verifies that a small amount of data in simple files in
 one directory can be backed up and restored, and the restored files
 and their metadata are identical to the original. This is the simplest
-possible, but still useful requirement for a backup system.
+possible useful use case for a backup system.
 
 ~~~scenario
 given an installed obnam
@@ -327,46 +330,6 @@ root: live
 dbname: tmp.db
 ~~~
 
-## Backups and restores
-
-These scenarios verify that every kind of file system object can be
-backed up and restored.
-
-### All kinds of files and metadata
-
-This scenario verifies that all kinds of files (regular, hard link,
-symbolic link, directory, etc) and metadata can be backed up and
-restored.
-
-### Duplicate files are stored once
-
-This scenario verifies that if the live data has two copies of the
-same file, it is stored only once.
-
-### Snapshots are independent
-
-This scenario verifies that generation snapshots are independent of
-each other, by making three backup generations, deleting the middle
-one, and restoring the others.
-
-
-## Performance
-
-These scenarios verify that system performance is at an expected
-level, at least in simple cases. To keep the implementation of the
-scenario manageable, communication is over `localhost`, not between
-hosts. A more thorough benchmark suite will need to be implemented
-separately.
-
-### Can back up 10 GiB in 200 seconds
-
-This scenario verifies that the system can back up data at an
-acceptable speed. 
-
-### Can restore 10 GiB in 200 seconds
-
-This scenario verifies that the system can restore backed up data at
-an acceptable speed.
 
 
 
@@ -391,4 +354,11 @@ functions:
   - subplot/vendored/runcmd.py
 classes:
   - json
+abstract: |
+  Obnam is a backup system, consisting of a not very smart server for
+  storing chunks of backup data, and a client that splits the user's
+  data into chunks. They communicate via HTTP.
+  
+  This document describes the architecture and acceptance criteria for
+  Obnam, as well as how the acceptance criteria are verified.
 ...
