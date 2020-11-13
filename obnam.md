@@ -55,8 +55,8 @@ in an automated way:
   does not need documentation, in practice is usually does, and Obnam
   should have documentation that is clear, correct, helpful,
   unambiguous, and well-liked.
-* _Not done:_ **Easy to run:** making a backup is a single command
-  line that's always the same.
+* _Done_: **Easy to run:** making a backup is a single command line
+  that's always the same.
 * _Not done:_ **Detects corruption:** if a file in the repository is
   modified or deleted, the software notices it automatically.
 * _Not done:_ **Repository is encrypted:** all data stored in the
@@ -65,10 +65,13 @@ in an automated way:
   both have sufficient CPU, RAM, and disk bandwidth, the software
   makes a backup or restores a backup over a gigabit Ethernet using at
   least 50% of the network bandwidth.
-* _Not done:_ **Snapshots:** Each backup is an independent snapshot:
-  it can be deleted without affecting any other snapshot.
-* _Not done:_ **Deduplication:** Identical chunks of data are stored
-  only once in the backup repository.
+* _Done:_ **Snapshots:** Each backup is an independent snapshot: it
+  can be deleted without affecting any other snapshot.
+* _Done:_ **Deduplication:** Identical chunks of data are stored only
+  once in the backup repository.
+  - Note: The chunking is very simplistic, for now, but that can be
+    improved later. The changes will only affect the backup part of
+    the client.
 * _Not done:_ **Compressed:** Data stored in the backup repository is
   compressed.
 * _Not done:_ **Large numbers of live data files:** The system must
