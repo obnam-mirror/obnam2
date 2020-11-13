@@ -378,10 +378,11 @@ author: Lars Wirzenius
 documentclass: report
 bindings:
   - subplot/obnam.yaml
+  - subplot/vendored/runcmd.yaml
 functions:
   - subplot/obnam.py
-  - subplot/runcmd.py
   - subplot/daemon.py
+  - subplot/vendored/runcmd.py
 classes:
   - json
 ...
