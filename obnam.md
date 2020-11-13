@@ -28,15 +28,16 @@ but not very simple copy-on-write B-tree structure; Obnam2 will use
 This document uses some specific terminology related to backups. Here
 is a glossary of such terms.
 
-* **chunk** is a relatively small amount of live data or metadata
+* a **chunk** is a relatively small amount of live data or metadata
   about live data, as chosen by the client
-* **client** is the computer system where the live data lives, also the part of
-  Obnam2 running on that computer
-* **generation** is a snapshot of live data
+* a **client** is the computer system where the live data lives, also
+  the part of Obnam running on that computer
+* a **generation** is a snapshot of live data, also known as **a
+  backup**
 * **live data** is the data that gets backed up
-* **repository** is where the backups get stored
-* **server** is the computer system where the repository resides, also
-  the part of Obnam2 running on that computer
+* a **repository** is where the backups get stored
+* a **server** is the computer system where the repository resides,
+  also the part of Obnam running on that computer
 
 
 # Requirements
