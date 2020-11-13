@@ -219,7 +219,9 @@ it, and verify the results, and finally terminate the server.
 
 ### Chunk management happy path
 
-We must be able to create a new chunk.
+We must be able to create a new chunk, retrieve it, find it via a
+search, and delete it. This is needed so the client can manage the
+storage of backed up data.
 
 ~~~scenario
 given an installed obnam
@@ -308,7 +310,7 @@ then HTTP status code is 404
 This scenario verifies that a small amount of data in simple files in
 one directory can be backed up and restored, and the restored files
 and their metadata are identical to the original. This is the simplest
-possible, but still useful requirement for a backup system.
+possible useful use case for a backup system.
 
 ~~~scenario
 given an installed obnam
