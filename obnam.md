@@ -1,6 +1,6 @@
 # Introduction
 
-Obnam2 is a project to develop a backup system.
+Obnam2 is a backup system.
 
 In 2004 I started a project to develop a backup program for myself,
 which in 2006 I named Obnam. In 2017 I retired the project, because it
@@ -12,14 +12,14 @@ In 2020, with Obnam2 I'm starting over from scratch. The new software
 is not, and will not become, compatible with Obnam1 in any way. I aim
 the new software to be more reliable and faster than Obnam1, without
 sacrificing security or ease of use, while being maintainable in the
-long run.
+long run. I also intend to have fun while developing the new software.
 
 Part of that maintainability is going to be achieved by using Rust as
 the programming language (strong, static type system) rather than
 Python (dynamic, comparatively weak type system). Another part is more
 strongly aiming for simplicity and elegance. Obnam1 used an elegant,
-but not very simple copy-on-write B-tree structure; Obnam2 will at
-least initially use [SQLite][].
+but not very simple copy-on-write B-tree structure; Obnam2 will use
+[SQLite][].
 
 [SQLite]: https://sqlite.org/index.html
 
