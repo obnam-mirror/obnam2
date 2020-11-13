@@ -310,10 +310,13 @@ given an installed obnam
 and a chunk server
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
-when I invoke obnam-backup smoke.yaml
+when I invoke obnam backup smoke.yaml
 then backup command is successful
 and backup generation is GEN
-when I invoke obnam-restore smoke.yaml <GEN> restore.db rest
+when I invoke obnam list smoke.yaml
+then backup command is successful
+and generation list contains <GEN>
+when I invoke obnam restore smoke.yaml <GEN> restore.db rest
 then data in live and rest match
 ~~~
 

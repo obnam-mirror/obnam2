@@ -237,7 +237,14 @@ def run_obnam_backup(ctx, filename=None):
     runcmd_run = globals()["runcmd_run"]
 
     _write_obnam_client_config(ctx, filename)
-    runcmd_run(ctx, ["env", "RUST_LOG=obnam", "obnam-backup", filename])
+    runcmd_run(ctx, ["env", "RUST_LOG=obnam", "obnam", "backup", filename])
+
+
+def run_obnam_list(ctx, filename=None):
+    runcmd_run = globals()["runcmd_run"]
+
+    _write_obnam_client_config(ctx, filename)
+    runcmd_run(ctx, ["env", "RUST_LOG=obnam", "obnam", "list", filename])
 
 
 def _write_obnam_client_config(ctx, filename):
@@ -254,7 +261,8 @@ def run_obnam_restore(ctx, filename=None, genid=None, dbname=None, todir=None):
     genid = ctx["vars"][genid]
     _write_obnam_client_config(ctx, filename)
     runcmd_run(
-        ctx, ["env", "RUST_LOG=obnam", "obnam-restore", filename, genid, dbname, todir]
+        ctx,
+        ["env", "RUST_LOG=obnam", "obnam", "restore", filename, genid, dbname, todir],
     )
 
 
@@ -274,3 +282,9 @@ def capture_generation_id(ctx, varname=None):
 
 def live_and_restored_data_match(ctx, live=None, restore=None):
     subprocess.check_call(["diff", "-rq", f"{live}/.", f"{restore}/{live}/."])
+
+
+def generation_list_contains(ctx, gen_id=None):
+    runcmd_stdout_contains = globals()["runcmd_stdout_contains"]
+    gen_id = ctx["vars"][gen_id]
+    runcmd_stdout_contains(ctx, text=gen_id)
