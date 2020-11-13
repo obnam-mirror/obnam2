@@ -391,4 +391,11 @@ functions:
   - subplot/vendored/runcmd.py
 classes:
   - json
+abstract: |
+  Obnam is a backup system, consisting of a not very smart server for
+  storing chunks of backup data, and a client that splits the user's
+  data into chunks. They communicate via HTTP.
+  
+  This document describes the architecture and acceptance criteria for
+  Obnam, as well as how the acceptance criteria are verified.
 ...
