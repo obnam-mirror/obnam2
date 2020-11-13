@@ -32,7 +32,8 @@ async fn main() -> anyhow::Result<()> {
     let index = warp::any().map(move || Arc::clone(&index));
 
     info!("Obnam server starting up");
-    debug!("Configuration: {:?}", config_bare);
+    debug!("opt: {:#?}", opt);
+    debug!("Configuration: {:#?}", config_bare);
 
     let create = warp::post()
         .and(warp::path("chunks"))
@@ -65,6 +66,7 @@ async fn main() -> anyhow::Result<()> {
     let log = warp::log("obnam");
     let webroot = create.or(fetch).or(search).or(delete).with(log);
 
+    debug!("starting warp");
     warp::serve(webroot)
         // .tls()
         // .key_path(config_bare.tls_key)

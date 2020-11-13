@@ -1,0 +1,14 @@
+- given: "an installed obnam"
+  function: install_obnam
+
+- given: "a client config based on {filename}"
+  function: configure_client
+
+- when: "I invoke obnam restore {filename} <{genid}> {dbname} {todir}"
+  function: run_obnam_restore
+
+- then: "backup generation is {varname}"
+  function: capture_generation_id
+
+- then: "generation list contains <{gen_id}>"
+  function: generation_list_contains
