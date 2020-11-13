@@ -84,10 +84,13 @@ in an automated way:
   should be able to share backed up data in the repository.
 
 The detailed, automatically verified acceptance criteria are
-documented in the ["Acceptance criteria"](#acceptance) chapter.
+documented below, as _scenarios_ described for the [Subplot][] tool.
+The scenarios describe specific sequences of events and the expected
+outcomes.
 
+[Subplot]: https://subplot.liw.fi/
 
-# Architecture
+# Software architecture
 
 For the minimum viable product, Obnam2 will be split into a server and
 one or more clients. The server handles storage of chunks, and access
@@ -203,15 +206,7 @@ metadata are returned in a JSON object:
 
 There can be any number of chunks in the response.
 
-# Acceptance criteria {#acceptance}
-
-[Subplot]: https://subplot.liw.fi/
-
-This chapter documents detailed acceptance criteria and how they are
-verified as scenarios for the [Subplot][] tool. At this time, only
-criteria for the minimum viable product are included.
-
-## Chunk server
+# Acceptance criteria for the chunk server
 
 These scenarios verify that the chunk server works on its own. The
 scenarios start a fresh, empty chunk server, and do some operations on
@@ -302,7 +297,8 @@ when I try to DELETE /chunks/any.random.string
 then HTTP status code is 404
 ~~~
 
-## Smoke test
+
+# Smoke test for Obnam as a whole
 
 This scenario verifies that a small amount of data in simple files in
 one directory can be backed up and restored, and the restored files
@@ -327,46 +323,6 @@ root: live
 dbname: tmp.db
 ~~~
 
-## Backups and restores
-
-These scenarios verify that every kind of file system object can be
-backed up and restored.
-
-### All kinds of files and metadata
-
-This scenario verifies that all kinds of files (regular, hard link,
-symbolic link, directory, etc) and metadata can be backed up and
-restored.
-
-### Duplicate files are stored once
-
-This scenario verifies that if the live data has two copies of the
-same file, it is stored only once.
-
-### Snapshots are independent
-
-This scenario verifies that generation snapshots are independent of
-each other, by making three backup generations, deleting the middle
-one, and restoring the others.
-
-
-## Performance
-
-These scenarios verify that system performance is at an expected
-level, at least in simple cases. To keep the implementation of the
-scenario manageable, communication is over `localhost`, not between
-hosts. A more thorough benchmark suite will need to be implemented
-separately.
-
-### Can back up 10 GiB in 200 seconds
-
-This scenario verifies that the system can back up data at an
-acceptable speed. 
-
-### Can restore 10 GiB in 200 seconds
-
-This scenario verifies that the system can restore backed up data at
-an acceptable speed.
 
 
 
