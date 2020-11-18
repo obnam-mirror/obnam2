@@ -13,8 +13,7 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ClientConfig {
-    pub server_name: String,
-    pub server_port: u16,
+    pub server_url: String,
     pub dbname: PathBuf,
     pub root: PathBuf,
 }
@@ -46,12 +45,14 @@ pub struct BackupClient {
 }
 
 impl BackupClient {
-    pub fn new(host: &str, port: u16) -> anyhow::Result<Self> {
+    pub fn new(base_url: &str) -> anyhow::Result<Self> {
         let client = Client::builder()
             .danger_accept_invalid_certs(true)
             .build()?;
-        let base_url = format!("http://{}:{}/chunks", host, port,);
-        Ok(Self { client, base_url })
+        Ok(Self {
+            client,
+            base_url: base_url.to_string(),
+        })
     }
 
     pub fn upload_filesystem_entry(

@@ -14,13 +14,11 @@ def install_obnam(ctx):
 def configure_client(ctx, filename=None):
     get_file = globals()["get_file"]
 
-    assert ctx.get("server_name") is not None
-    assert ctx.get("server_port") is not None
+    assert ctx.get("server_url") is not None
 
     config = get_file(filename)
     config = yaml.safe_load(config)
-    config["server_name"] = ctx["server_name"]
-    config["server_port"] = ctx["server_port"]
+    config["server_url"] = ctx["server_url"]
 
     with open(filename, "w") as f:
         yaml.safe_dump(config, stream=f)
