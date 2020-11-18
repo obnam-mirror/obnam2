@@ -12,7 +12,7 @@ use structopt::StructOpt;
 pub fn restore(config: &Path, gen_id: &str, dbname: &Path, to: &Path) -> anyhow::Result<()> {
     let config = Config::read_config(&config).unwrap();
 
-    let client = BackupClient::new(&config.server_name, config.server_port)?;
+    let client = BackupClient::new(&config.server_url)?;
     let gen_chunk = client.fetch_generation(&gen_id)?;
     debug!("gen: {:?}", gen_chunk);
     {
@@ -50,8 +50,7 @@ struct Opt {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
-    pub server_name: String,
-    pub server_port: u16,
+    pub server_url: String,
 }
 
 impl Config {
