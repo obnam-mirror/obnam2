@@ -102,26 +102,39 @@ one or more clients. The server handles storage of chunks, and access
 control to them. The clients make and restore backups. The
 communication between the clients and the server is via HTTP.
 
-~~~dot
-digraph "arch" {
-  live1 -> client1;
-  live2 -> client2;
-  live3 -> client3;
-  live4 -> client4;
-  live5 -> client5;
-  client1 -> server [label="HTTP"];
-  client2 -> server;
-  client3 -> server;
-  client4 -> server;
-  client5 -> server;
-  server -> disk;
-  live1 [shape=cylinder]
-  live2 [shape=cylinder]
-  live3 [shape=cylinder]
-  live4 [shape=cylinder]
-  live5 [shape=cylinder]
-  disk [shape=cylinder]
-}
+~~~pikchr
+Live1: cylinder "live1" bold big big
+move
+Live2: cylinder "live2" bold big big
+move
+Live3: cylinder "live3" bold big big
+move
+Live4: cylinder "live4" bold big big
+move
+Live5: cylinder "live5" bold big big
+
+down
+
+arrow from Live1.s
+C1: ellipse "client1" bold big big
+arrow from Live2.s
+C2: ellipse "client2" bold big big
+arrow from Live3.s
+C3: ellipse "client3" bold big big
+arrow from Live4.s
+C4: ellipse "client4" bold big big
+arrow from Live5.s
+C5: ellipse "client5" bold big big
+
+S: ellipse "server" bold big big at 2*boxwid south of C3
+arrow from C1.s to S.n "HTTPS" bold big big aligned below
+arrow from C2.s to S.n
+arrow from C3.s to S.n
+arrow from C4.s to S.n
+arrow from C5.s to S.n
+
+arrow from S.s
+cylinder "disk" bold big big
 ~~~
 
 The server side is not very smart. It handles storage of chunks and
