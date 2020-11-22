@@ -1,0 +1,15 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --buildsystem cargo
+
+override_dh_auto_build:
+	true
+
+override_dh_auto_install:
+	cargo install --path=. --root=debian/obnam
+	rm -f debian/obnam/.crates.toml
+	rm -f debian/obnam/.crates2.json
+
+override_dh_auto_test:
+	./check
