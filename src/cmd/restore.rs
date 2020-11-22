@@ -1,16 +1,15 @@
 use crate::client::BackupClient;
+use crate::client::ClientConfig;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::Generation;
 use log::{debug, info};
-//use obnam::chunkmeta::ChunkMeta;
-use serde::Deserialize;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
 pub fn restore(config: &Path, gen_id: &str, dbname: &Path, to: &Path) -> anyhow::Result<()> {
-    let config = Config::read_config(&config).unwrap();
+    let config = ClientConfig::read_config(&config).unwrap();
 
     let client = BackupClient::new(&config.server_url)?;
     let gen_chunk = client.fetch_generation(&gen_id)?;
@@ -46,19 +45,6 @@ struct Opt {
 
     #[structopt(parse(from_os_str))]
     to: PathBuf,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct Config {
-    pub server_url: String,
-}
-
-impl Config {
-    pub fn read_config(filename: &Path) -> anyhow::Result<Config> {
-        let config = std::fs::read_to_string(filename)?;
-        let config: Config = serde_yaml::from_str(&config)?;
-        Ok(config)
-    }
 }
 
 fn restore_generation(
