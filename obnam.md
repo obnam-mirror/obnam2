@@ -15,11 +15,11 @@ sacrificing security or ease of use, while being maintainable in the
 long run. I also intend to have fun while developing the new software.
 
 Part of that maintainability is going to be achieved by using Rust as
-the programming language (strong, static type system) rather than
-Python (dynamic, comparatively weak type system). Another part is more
-strongly aiming for simplicity and elegance. Obnam1 used an elegant,
-but not very simple copy-on-write B-tree structure; Obnam2 will use
-[SQLite][].
+the programming language (which has a strong, static type system)
+rather than Python (which has a dynamic, comparatively weak type
+system). Another part is more strongly aiming for simplicity and
+elegance. Obnam1 used an elegant, but not very simple copy-on-write
+B-tree structure; Obnam2 will use [SQLite][].
 
 [SQLite]: https://sqlite.org/index.html
 
@@ -97,10 +97,129 @@ outcomes.
 
 # Software architecture
 
-For the minimum viable product, Obnam2 will be split into a server and
-one or more clients. The server handles storage of chunks, and access
-control to them. The clients make and restore backups. The
-communication between the clients and the server is via HTTP.
+## Effects of requirements
+
+The requirements stated above drive the software architecture of
+Obnam. Some requirements don't affect the architecture at all: for
+example, "excellent documentation". This section discusses the various
+requirements and notes how they affect the architecture.
+
+* **Easy to install:** Does not affect the architeture.
+* **Easy to configure:** Does not affect the architeture.
+* **Excellent documentation:** Does not affect the architeture.
+* **Easy to run:** Obnam may not require that its user provide any
+  information specific to a backup run. For example, it may not
+  require a name or identifier to be provided. The software must
+  invent any identifiers itself.
+* **Detects corruption:** The client must provide a strong checksum of
+  the data it uploads, and verify the checksum for data it downloads.
+  Note that the server can't compute or verify the checksum, at least
+  not for the cleartext data, which it never sees. Also, having the
+  server compute a checksum is too late: corruption may have happened
+  during the upload already.
+* **Repository is encrypted:** Client must do the encryption and
+  decryption. The server may only see encrypted data. Note that this
+  must include metadata, such as the checksum of cleartext data. The
+  client will encrypt the checksum for a chunk and the server must not
+  interpret or use the checksum in any way.
+* **Fast backups and restores:** The architecture needs to enable the
+  implementation to use concurrency and protocols that can saturate
+  fast network connections, and handle network problems well.
+* **Snapshots:** We can't do deltas from one backup run to another. If
+  Obnam does a tape-like full backup, and then an incremental one as a
+  delta from the full one, it can't delete the full backup until all
+  the incremental ones have been deleted. This complicated management
+  of backup storage.
+* **Deduplication:** The client sees the cleartext and can make more
+  intelligent decisions about how to split live data into chunks.
+  Further, the client has fast access to the live data, which the
+  server does not. Ideally, we design the server in a way that does
+  not care about how data is split into chunks.
+* **Compressed:** Compression should be done prior to encryption: if
+  encrypted data can be significantly compressed that leaks
+  information about the nature of the cleartext data.
+* **Large numbers of live data files:** Storing and accessing lists of
+  and meta data about files needs to done using data structures that
+  are efficient for that.
+* **Live data in the terabyte range:** 
+* **Many clients:** The architecture should enable flexibly managing
+  clients.
+* **Shared repository:** The server component needs identify and
+  distinguish between clients and data in backups made by different
+  clients. Access to backups to be strictly controlled so that each
+  client can only ever access its own data, or even query about the
+  presence of specific data.
+* **Shared backups:** Clients should be able to specify, for each
+  chunk of data separately, which other clients should be able to
+  access that.
+
+
+## On SFTP versus HTTPS
+
+Obnam1 supported using a standard SFTP server as a backup repository,
+and this was a popular feature. This section argues against supporting
+SFTP in Obnam2.
+
+The performance requirement for network use means favoring protocols
+such as HTTPS, or even QUIC, rather than SFTP.
+
+SFTP works on top of SSH. SSH provides a TCP-like abstraction for
+SFTP, and thus multiple SFTP connections can run over the same SSH
+connection. However, SSH itself uses a single TCP connection. If that
+TCP connection has a dropped packet, all traffic over the SSH
+connections, including all SFTP connections, waits until TCP
+re-transmits the lost packet and re-synchronizes itself.
+
+With multiple HTTP connections, each on its own TCP connection, a
+single dropped packet will not affect other HTTP transactions. Even
+better, the new QUIC protocol doesn't use TCP.
+
+The modern Internet is to a large degree designed for massive use of
+the world wide web, which is all HTTP, and adopting QUIC. It seems
+wise for Obnam to make use of technologies that have been designed
+for, and proven to work well with concurrency and network problems.
+
+Further, having used SFTP with Obnam1, it is not always an easy
+protocol to use. Further, if there is a desire to have controlled
+sharing of parts of one client's data with another, this would require
+writing a custom SFTP service, which seems much harder to do than
+writing a custom HTTP service. From experience, a custom HTTP service
+is easy to do. A custom SFTP service would need to shoehorn the
+abstractions it needs into something that looks more or less like a
+Unix file system.
+
+The benefit of using SFTP would be that a standard SFTP service could
+be used, if partial data sharing between clients is not needed. This
+would simplify deployment and operations for many. However, it doesn't
+seem important enough to warrant the implementation effort.
+
+Supporting both HTTP and SFTP would be possible, but also much more
+work and against the desire to keep things simple.
+
+## On "btrfs send" and similar constructs
+
+The btrfs and ZFS file systems, and possibly others, have a way to
+mark specific states of the file system and efficiently generate a
+"delta file" of all the changes between the states. The delta can be
+transferred elsewhere, and applied to a copy of the file system. This
+can be quite efficient, but Obnam won't be built on top of such a
+system.
+
+On the one hand, it would force the use of specific file systems:
+Obnam would no be able to back up data on, say, an ext4 file system,
+which seems to be the most popular one by far.
+
+Worse, it also for the data to be restored to the same type of file
+system as where the live data was originally. This onerous for people
+to do.
+
+
+## Overall shape
+
+It seems fairly clear that a simple shape of the software architecture
+of Obnam2 is to have a client and server component, where one server
+can handle any number of clients. They communicate over HTTPS, using
+proven web technologies for authentication and authorization.
 
 ~~~pikchr
 Live1: cylinder "live1" bold big big
@@ -137,29 +256,69 @@ arrow from S.s
 cylinder "disk" bold big big
 ~~~
 
-The server side is not very smart. It handles storage of chunks and
-their metadata only. The client is smarter:
+The responsibilities of the server are roughly:
 
-* it scans live data for files to back up
-* it splits those files into chunks, and stores the chunks on the
-  server
-* it constructs an SQLite database file, with all filenames, file
-  metadata, and the identifiers of chunks for each live data file
-* it stores the database on the server, as chunks
-* it stores a chunk specially marked as a generation on the server
+* provide an HTTP API for managing chunks and their metadata: create,
+  retrieve, search, delete; note that updating a chunk is not needed
+* keep track of the client owning each chunk
+* allow clients to manage sharing of specific chunks between clients
 
-The generation chunk contains a list of the chunks for the SQLite
-database. When the client needs to restore data:
+The responsibilities of the client are roughly:
 
-* it gets a list of generation chunks from the server
-* it lets the user choose a generation
-* it downloads the generation chunk, and the associated SQLite
-  database, and then all the backed up files, as listed in the
-  database
+* split live data into chunks, upload them to server
+* store metadata of live data files in a file, which represents a
+  backup generation, store that too as chunks on the server
+* retrieve chunks from server when restoring
+* let user manage sharing of backups with other clients
 
-## Chunk server API
+There are many details to add to both to the client and the server,
+but that will come later.
 
-The chunk server has the following API:
+It is possible that an identity provider needs to be added to the
+architecture later, to provide strong authentication of clients.
+However, that will not be necessary for the minimum viable product
+version of Obnam. For the MVP, authentication will happen using
+RSA-signed JSON Web Tokens. The server is configured to trust specific
+public keys. The clients have the private keys and generate the tokens
+themselves.
+
+
+# Implementation
+
+The minimum viable product will not support sharing of data between
+clients.
+
+## Chunks
+
+Chunks consist of arbitrary binary data, a small amount of metadata,
+and an identifier chosen by the server. The chunk metadata is a JSON
+object, consisting of the following fields:
+
+* `sha256` &ndash; the SHA256 checksum of the chunk contents as
+  determined by the client
+  - this MUST be set for every chunk, including generation chunks
+  - the server allows for searching based on this field
+  - note that the server doesn't verify this in any way, to pave way
+    for future client-side encryption of the chunk data
+* `generation` &ndash; set to `true` if the chunk represents a
+  generation
+  - may also be set to `false` or `null` or be missing entirely
+  - the server allows for listing chunks where this field is set to
+    `true`
+* `ended` &ndash; the timestamp of when the backup generation ended
+  - note that the server doesn't process this in any way, the contents
+    is entirely up to the client
+  - may be set to the empty string, `null`, or be missing entirely
+  - this can't be used in searches
+
+When creating or retrieving a chunk, its metadata is carried in a
+`Chunk-Meta` header as a JSON object, serialized into a textual form
+that can be put into HTTP headers.
+
+
+## Server
+
+The server has the following API for managing chunks:
 
 * `POST /chunks` &ndash; store a new chunk (and its metadata) on the
   server, return its randomly chosen identifier
@@ -169,30 +328,13 @@ The chunk server has the following API:
   metadata indicates their contents has a given SHA256 checksum
 * `GET /chunks?generation=true` &ndash; find generation chunks
 
-When creating or retrieving a chunk, its metadata is carried in a
-`Chunk-Meta` header as a JSON object. The following keys are allowed:
-
-* `sha256` &ndash; the SHA256 checksum of the chunk contents as
-  determined by the client
-  - this MUST be set for every chunk, including generation chunks
-  - note that the server doesn't verify this in any way, to pave way
-    for future client-side encryption of the chunk data
-* `generation` &ndash; set to `true` if the chunk represents a
-  generation
-  - may also be set to `false` or `null` or be missing entirely
-* `ended` &ndash; the timestamp of when the backup generation ended
-  - note that the server doesn't process this in anyway, the contents
-    is entirely up to the client
-  - may be set to the empty string, `null`, or be missing entirely
-  - this can't be used in searches
-
 HTTP status codes are used to indicate if a request succeeded or not,
 using the customary meanings.
 
 When creating a chunk, chunk's metadata is sent in the `Chunk-Meta`
 header, and the contents in the request body. The new chunk gets a
 randomly assigned identifier, and if the request is successful, the
-response is a JSON object with the identifier:
+response body is a JSON object with the identifier:
 
 ~~~json
 {
@@ -200,7 +342,8 @@ response is a JSON object with the identifier:
 }
 ~~~
 
-The identifier is a [UUID4][], but the client should not assume that.
+The identifier is a [UUID4][], but the client should not assume that
+and should treat it as an opaque value.
 
 [UUID4]: https://en.wikipedia.org/wiki/Universally_unique_identifier#Version_4_(random)
 
@@ -222,7 +365,34 @@ metadata are returned in a JSON object:
 }
 ~~~
 
-There can be any number of chunks in the response.
+There can be any number of chunks in the search response.
+
+
+
+## Client
+
+The client scans live data for files, reads each file, splits it into
+chunks, and searches the server for chunks with the same checksum. If
+none are found, the client uploads the chunk. For each backup run, the
+client creates an [SQLite][] database in its own file, into which it
+inserts each file, its metadata, and list of chunk ids for its
+content. At the end of the backup, it uploads the SQLite file as
+chunks, and finally creates a generation chunk, which has as its
+contents the list of chunk identifiers for the SQLite file.
+
+[SQLite]: https://sqlite.org/
+
+For an incremental backup, the client first retrieves the SQLite file
+for the previous generation, and compares each file's metadata with
+that of the previous generation. If a live data file does not seem to
+have changed, the client copies its metadata to the new SQLite file.
+
+When restoring, the user provides the chunk id of the generation to be
+restored. The client retrieves the generation chunk, gets the list of
+chunk ids for the corresponding SQLite file, retrieves those, and then
+restores all the files in the SQLite database.
+
+
 
 # Acceptance criteria for the chunk server
 
@@ -230,7 +400,7 @@ These scenarios verify that the chunk server works on its own. The
 scenarios start a fresh, empty chunk server, and do some operations on
 it, and verify the results, and finally terminate the server.
 
-### Chunk management happy path
+## Chunk management happy path
 
 We must be able to create a new chunk, retrieve it, find it via a
 search, and delete it. This is needed so the client can manage the
@@ -281,7 +451,7 @@ and content-type is application/json
 and the JSON body matches {}
 ~~~
 
-### Retrieve a chunk that does not exist
+## Retrieve a chunk that does not exist
 
 We must get the right error if we try to retrieve a chunk that does
 not exist.
@@ -293,7 +463,7 @@ when I try to GET /chunks/any.random.string
 then HTTP status code is 404
 ~~~
 
-### Search without matches
+## Search without matches
 
 We must get an empty result if searching for chunks that don't exist.
 
@@ -306,7 +476,7 @@ and content-type is application/json
 and the JSON body matches {}
 ~~~
 
-### Delete chunk that does not exist
+## Delete chunk that does not exist
 
 We must get the right error when deleting a chunk that doesn't exist.
 
