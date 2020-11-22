@@ -7,14 +7,25 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
+use tempfile::NamedTempFile;
 
-pub fn restore(config: &Path, gen_id: &str, dbname: &Path, to: &Path) -> anyhow::Result<()> {
+pub fn restore(config: &Path, gen_id: &str, to: &Path) -> anyhow::Result<()> {
+    // Create a named temporary file. We don't meed the open file
+    // handle, so we discard that.
+    let dbname = {
+        let temp = NamedTempFile::new()?;
+        let (_, dbname) = temp.keep()?;
+        dbname
+    };
+
     let config = ClientConfig::read_config(&config).unwrap();
 
     let client = BackupClient::new(&config.server_url)?;
     let gen_chunk = client.fetch_generation(&gen_id)?;
     debug!("gen: {:?}", gen_chunk);
+
     {
+        // Fetch the SQLite file, storing it in the temporary file.
         let mut dbfile = File::create(&dbname)?;
         for id in gen_chunk.chunk_ids() {
             let chunk = client.fetch_chunk(id)?;
@@ -27,6 +38,9 @@ pub fn restore(config: &Path, gen_id: &str, dbname: &Path, to: &Path) -> anyhow:
     for (fileid, entry) in gen.files()? {
         restore_generation(&client, &gen, fileid, entry, &to)?;
     }
+
+    // Delete the temporary file.
+    std::fs::remove_file(&dbname)?;
 
     Ok(())
 }

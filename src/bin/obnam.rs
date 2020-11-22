@@ -15,12 +15,7 @@ fn main() -> anyhow::Result<()> {
     match opt {
         Opt::Backup { config } => backup(&config, BUFFER_SIZE)?,
         Opt::List { config } => list(&config)?,
-        Opt::Restore {
-            config,
-            gen_id,
-            dbname,
-            to,
-        } => restore(&config, &gen_id, &dbname, &to)?,
+        Opt::Restore { config, gen_id, to } => restore(&config, &gen_id, &to)?,
     }
     Ok(())
 }
@@ -42,9 +37,6 @@ enum Opt {
 
         #[structopt()]
         gen_id: String,
-
-        #[structopt(parse(from_os_str))]
-        dbname: PathBuf,
 
         #[structopt(parse(from_os_str))]
         to: PathBuf,
