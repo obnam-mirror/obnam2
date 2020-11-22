@@ -15,11 +15,11 @@ sacrificing security or ease of use, while being maintainable in the
 long run. I also intend to have fun while developing the new software.
 
 Part of that maintainability is going to be achieved by using Rust as
-the programming language (strong, static type system) rather than
-Python (dynamic, comparatively weak type system). Another part is more
-strongly aiming for simplicity and elegance. Obnam1 used an elegant,
-but not very simple copy-on-write B-tree structure; Obnam2 will use
-[SQLite][].
+the programming language (which has a strong, static type system)
+rather than Python (which has a dynamic, comparatively weak type
+system). Another part is more strongly aiming for simplicity and
+elegance. Obnam1 used an elegant, but not very simple copy-on-write
+B-tree structure; Obnam2 will use [SQLite][].
 
 [SQLite]: https://sqlite.org/index.html
 
