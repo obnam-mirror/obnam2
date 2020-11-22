@@ -504,13 +504,12 @@ when I run obnam backup smoke.yaml
 then backup generation is GEN
 when I run obnam list smoke.yaml
 then generation list contains <GEN>
-when I invoke obnam restore smoke.yaml <GEN> restore.db rest
+when I invoke obnam restore smoke.yaml <GEN> rest
 then data in live and rest match
 ~~~
 
 ~~~{#smoke.yaml .file .yaml .numberLines}
 root: live
-dbname: tmp.db
 ~~~
 
 

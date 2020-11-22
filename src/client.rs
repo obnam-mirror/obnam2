@@ -14,7 +14,6 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Deserialize, Clone)]
 pub struct ClientConfig {
     pub server_url: String,
-    pub dbname: PathBuf,
     pub root: PathBuf,
 }
 

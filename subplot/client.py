@@ -24,13 +24,12 @@ def configure_client(ctx, filename=None):
         yaml.safe_dump(config, stream=f)
 
 
-def run_obnam_restore(ctx, filename=None, genid=None, dbname=None, todir=None):
+def run_obnam_restore(ctx, filename=None, genid=None, todir=None):
     runcmd_run = globals()["runcmd_run"]
 
     genid = ctx["vars"][genid]
     runcmd_run(
-        ctx,
-        ["env", "RUST_LOG=obnam", "obnam", "restore", filename, genid, dbname, todir],
+        ctx, ["env", "RUST_LOG=obnam", "obnam", "restore", filename, genid, todir]
     )
 
 
