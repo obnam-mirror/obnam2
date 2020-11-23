@@ -21,11 +21,11 @@ impl Generation {
         let flags = OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.execute(
-            "CREATE TABLE files (fileid INTEGER PRIMARY KEY, path BLOB, kind INTEGER, len INTEGER)",
+            "CREATE TABLE files (fileno INTEGER PRIMARY KEY, path BLOB, kind INTEGER, len INTEGER)",
             params![],
         )?;
         conn.execute(
-            "CREATE TABLE chunks (fileid INTEGER, chunkid TEXT)",
+            "CREATE TABLE chunks (fileno INTEGER, chunkid TEXT)",
             params![],
         )?;
         conn.pragma_update(None, "journal_mode", &"WAL")?;
@@ -39,13 +39,15 @@ impl Generation {
         let flags = OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.pragma_update(None, "journal_mode", &"WAL")?;
-        Ok(Self { conn, fileno: 0 })
+        let fileno = find_max_fileno(&conn)?;
+
+        Ok(Self { conn, fileno })
     }
 
     pub fn insert(&mut self, e: FilesystemEntry, ids: &[ChunkId]) -> anyhow::Result<()> {
         let t = self.conn.transaction()?;
-        insert_one(&t, e, self.fileno, ids)?;
         self.fileno += 1;
+        insert_one(&t, e, self.fileno, ids)?;
         t.commit()?;
         Ok(())
     }
@@ -57,11 +59,15 @@ impl Generation {
         let t = self.conn.transaction()?;
         for r in entries {
             let (e, ids) = r?;
-            insert_one(&t, e, self.fileno, &ids[..])?;
             self.fileno += 1;
+            insert_one(&t, e, self.fileno, &ids[..])?;
         }
         t.commit()?;
         Ok(())
+    }
+
+    pub fn file_count(&self) -> u64 {
+        self.fileno
     }
 
     pub fn files(&self) -> anyhow::Result<Vec<(u64, FilesystemEntry)>> {
@@ -69,30 +75,30 @@ impl Generation {
         let iter = stmt.query_map(params![], |row| row_to_entry(row))?;
         let mut files: Vec<(u64, FilesystemEntry)> = vec![];
         for x in iter {
-            let (fileid, entry) = x?;
-            files.push((fileid, entry));
+            let (fileno, entry) = x?;
+            files.push((fileno, entry));
         }
         Ok(files)
     }
 
-    pub fn chunkids(&self, fileid: u64) -> anyhow::Result<Vec<ChunkId>> {
-        let fileid = fileid as i64;
+    pub fn chunkids(&self, fileno: u64) -> anyhow::Result<Vec<ChunkId>> {
+        let fileno = fileno as i64;
         let mut stmt = self
             .conn
-            .prepare("SELECT chunkid FROM chunks WHERE fileid = ?1")?;
-        let iter = stmt.query_map(params![fileid], |row| Ok(row.get(0)?))?;
+            .prepare("SELECT chunkid FROM chunks WHERE fileno = ?1")?;
+        let iter = stmt.query_map(params![fileno], |row| Ok(row.get(0)?))?;
         let mut ids: Vec<ChunkId> = vec![];
         for x in iter {
-            let fileid: String = x?;
-            ids.push(ChunkId::from(&fileid));
+            let fileno: String = x?;
+            ids.push(ChunkId::from(&fileno));
         }
         Ok(ids)
     }
 }
 
 fn row_to_entry(row: &Row) -> rusqlite::Result<(u64, FilesystemEntry)> {
-    let fileid: i64 = row.get(row.column_index("fileid")?)?;
-    let fileid = fileid as u64;
+    let fileno: i64 = row.get(row.column_index("fileno")?)?;
+    let fileno = fileno as u64;
     let path: Vec<u8> = row.get(row.column_index("path")?)?;
     let path: &OsStr = OsStrExt::from_bytes(&path);
     let path: PathBuf = PathBuf::from(path);
@@ -102,7 +108,7 @@ fn row_to_entry(row: &Row) -> rusqlite::Result<(u64, FilesystemEntry)> {
         FilesystemKind::Regular => FilesystemEntry::regular(path, 0),
         FilesystemKind::Directory => FilesystemEntry::directory(path),
     };
-    Ok((fileid, entry))
+    Ok((fileno, entry))
 }
 
 fn insert_one(
@@ -116,16 +122,29 @@ fn insert_one(
     let len = e.len() as i64;
     let fileno = fileno as i64;
     t.execute(
-        "INSERT INTO files (fileid, path, kind, len) VALUES (?1, ?2, ?3, ?4)",
+        "INSERT INTO files (fileno, path, kind, len) VALUES (?1, ?2, ?3, ?4)",
         params![fileno, path, kind, len],
     )?;
     for id in ids {
         t.execute(
-            "INSERT INTO chunks (fileid, chunkid) VALUES (?1, ?2)",
+            "INSERT INTO chunks (fileno, chunkid) VALUES (?1, ?2)",
             params![fileno, id],
         )?;
     }
     Ok(())
+}
+
+fn find_max_fileno(conn: &Connection) -> anyhow::Result<u64> {
+    let mut stmt = conn.prepare("SELECT fileno FROM files ORDER BY fileno")?;
+    let mut rows = stmt.query(params![])?;
+    let mut fileno: i64 = 0;
+    while let Some(row) = rows.next()? {
+        let x = row.get(0)?;
+        if x > fileno {
+            fileno = x;
+        }
+    }
+    Ok(fileno as u64)
 }
 
 #[cfg(test)]
