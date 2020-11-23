@@ -2,6 +2,7 @@ use crate::client::BackupClient;
 use crate::client::ClientConfig;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::Generation;
+use indicatif::{ProgressBar, ProgressStyle};
 use log::{debug, info};
 use std::fs::File;
 use std::io::prelude::*;
@@ -35,9 +36,12 @@ pub fn restore(config: &Path, gen_id: &str, to: &Path) -> anyhow::Result<()> {
     info!("downloaded generation to {}", dbname.display());
 
     let gen = Generation::open(&dbname)?;
+    println!("file count: {}", gen.file_count());
+    let progress = create_progress_bar(gen.file_count());
     for (fileid, entry) in gen.files()? {
-        restore_generation(&client, &gen, fileid, entry, &to)?;
+        restore_generation(&client, &gen, fileid, entry, &to, &progress)?;
     }
+    progress.finish();
 
     // Delete the temporary file.
     std::fs::remove_file(&dbname)?;
@@ -67,8 +71,10 @@ fn restore_generation(
     fileid: u64,
     entry: FilesystemEntry,
     to: &Path,
+    progress: &ProgressBar,
 ) -> anyhow::Result<()> {
-    println!("restoring {}:{}", fileid, entry.path().display());
+    progress.set_message(&format!("{}", entry.path().display()));
+    progress.inc(1);
 
     let path = if entry.path().is_absolute() {
         entry.path().strip_prefix("/")?
@@ -111,4 +117,17 @@ fn restore_regular(
     }
     debug!("restored regular {}", path.display());
     Ok(())
+}
+
+fn create_progress_bar(file_count: u64) -> ProgressBar {
+    let progress = ProgressBar::new(file_count);
+    let parts = vec![
+        "{wide_bar}",
+        "elapsed: {elapsed}",
+        "files: {pos}/{len}",
+        "current: {wide_msg}",
+        "{spinner}",
+    ];
+    progress.set_style(ProgressStyle::default_bar().template(&parts.join("\n")));
+    progress
 }
