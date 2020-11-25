@@ -1,3 +1,4 @@
+pub mod benchmark;
 pub mod checksummer;
 pub mod chunk;
 pub mod chunker;
