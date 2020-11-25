@@ -36,6 +36,10 @@ impl ChunkId {
         }
     }
 
+    pub fn as_bytes(&self) -> &[u8] {
+        self.id.as_bytes()
+    }
+
     pub fn sha256(&self) -> String {
         sha256(self.id.as_bytes())
     }
