@@ -1,6 +1,6 @@
 # Definition of done
 
-For Changes to this project to be considered done, the following must
+For changes to this project to be considered done, the following must
 be true:
 
 * any changes for new functionality add tests for the functionality
