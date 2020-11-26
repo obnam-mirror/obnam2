@@ -45,8 +45,8 @@ is a glossary of such terms.
 The following high-level requirements are not meant to be verifiable
 in an automated way:
 
-* _Not done:_ **Easy to install:** available as a Debian package in an
-  APT repository. Other installation packages will also be provided,
+* _Done:_ **Easy to install:** available as a Debian package in an APT
+  repository. Other installation packages will also be provided,
   hopefully.
 * _Not done:_ **Easy to configure:** only need to configure things
   that are inherently specific to a client, when sensible defaults are
