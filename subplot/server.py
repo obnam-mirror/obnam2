@@ -33,7 +33,7 @@ def start_chunk_server(ctx):
     logging.debug(f"Picked randomly port for obnam-server: {config['port']}")
     ctx["config"] = config
 
-    ctx["server_url"] = f"http://localhost:{port}/chunks"
+    ctx["server_url"] = f"https://localhost:{port}/chunks"
 
     start_daemon(
         ctx,
