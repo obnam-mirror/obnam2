@@ -66,9 +66,9 @@ async fn main() -> anyhow::Result<()> {
 
     debug!("starting warp");
     warp::serve(webroot)
-        // .tls()
-        // .key_path(config_bare.tls_key)
-        // .cert_path(config_bare.tls_cert)
+        .tls()
+        .key_path(config.tls_key)
+        .cert_path(config.tls_cert)
         .run(([127, 0, 0, 1], config.port))
         .await;
     Ok(())
