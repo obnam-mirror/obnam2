@@ -500,12 +500,14 @@ given an installed obnam
 and a running chunk server
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
+and a manifest of the directory live in live.yaml
 when I run obnam backup smoke.yaml
 then backup generation is GEN
 when I run obnam list smoke.yaml
 then generation list contains <GEN>
 when I invoke obnam restore smoke.yaml <GEN> rest
-then data in live and rest match
+given a manifest of the directory live restored in rest in rest.yaml
+then files live.yaml and rest.yaml match
 ~~~
 
 ~~~{#smoke.yaml .file .yaml .numberLines}
