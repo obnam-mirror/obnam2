@@ -530,6 +530,7 @@ bindings:
   - subplot/client.yaml
   - subplot/data.yaml
   - subplot/vendored/runcmd.yaml
+template: python
 functions:
   - subplot/server.py
   - subplot/client.py
