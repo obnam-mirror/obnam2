@@ -6,5 +6,11 @@
 - given: "a file {filename} containing some random data"
   function: create_file_with_random_data
 
-- then: "data in {live} and {restore} match"
-  function: live_and_restored_data_match
+- given: a manifest of the directory {dirname} in {manifest}
+  function: create_manifest_of_live
+
+- given: a manifest of the directory {dirname} restored in {restored} in {manifest}
+  function: create_manifest_of_restored
+
+- then: files {first} and {second} match
+  function: files_match

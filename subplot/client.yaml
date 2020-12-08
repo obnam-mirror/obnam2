@@ -4,12 +4,6 @@
 - given: "a client config based on {filename}"
   function: configure_client
 
-- given: a manifest of the directory {dirname} in {manifest}
-  function: create_manifest_of_live
-
-- given: a manifest of the directory {dirname} restored in {restored} in {manifest}
-  function: create_manifest_of_restored
-
 - when: "I invoke obnam restore {filename} <{genid}> {todir}"
   function: run_obnam_restore
 
@@ -18,6 +12,3 @@
 
 - then: "generation list contains <{gen_id}>"
   function: generation_list_contains
-
-- then: files {first} and {second} match
-  function: files_match

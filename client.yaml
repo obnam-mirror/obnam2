@@ -1,3 +1,3 @@
 server_url: https://localhost:8888/chunks
-root: /home/liw/pers/debian-ansible
+root: /home/liw/pers/obnam/git/live
 dbname: foo.db
