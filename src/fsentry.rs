@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs::{FileType, Metadata};
+use std::os::linux::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 /// A file system entry.
@@ -16,6 +17,11 @@ pub struct FilesystemEntry {
     kind: FilesystemKind,
     path: PathBuf,
     len: u64,
+
+    // 16 bits should be enough for a Unix mode_t.
+    // https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_stat.h.html
+    //  However, it's 32 bits on Linux, so that's what we store.
+    mode: u32,
 }
 
 #[allow(clippy::len_without_is_empty)]
@@ -24,7 +30,13 @@ impl FilesystemEntry {
         let path = path.to_path_buf();
         let kind = FilesystemKind::from_file_type(meta.file_type());
         let len = meta.len();
-        Self { path, kind, len }
+        let mode = meta.st_mode();
+        Self {
+            path,
+            kind,
+            len,
+            mode,
+        }
     }
 
     pub fn kind(&self) -> FilesystemKind {
