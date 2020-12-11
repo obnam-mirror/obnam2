@@ -57,6 +57,30 @@ impl FilesystemEntry {
     pub fn len(&self) -> u64 {
         self.len
     }
+
+    pub fn mode(&self) -> u32 {
+        self.mode
+    }
+
+    pub fn atime(&self) -> i64 {
+        self.atime
+    }
+
+    pub fn atime_ns(&self) -> i64 {
+        self.atime_ns
+    }
+
+    pub fn mtime(&self) -> i64 {
+        self.mtime
+    }
+
+    pub fn mtime_ns(&self) -> i64 {
+        self.mtime_ns
+    }
+
+    pub fn is_dir(&self) -> bool {
+        self.kind() == FilesystemKind::Directory
+    }
 }
 
 /// Different types of file system entries.
