@@ -28,7 +28,8 @@ def _create_manifest_of_directory(ctx, dirname=None, manifest=None):
     runcmd_get_exit_code = globals()["runcmd_get_exit_code"]
     runcmd_get_stdout = globals()["runcmd_get_stdout"]
 
-    runcmd_run(ctx, ["summain", dirname])
+    logging.info(f"creating manifest for {dirname} in {manifest}")
+    runcmd_run(ctx, ["find", "-exec", "summain", "{}", "+"], cwd=dirname)
     assert runcmd_get_exit_code(ctx) == 0
     stdout = runcmd_get_stdout(ctx)
     open(manifest, "w").write(stdout)
@@ -38,7 +39,7 @@ def files_match(ctx, first=None, second=None):
     assert_eq = globals()["assert_eq"]
 
     f = open(first).read()
-    s = open(first).read()
-    logging.debug(f"files_match: f={f!r}")
-    logging.debug(f"files_match: s={s!r}")
+    s = open(second).read()
+    logging.debug(f"files_match: f:\n{f}")
+    logging.debug(f"files_match: s:\n{s}")
     assert_eq(f, s)
