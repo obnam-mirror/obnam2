@@ -1,5 +1,4 @@
 import os
-import subprocess
 import yaml
 
 
@@ -45,39 +44,6 @@ def capture_generation_id(ctx, varname=None):
     v = ctx.get("vars", {})
     v[varname] = gen_id
     ctx["vars"] = v
-
-
-def create_manifest_of_live(ctx, dirname=None, manifest=None):
-    _create_manifest_of_directory(ctx, dirname=dirname, manifest=manifest)
-
-
-def create_manifest_of_restored(ctx, dirname=None, restored=None, manifest=None):
-    _create_manifest_of_directory(
-        ctx, dirname=os.path.join(restored, "./" + dirname), manifest=manifest
-    )
-
-
-def _create_manifest_of_directory(ctx, dirname=None, manifest=None):
-    runcmd_run = globals()["runcmd_run"]
-    runcmd_get_exit_code = globals()["runcmd_get_exit_code"]
-    runcmd_get_stdout = globals()["runcmd_get_stdout"]
-
-    runcmd_run(ctx, ["summain", dirname])
-    assert runcmd_get_exit_code(ctx) == 0
-    stdout = runcmd_get_stdout(ctx)
-    open(manifest, "w").write(stdout)
-
-
-def files_match(ctx, first=None, second=None):
-    assert_eq = globals()["assert_eq"]
-
-    f = open(first).read()
-    s = open(first).read()
-    assert_eq(f, s)
-
-
-def live_and_restored_data_match(ctx, live=None, restore=None):
-    subprocess.check_call(["diff", "-rq", f"{live}/.", f"{restore}/{live}/."])
 
 
 def generation_list_contains(ctx, gen_id=None):
