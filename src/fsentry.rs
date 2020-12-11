@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 /// A file system entry.
@@ -9,7 +10,7 @@ use std::path::{Path, PathBuf};
 ///
 /// This is everything Obnam cares about each file system object, when
 /// making a backup.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FilesystemEntry {
     kind: FilesystemKind,
     path: PathBuf,
@@ -54,7 +55,7 @@ impl FilesystemEntry {
 }
 
 /// Different types of file system entries.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FilesystemKind {
     Regular,
     Directory,

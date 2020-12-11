@@ -1,11 +1,7 @@
-use crate::fsentry::{FilesystemEntry, FilesystemKind};
-use std::ffi::OsStr;
-use std::os::unix::ffi::OsStrExt;
-//use crate::fsiter::FsIterator;
 use crate::chunkid::ChunkId;
+use crate::fsentry::FilesystemEntry;
 use rusqlite::{params, Connection, OpenFlags, Row, Transaction};
-use std::os::unix::ffi::OsStringExt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// A backup generation.
 pub struct Generation {
@@ -21,7 +17,7 @@ impl Generation {
         let flags = OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.execute(
-            "CREATE TABLE files (fileno INTEGER PRIMARY KEY, path BLOB, kind INTEGER, len INTEGER)",
+            "CREATE TABLE files (fileno INTEGER PRIMARY KEY, json TEXT)",
             params![],
         )?;
         conn.execute(
@@ -75,7 +71,8 @@ impl Generation {
         let iter = stmt.query_map(params![], |row| row_to_entry(row))?;
         let mut files: Vec<(u64, FilesystemEntry)> = vec![];
         for x in iter {
-            let (fileno, entry) = x?;
+            let (fileno, json) = x?;
+            let entry = serde_json::from_str(&json)?;
             files.push((fileno, entry));
         }
         Ok(files)
@@ -96,19 +93,11 @@ impl Generation {
     }
 }
 
-fn row_to_entry(row: &Row) -> rusqlite::Result<(u64, FilesystemEntry)> {
+fn row_to_entry(row: &Row) -> rusqlite::Result<(u64, String)> {
     let fileno: i64 = row.get(row.column_index("fileno")?)?;
     let fileno = fileno as u64;
-    let path: Vec<u8> = row.get(row.column_index("path")?)?;
-    let path: &OsStr = OsStrExt::from_bytes(&path);
-    let path: PathBuf = PathBuf::from(path);
-    let kind = row.get(row.column_index("kind")?)?;
-    let kind = FilesystemKind::from_code(kind).unwrap();
-    let entry = match kind {
-        FilesystemKind::Regular => FilesystemEntry::regular(path, 0),
-        FilesystemKind::Directory => FilesystemEntry::directory(path),
-    };
-    Ok((fileno, entry))
+    let json: String = row.get(row.column_index("json")?)?;
+    Ok((fileno, json))
 }
 
 fn insert_one(
@@ -117,13 +106,11 @@ fn insert_one(
     fileno: u64,
     ids: &[ChunkId],
 ) -> anyhow::Result<()> {
-    let path = e.path().as_os_str().to_os_string().into_vec();
-    let kind = e.kind().as_code();
-    let len = e.len() as i64;
     let fileno = fileno as i64;
+    let json = serde_json::to_string(&e)?;
     t.execute(
-        "INSERT INTO files (fileno, path, kind, len) VALUES (?1, ?2, ?3, ?4)",
-        params![fileno, path, kind, len],
+        "INSERT INTO files (fileno, json) VALUES (?1, ?2)",
+        params![fileno, &json],
     )?;
     for id in ids {
         t.execute(
