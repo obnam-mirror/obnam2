@@ -22,20 +22,27 @@ pub struct FilesystemEntry {
     // https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_stat.h.html
     //  However, it's 32 bits on Linux, so that's what we store.
     mode: u32,
+
+    // Linux can store file system time stamps in nanosecond
+    // resolution. We store them as two 64-bit integers.
+    mtime: i64,
+    mtime_ns: i64,
+    atime: i64,
+    atime_ns: i64,
 }
 
 #[allow(clippy::len_without_is_empty)]
 impl FilesystemEntry {
     pub fn from_metadata(path: &Path, meta: &Metadata) -> Self {
-        let path = path.to_path_buf();
-        let kind = FilesystemKind::from_file_type(meta.file_type());
-        let len = meta.len();
-        let mode = meta.st_mode();
         Self {
-            path,
-            kind,
-            len,
-            mode,
+            path: path.to_path_buf(),
+            kind: FilesystemKind::from_file_type(meta.file_type()),
+            len: meta.len(),
+            mode: meta.st_mode(),
+            mtime: meta.st_mtime(),
+            mtime_ns: meta.st_mtime_nsec(),
+            atime: meta.st_atime(),
+            atime_ns: meta.st_atime_nsec(),
         }
     }
 
