@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fs::{FileType, Metadata};
 use std::path::{Path, PathBuf};
 
 /// A file system entry.
@@ -19,26 +20,11 @@ pub struct FilesystemEntry {
 
 #[allow(clippy::len_without_is_empty)]
 impl FilesystemEntry {
-    fn new(kind: FilesystemKind, path: &Path, len: u64) -> Self {
-        Self {
-            path: path.to_path_buf(),
-            kind,
-            len,
-        }
-    }
-
-    pub fn regular<P>(path: P, len: u64) -> Self
-    where
-        P: AsRef<Path>,
-    {
-        Self::new(FilesystemKind::Regular, path.as_ref(), len)
-    }
-
-    pub fn directory<P>(path: P) -> Self
-    where
-        P: AsRef<Path>,
-    {
-        Self::new(FilesystemKind::Directory, path.as_ref(), 0)
+    pub fn from_metadata(path: &Path, meta: &Metadata) -> Self {
+        let path = path.to_path_buf();
+        let kind = FilesystemKind::from_file_type(meta.file_type());
+        let len = meta.len();
+        Self { path, kind, len }
     }
 
     pub fn kind(&self) -> FilesystemKind {
@@ -62,6 +48,16 @@ pub enum FilesystemKind {
 }
 
 impl FilesystemKind {
+    pub fn from_file_type(file_type: FileType) -> Self {
+        if file_type.is_file() {
+            FilesystemKind::Regular
+        } else if file_type.is_dir() {
+            FilesystemKind::Directory
+        } else {
+            panic!("unknown file type {:?}", file_type);
+        }
+    }
+
     pub fn as_code(&self) -> u8 {
         match self {
             FilesystemKind::Regular => 0,
@@ -86,27 +82,7 @@ pub enum Error {
 
 #[cfg(test)]
 mod test {
-    use super::{FilesystemEntry, FilesystemKind};
-    use std::path::Path;
-
-    #[test]
-    fn regular_file() {
-        let filename = Path::new("foo.dat");
-        let len = 123;
-        let e = FilesystemEntry::regular(filename, len);
-        assert_eq!(e.kind(), FilesystemKind::Regular);
-        assert_eq!(e.path(), filename);
-        assert_eq!(e.len(), len);
-    }
-
-    #[test]
-    fn directory() {
-        let filename = Path::new("foo.dat");
-        let e = FilesystemEntry::directory(filename);
-        assert_eq!(e.kind(), FilesystemKind::Directory);
-        assert_eq!(e.path(), filename);
-        assert_eq!(e.len(), 0);
-    }
+    use super::FilesystemKind;
 
     #[test]
     fn file_kind_regular_round_trips() {

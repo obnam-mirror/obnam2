@@ -28,10 +28,6 @@ impl Iterator for FsIterator {
 
 fn new_entry(e: &walkdir::DirEntry) -> anyhow::Result<FilesystemEntry> {
     let meta = e.metadata()?;
-    let kind = if meta.is_dir() {
-        FilesystemEntry::directory(e.path())
-    } else {
-        FilesystemEntry::regular(e.path(), meta.len())
-    };
-    Ok(kind)
+    let entry = FilesystemEntry::from_metadata(e.path(), &meta);
+    Ok(entry)
 }
