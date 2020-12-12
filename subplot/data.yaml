@@ -6,6 +6,9 @@
 - given: "a file {filename} containing some random data"
   function: create_file_with_random_data
 
+- given: file {filename} has mode {mode}
+  function: chmod_file
+
 - given: a manifest of the directory {dirname} in {manifest}
   function: create_manifest_of_live
 

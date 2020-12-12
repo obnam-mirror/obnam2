@@ -550,6 +550,25 @@ given a manifest of the directory live restored in rest in rest.yaml
 then files live.yaml and rest.yaml match
 ~~~
 
+### Mode bits
+
+This scenario verifies that the mode ("permission") bits are restored
+correctly.
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on metadata.yaml
+and a file live/data.dat containing some random data
+and file live/data.dat has mode 464
+and a manifest of the directory live in live.yaml
+when I run obnam backup metadata.yaml
+then backup generation is GEN
+when I invoke obnam restore metadata.yaml <GEN> rest
+given a manifest of the directory live restored in rest in rest.yaml
+then files live.yaml and rest.yaml match
+~~~
+
 
 
 
