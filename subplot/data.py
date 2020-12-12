@@ -13,6 +13,10 @@ def create_file_with_random_data(ctx, filename=None):
         f.write(data)
 
 
+def chmod_file(ctx, filename=None, mode=None):
+    os.chmod(filename, int(mode, 8))
+
+
 def create_manifest_of_live(ctx, dirname=None, manifest=None):
     _create_manifest_of_directory(ctx, dirname=dirname, manifest=manifest)
 
