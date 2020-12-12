@@ -59,9 +59,11 @@ impl BackupClient {
         e: FilesystemEntry,
         size: usize,
     ) -> anyhow::Result<(FilesystemEntry, Vec<ChunkId>)> {
+        debug!("entry: {:?}", e);
         let ids = match e.kind() {
             FilesystemKind::Regular => self.read_file(e.path(), size)?,
             FilesystemKind::Directory => vec![],
+            FilesystemKind::Symlink => vec![],
         };
         Ok((e, ids))
     }

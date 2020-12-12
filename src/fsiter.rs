@@ -1,4 +1,5 @@
 use crate::fsentry::FilesystemEntry;
+use log::info;
 use std::path::Path;
 use walkdir::{IntoIter, WalkDir};
 
@@ -20,7 +21,10 @@ impl Iterator for FsIterator {
     fn next(&mut self) -> Option<Self::Item> {
         match self.iter.next() {
             None => None,
-            Some(Ok(entry)) => Some(new_entry(&entry)),
+            Some(Ok(entry)) => {
+                info!("found {}", entry.path().display());
+                Some(new_entry(&entry))
+            }
             Some(Err(err)) => Some(Err(err.into())),
         }
     }
@@ -28,6 +32,6 @@ impl Iterator for FsIterator {
 
 fn new_entry(e: &walkdir::DirEntry) -> anyhow::Result<FilesystemEntry> {
     let meta = e.metadata()?;
-    let entry = FilesystemEntry::from_metadata(e.path(), &meta);
+    let entry = FilesystemEntry::from_metadata(e.path(), &meta)?;
     Ok(entry)
 }

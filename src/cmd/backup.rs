@@ -2,6 +2,7 @@ use crate::client::{BackupClient, ClientConfig};
 use crate::fsiter::FsIterator;
 use crate::generation::Generation;
 use indicatif::{ProgressBar, ProgressStyle};
+use log::info;
 use std::path::Path;
 use tempfile::NamedTempFile;
 
@@ -24,13 +25,14 @@ pub fn backup(config: &Path, buffer_size: usize) -> anyhow::Result<()> {
         // The fetching is in its own block so that the file handles
         // get closed and data flushed to disk.
         let mut gen = Generation::create(&dbname)?;
-        let progress = create_progress_bar(GUESS_FILE_COUNT);
+        let progress = create_progress_bar(GUESS_FILE_COUNT, false);
         progress.enable_steady_tick(100);
         gen.insert_iter(FsIterator::new(&config.root).map(|entry| {
             progress.inc(1);
             match entry {
                 Err(err) => Err(err),
                 Ok(entry) => {
+                    info!("backup: {}", entry.path().display());
                     progress.set_message(&format!("{}", entry.path().display()));
                     client.upload_filesystem_entry(entry, buffer_size)
                 }
@@ -52,8 +54,12 @@ pub fn backup(config: &Path, buffer_size: usize) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn create_progress_bar(file_count: u64) -> ProgressBar {
-    let progress = ProgressBar::new(file_count);
+fn create_progress_bar(file_count: u64, verbose: bool) -> ProgressBar {
+    let progress = if verbose {
+        ProgressBar::new(file_count)
+    } else {
+        ProgressBar::hidden()
+    };
     let parts = vec![
         "{wide_bar}",
         "elapsed: {elapsed}",

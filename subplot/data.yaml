@@ -9,6 +9,9 @@
 - given: file {filename} has mode {mode}
   function: chmod_file
 
+- given: symbolink link {linkname} that points at {target}
+  function: create_symlink
+
 - given: a manifest of the directory {dirname} in {manifest}
   function: create_manifest_of_live
 
