@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs::{FileType, Metadata};
+use std::os::linux::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 /// A file system entry.
@@ -16,15 +17,33 @@ pub struct FilesystemEntry {
     kind: FilesystemKind,
     path: PathBuf,
     len: u64,
+
+    // 16 bits should be enough for a Unix mode_t.
+    // https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_stat.h.html
+    //  However, it's 32 bits on Linux, so that's what we store.
+    mode: u32,
+
+    // Linux can store file system time stamps in nanosecond
+    // resolution. We store them as two 64-bit integers.
+    mtime: i64,
+    mtime_ns: i64,
+    atime: i64,
+    atime_ns: i64,
 }
 
 #[allow(clippy::len_without_is_empty)]
 impl FilesystemEntry {
     pub fn from_metadata(path: &Path, meta: &Metadata) -> Self {
-        let path = path.to_path_buf();
-        let kind = FilesystemKind::from_file_type(meta.file_type());
-        let len = meta.len();
-        Self { path, kind, len }
+        Self {
+            path: path.to_path_buf(),
+            kind: FilesystemKind::from_file_type(meta.file_type()),
+            len: meta.len(),
+            mode: meta.st_mode(),
+            mtime: meta.st_mtime(),
+            mtime_ns: meta.st_mtime_nsec(),
+            atime: meta.st_atime(),
+            atime_ns: meta.st_atime_nsec(),
+        }
     }
 
     pub fn kind(&self) -> FilesystemKind {
@@ -37,6 +56,30 @@ impl FilesystemEntry {
 
     pub fn len(&self) -> u64 {
         self.len
+    }
+
+    pub fn mode(&self) -> u32 {
+        self.mode
+    }
+
+    pub fn atime(&self) -> i64 {
+        self.atime
+    }
+
+    pub fn atime_ns(&self) -> i64 {
+        self.atime_ns
+    }
+
+    pub fn mtime(&self) -> i64 {
+        self.mtime
+    }
+
+    pub fn mtime_ns(&self) -> i64 {
+        self.mtime_ns
+    }
+
+    pub fn is_dir(&self) -> bool {
+        self.kind() == FilesystemKind::Directory
     }
 }
 

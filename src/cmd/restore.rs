@@ -3,9 +3,12 @@ use crate::client::ClientConfig;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::Generation;
 use indicatif::{ProgressBar, ProgressStyle};
-use log::{debug, info};
+use libc::{fchmod, futimens, timespec};
+use log::{debug, error, info};
 use std::fs::File;
 use std::io::prelude::*;
+use std::io::Error;
+use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use tempfile::NamedTempFile;
@@ -36,10 +39,15 @@ pub fn restore(config: &Path, gen_id: &str, to: &Path) -> anyhow::Result<()> {
     info!("downloaded generation to {}", dbname.display());
 
     let gen = Generation::open(&dbname)?;
-    println!("file count: {}", gen.file_count());
-    let progress = create_progress_bar(gen.file_count());
+    info!("restore file count: {}", gen.file_count());
+    let progress = create_progress_bar(gen.file_count(), false);
     for (fileid, entry) in gen.files()? {
-        restore_generation(&client, &gen, fileid, entry, &to, &progress)?;
+        restore_generation(&client, &gen, fileid, &entry, &to, &progress)?;
+    }
+    for (_, entry) in gen.files()? {
+        if entry.is_dir() {
+            restore_directory_metadata(&entry, &to)?;
+        }
     }
     progress.finish();
 
@@ -69,21 +77,14 @@ fn restore_generation(
     client: &BackupClient,
     gen: &Generation,
     fileid: u64,
-    entry: FilesystemEntry,
+    entry: &FilesystemEntry,
     to: &Path,
     progress: &ProgressBar,
 ) -> anyhow::Result<()> {
     progress.set_message(&format!("{}", entry.path().display()));
     progress.inc(1);
 
-    let path = if entry.path().is_absolute() {
-        entry.path().strip_prefix("/")?
-    } else {
-        entry.path()
-    };
-    let to = to.join(path);
-    debug!("  to: {}", to.display());
-
+    let to = restored_path(entry, to)?;
     match entry.kind() {
         FilesystemKind::Regular => restore_regular(client, &gen, &to, fileid, &entry)?,
         FilesystemKind::Directory => restore_directory(&to)?,
@@ -97,12 +98,33 @@ fn restore_directory(path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn restore_directory_metadata(entry: &FilesystemEntry, to: &Path) -> anyhow::Result<()> {
+    let to = restored_path(entry, to)?;
+    match entry.kind() {
+        FilesystemKind::Directory => restore_metadata(&to, entry)?,
+        _ => panic!(
+            "restore_directory_metadata called with non-directory {:?}",
+            entry,
+        ),
+    }
+    Ok(())
+}
+
+fn restored_path(entry: &FilesystemEntry, to: &Path) -> anyhow::Result<PathBuf> {
+    let path = if entry.path().is_absolute() {
+        entry.path().strip_prefix("/")?
+    } else {
+        entry.path()
+    };
+    Ok(to.join(path))
+}
+
 fn restore_regular(
     client: &BackupClient,
     gen: &Generation,
     path: &Path,
     fileid: u64,
-    _entry: &FilesystemEntry,
+    entry: &FilesystemEntry,
 ) -> anyhow::Result<()> {
     debug!("restoring regular {}", path.display());
     let parent = path.parent().unwrap();
@@ -114,13 +136,56 @@ fn restore_regular(
             let chunk = client.fetch_chunk(&chunkid)?;
             file.write_all(chunk.data())?;
         }
+        restore_metadata(path, entry)?;
     }
     debug!("restored regular {}", path.display());
     Ok(())
 }
 
-fn create_progress_bar(file_count: u64) -> ProgressBar {
-    let progress = ProgressBar::new(file_count);
+fn restore_metadata(path: &Path, entry: &FilesystemEntry) -> anyhow::Result<()> {
+    debug!("restoring metadata for {}", entry.path().display());
+
+    let handle = File::open(path)?;
+
+    let atime = timespec {
+        tv_sec: entry.atime(),
+        tv_nsec: entry.atime_ns(),
+    };
+    let mtime = timespec {
+        tv_sec: entry.mtime(),
+        tv_nsec: entry.mtime_ns(),
+    };
+    let times = [atime, mtime];
+    let times: *const timespec = &times[0];
+
+    // We have to use unsafe here to be able call the libc functions
+    // below.
+    unsafe {
+        let fd = handle.as_raw_fd(); // FIXME: needs to NOT follow symlinks
+
+        debug!("fchmod");
+        if fchmod(fd, entry.mode()) == -1 {
+            let error = Error::last_os_error();
+            error!("fchmod failed on {}", path.display());
+            return Err(error.into());
+        }
+
+        debug!("futimens");
+        if futimens(fd, times) == -1 {
+            let error = Error::last_os_error();
+            error!("futimens failed on {}", path.display());
+            return Err(error.into());
+        }
+    }
+    Ok(())
+}
+
+fn create_progress_bar(file_count: u64, verbose: bool) -> ProgressBar {
+    let progress = if verbose {
+        ProgressBar::new(file_count)
+    } else {
+        ProgressBar::hidden()
+    };
     let parts = vec![
         "{wide_bar}",
         "elapsed: {elapsed}",
