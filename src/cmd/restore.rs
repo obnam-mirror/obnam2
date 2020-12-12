@@ -8,6 +8,7 @@ use log::{debug, error, info};
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::Error;
+use std::os::unix::fs::symlink;
 use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
@@ -81,6 +82,7 @@ fn restore_generation(
     to: &Path,
     progress: &ProgressBar,
 ) -> anyhow::Result<()> {
+    debug!("restoring {:?}", entry);
     progress.set_message(&format!("{}", entry.path().display()));
     progress.inc(1);
 
@@ -88,6 +90,7 @@ fn restore_generation(
     match entry.kind() {
         FilesystemKind::Regular => restore_regular(client, &gen, &to, fileid, &entry)?,
         FilesystemKind::Directory => restore_directory(&to)?,
+        FilesystemKind::Symlink => restore_symlink(&to, &entry)?,
     }
     Ok(())
 }
@@ -137,6 +140,20 @@ fn restore_regular(
             file.write_all(chunk.data())?;
         }
         restore_metadata(path, entry)?;
+    }
+    debug!("restored regular {}", path.display());
+    Ok(())
+}
+
+fn restore_symlink(path: &Path, entry: &FilesystemEntry) -> anyhow::Result<()> {
+    debug!("restoring symlink {}", path.display());
+    let parent = path.parent().unwrap();
+    debug!("  mkdir {}", parent.display());
+    if !parent.exists() {
+        std::fs::create_dir_all(parent)?;
+        {
+            symlink(path, entry.symlink_target().unwrap())?;
+        }
     }
     debug!("restored regular {}", path.display());
     Ok(())

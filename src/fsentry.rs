@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fs::read_link;
 use std::fs::{FileType, Metadata};
 use std::os::linux::fs::MetadataExt;
 use std::path::{Path, PathBuf};
@@ -29,12 +30,16 @@ pub struct FilesystemEntry {
     mtime_ns: i64,
     atime: i64,
     atime_ns: i64,
+
+    // The target of a symbolic link, if any.
+    symlink_target: Option<PathBuf>,
 }
 
 #[allow(clippy::len_without_is_empty)]
 impl FilesystemEntry {
-    pub fn from_metadata(path: &Path, meta: &Metadata) -> Self {
-        Self {
+    pub fn from_metadata(path: &Path, meta: &Metadata) -> anyhow::Result<Self> {
+        let kind = FilesystemKind::from_file_type(meta.file_type());
+        Ok(Self {
             path: path.to_path_buf(),
             kind: FilesystemKind::from_file_type(meta.file_type()),
             len: meta.len(),
@@ -43,7 +48,12 @@ impl FilesystemEntry {
             mtime_ns: meta.st_mtime_nsec(),
             atime: meta.st_atime(),
             atime_ns: meta.st_atime_nsec(),
-        }
+            symlink_target: if kind == FilesystemKind::Symlink {
+                Some(read_link(path)?)
+            } else {
+                None
+            },
+        })
     }
 
     pub fn kind(&self) -> FilesystemKind {
@@ -81,6 +91,10 @@ impl FilesystemEntry {
     pub fn is_dir(&self) -> bool {
         self.kind() == FilesystemKind::Directory
     }
+
+    pub fn symlink_target(&self) -> Option<PathBuf> {
+        self.symlink_target.clone()
+    }
 }
 
 /// Different types of file system entries.
@@ -88,6 +102,7 @@ impl FilesystemEntry {
 pub enum FilesystemKind {
     Regular,
     Directory,
+    Symlink,
 }
 
 impl FilesystemKind {
@@ -96,6 +111,8 @@ impl FilesystemKind {
             FilesystemKind::Regular
         } else if file_type.is_dir() {
             FilesystemKind::Directory
+        } else if file_type.is_symlink() {
+            FilesystemKind::Symlink
         } else {
             panic!("unknown file type {:?}", file_type);
         }
@@ -105,6 +122,7 @@ impl FilesystemKind {
         match self {
             FilesystemKind::Regular => 0,
             FilesystemKind::Directory => 1,
+            FilesystemKind::Symlink => 2,
         }
     }
 
@@ -112,6 +130,7 @@ impl FilesystemKind {
         match code {
             0 => Ok(FilesystemKind::Regular),
             1 => Ok(FilesystemKind::Directory),
+            2 => Ok(FilesystemKind::Symlink),
             _ => Err(Error::UnknownFileKindCode(code).into()),
         }
     }
