@@ -283,6 +283,295 @@ public keys. The clients have the private keys and generate the tokens
 themselves.
 
 
+# File metadata
+
+Files in a file system contain data and have metadata: data about the
+file itself. The most obvious metadata is the file name, but there is
+much more. A backup system needs to back up, but also restore, all
+relevant metadata. This chapter discusses all the metadata the Obnam
+authors know about, and how they understand it, and how Obnam handles
+it, and why it handles it that way.
+
+The long term goal is for Obnam to handle everything, but it may take
+a while to get there.
+
+## On portability
+
+Currently, Obnam is developed on Linux, and targets Linux only. Later,
+it may be useful to add support for other systems, and Obnam should
+handle file metadata in a portable way, when that makes sense and is
+possible. This means that if a backup is made on one type of system,
+but restored on another type, Obnam should do its best to make the
+restored data as identical as possible to what the data would be if it
+had been copied over directly, with minimal change in meaning.
+
+This affects not only cases when the operating system changes, but
+also when the file system changes. Backing up on Linux ext4 file
+system and restoring to a vfat file system brings up the same class of
+issues with file metadata.
+
+There are many [type of file systems][] with varying capabilities and
+behaviors. Obnam attempts to handle everything the Linux system it
+runs on can handle.
+
+[type of file systems]: https://en.wikipedia.org/wiki/Comparison_of_file_systems
+
+## Filenames
+
+On Unix, the filename is a sequence of bytes. Certain bytes have
+special meaning:
+
+byte        ASCII       meaning
+----        -------     ----------
+0           NUL         indicates end of filename
+56          period      used for . and .. directory entries
+57          slash       used to separate components in a pathname
+
+On generic Unix, the operating system does not interpret other bytes.
+It does not impose a character set. Binary filenames are OK, as long
+as they use the above bytes only in the reserved manner. It is up to
+the presentation layer (the user interface) to present the name in a
+way suitable for humans.
+
+For now, Obnam stores fully qualified pathnames as strings of bytes as
+above. Arguably, Obnam could split the pathname into components,
+stored separately, to avoid having to give ASCII slash characters
+special meaning. The `.` and `..` directory entries are not stored by
+Obnam.
+
+Different versions of Unix, and different file system types, put
+limits on the length of a filename or components of a pathname. Obnam
+does not.
+
+On other operating systems, and on some file system types, filenames
+are more restricted. For example, on MacOS, although nominally a Unix
+variant, filenames must form valid UTF-8 strings normalized in a
+particular way. While Obnam does not support MacOS at the time of
+writing, if it ever will, that needn't affect the way filenames are
+stored. They will be stored as strings of bytes, and if necessary,
+upon restore, a filename can be morphed into a form required by MacOS
+or the filename being written to. The part of Obnam that restores
+files will have to learn how to do that.
+
+The generic Unix approach does not allow for "drive letters", used by
+Windows. Not sure if supporting that is needed.
+
+
+## Unix inode metadata: `struct stat`
+
+[stat(2)]: https://linux.die.net/man/2/stat
+[lstat(2)]: https://linux.die.net/man/2/lstat
+[inode]: https://en.wikipedia.org/wiki/Inode
+
+The basic Unix system call for querying a file's metadata is
+[stat(2)][]. However, since it follows symbolic links, Obnam needs to
+use [lstat(2)][] instead. The metadata is stored in an [inode][]. Both
+variants return a C `struct stat`. On Linux, it has the following
+fields:
+
+* `st_dev` &ndash; id of the block device containing file system where
+  the file is; this encodes the major and minor device numbers
+  - this field can't be restored as such, it is forced by the
+    operating system for the file system to which files are restored
+  - Obnam stores it so that hard links can be restored, see below
+* `st_ino` &ndash; the inode number for the file
+  - this field can't be restored as such, it is forced by the file
+    system whan the restored file is created
+  - Obnam stores it so that hard links can be restored, see below
+* `st_nlink` &ndash; number of hard links referring to the inode
+  - this field can't be restored as such, it is maintained by the
+    operating system when hard links are created
+  - Obnam stores it so that hard links can be restored, see below
+* `st_mode` &ndash; file type and permissions
+  - stored and restored
+* `st_uid` &ndash; the numeric id of the user account owning the file
+  - stored
+  - restored if restore is running as root, otherwise not restored
+* `st_gid` &ndash; the numeric id of the group owning the file
+  - stored
+  - restored if restore is running as root, otherwise not restored
+* `st_rdev` &ndash; the device this inode represents
+  - not stored?
+* `st_size` &ndash; size or length of the file in bytes
+  - stored
+  - restored implicitly be re-creating the origtinal contents
+* `st_blksize` &ndash; preferred block size for efficient I/O
+  - not stored?
+* `st_blocks` &ndash; how many blocks of 512 bytes are actually
+    allocated to store this file's contents
+  - see below for discussion about sparse files
+  - not stored by Obnam
+* `st_atime` &ndash; timestamp of latest access
+  - stored and restored
+  - On Linux, split into two integer fields
+* `st_mtime` &ndash; timestamp of latest modification
+  - stored and restored
+  - On Linux, split into two integer fields
+* `st_ctime` &ndash; timestamp of latest inode change
+  - On Linux, split into two integer fields
+  - stored
+  - not restored
+
+Obnam stores most these fields. Not all of them can be restored,
+especially not explicitly. The `st_dev` and `st_ino` fields get set by
+the file system when when a restored file is created. They're stored
+so that Obnam can restore all hard links to the same inode.
+
+## Hard links and symbolic links
+
+In Unix, filenames are links to an inode. The inode contains all the
+metadata, except the filename. Many names can link to the same inode.
+These are called hard links.
+
+On Linux, hard links can be created explicitly only for regular files,
+not for directories. This avoids creating cycles in the directory
+tree, which simplifies all software that traverses the file system.
+However, hard links get created implicitly when creating
+sub-directories: the `..` entry in the sub-directory is a hard link to
+the inode of the parent directory.
+
+Unix also supports symbolic links, which are tiny files that contain
+the name of another file. The kernel will follow a symbolic link
+automatically by reading the tiny file, and pretending the contents of
+the file was used instead. Obnam stores the contents of a symbolic
+link, the "target" of the link, and restores the original value
+without modification.
+
+## On access time stamps
+
+The `st_atime` field is automatically updated when a file or directory
+is "accessed". This means reading a file or listing the contents of a
+directory. Accessing a file in a directory does count as accessing the
+directory.
+
+The `st_atime` update can be prevented by updating the file system as
+read-only, or using a mount option `noatime`, `nodiratime`, or
+`relatime`, or by opening the file or directory with the `O_NOATIME`
+option (under certain conditions). This can be a useful for a system
+administrator to do to avoid needless updates if nothing needs the
+access timestamp. There are few uses for it.
+
+Strictly speaking, a backup program can't assume the access timestamp
+is not needed and should do its best to back it up and restore it.
+However, this is trickier that one might think. A backup program can't
+change mount options, or make the file system be read-only. It thus
+needs to use the `NO_ATIME` flag to the [open(2)][] system call.
+
+Obnam does not do this yet. In fact, it doesn't store or restore the
+access time stamp yet.
+
+[open(2)]: https://linux.die.net/man/2/open
+
+## Time stamp representation
+
+Originally, Unix (and Linux) stored file time stamps as whole seconds
+since the beginning of 1970. Linux now stores timestamp with up to
+nanosecond precision, depending on file system type. Obnam handles
+this by storing and restoring nanosecond timestamps. If, when
+restoring, the target file system doesn't support that precision, then
+some accuracy is lost.
+
+Different types of file system store timestamps at different
+precision, and sometimes support a different precision for different
+types of timestamp. The Linux [ext4][] file system supports nanosecond
+precision for all timestamps. The [FAT][] file system supports a 2
+seconds for last modified time, 10 ms for creation time, 1 day for
+access date (if at all), 2 seconds for deletion time.
+
+[ext4]: https://en.wikipedia.org/wiki/Ext4
+[FAT]: https://en.wikipedia.org/wiki/File_Allocation_Table
+
+Obnam uses the same Linux system calls for retrieve timestamps, and
+those always return them at nanosecond precision (if not accuracy).
+Likewise when restoring, Obnam attempts to set the timestamps in the
+same way, and if the target file system supports less precision, the
+result may be imperfect, but there isn't really anything Obnam can do
+to improve that
+
+## Sparse files
+
+On Unix a [sparse file][] is one where some blocks of the file are not
+stored explicitly, but the file still has a length. Instead, the file
+system return zero bytes for the missing blocks. The blocks that
+aren't explicitly stored form "holes" in the file.
+
+[sparse file]: https://en.wikipedia.org/wiki/Sparse_file
+[truncate(1)]: https://linux.die.net/man/1/truncate
+
+As an example, one can create a very large file with the command line
+[truncate(1)][] command:
+
+~~~sh
+$ truncate --size 1T sparse
+$ ls -l sparse
+-rw-rw-r-- 1 liw liw 1099511627776 Dec  8 11:18 sparse
+$ du sparse
+0	sparse
+~~~
+
+It's a one-terabyte long file that uses no space! If the file is read,
+the file system serves one terabyte of zero bytes. If it's written,
+the file system creates a new block at the location of the write, and
+fills it new data, and fills the rest of the block with zeroes.
+
+The metadata fields `st_size` and `st_blocks` make this visible. The
+`ls` command shows the `st_size` field. The `du` command reports disk
+usage based on the `st_blocks` field.
+
+Sparse files are surprisingly useful. They can, for example, be used
+to implement large virtual disks without using more space than is
+actually stored on the file system on the virtual disk.
+
+Sparse files are a challenge to backup systems: it is wasteful to
+store very large amounts of zeroes. Upon restore, the hole should be
+re-created rather then zeroes written out, or else the restored files
+will use much more disk space than the original files.
+
+Obnam will store sparse files explicitly. It will find the holes in a
+file and store only the parts of a file that are not holes, and their
+position. But this isn't implemented yet.
+
+
+## Access control lists (Posix ACL)
+
+FIXME
+
+## Extended attributes
+
+FIXME
+
+## Extra Linux ext2/3/4 metadata
+
+FIXME
+
+## On implementation and abstractions
+
+Obnam clearly needs to abstract metadata across target systems. There
+are two basic appraches:
+
+* every target gets its own, distinct metadata structure:
+  LinuxMetadata, NetbsdMetadata, MacosMetadata, WindowsMetadata, and
+  so on
+* all targets share a common metadata structure that gets created in a
+  target specific way
+
+The first approach seems likely to cause an explosion of variants, and
+thus lead to more complexity overall. Thus, Obnam uses the second
+approach.
+
+The Obnam source code has the `src/fsentry.rs` module, which is the
+common metadata structure, `FsEntry`. It has a default value that is
+adjusted using system specific functions, based on operating system
+specific variants of the `std::fs::Metadata` structure in the Rust
+standard library.
+
+In addition to dealing with different `Metadata` on each system, the
+`FsEntry` needs to be stored in an SQLite database and retrieved from
+there. Initially, this will be done by serializing it into JSON and
+back. This is done at early development time, to simplify the process
+in which new metadata fields are added. It will be changed later, if
+there is need to.
+
 # Implementation
 
 The minimum viable product will not support sharing of data between
