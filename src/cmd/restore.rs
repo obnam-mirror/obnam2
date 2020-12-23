@@ -39,7 +39,7 @@ pub fn restore(config: &ClientConfig, gen_id: &str, to: &Path) -> anyhow::Result
 
     let gen = Generation::open(&dbname)?;
     info!("restore file count: {}", gen.file_count());
-    let progress = create_progress_bar(gen.file_count(), false);
+    let progress = create_progress_bar(gen.file_count(), true);
     for (fileid, entry) in gen.files()? {
         restore_generation(&client, &gen, fileid, &entry, &to, &progress)?;
     }
