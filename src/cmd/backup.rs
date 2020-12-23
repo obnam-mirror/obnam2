@@ -23,7 +23,7 @@ pub fn backup(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<()> {
         // The fetching is in its own block so that the file handles
         // get closed and data flushed to disk.
         let mut gen = Generation::create(&dbname)?;
-        let progress = create_progress_bar(GUESS_FILE_COUNT, false);
+        let progress = create_progress_bar(GUESS_FILE_COUNT, true);
         progress.enable_steady_tick(100);
         gen.insert_iter(FsIterator::new(&config.root).map(|entry| {
             progress.inc(1);
