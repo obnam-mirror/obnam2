@@ -3,13 +3,11 @@ use crate::fsiter::FsIterator;
 use crate::generation::Generation;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::info;
-use std::path::Path;
 use tempfile::NamedTempFile;
 
 const GUESS_FILE_COUNT: u64 = 0;
 
-pub fn backup(config: &Path, buffer_size: usize) -> anyhow::Result<()> {
-    let config = ClientConfig::read_config(config)?;
+pub fn backup(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<()> {
     let client = BackupClient::new(&config.server_url)?;
 
     // Create a named temporary file. We don't meed the open file

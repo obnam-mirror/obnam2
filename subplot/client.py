@@ -28,7 +28,17 @@ def run_obnam_restore(ctx, filename=None, genid=None, todir=None):
 
     genid = ctx["vars"][genid]
     runcmd_run(
-        ctx, ["env", "RUST_LOG=obnam", "obnam", "restore", filename, genid, todir]
+        ctx,
+        [
+            "env",
+            "RUST_LOG=obnam",
+            "obnam",
+            "--config",
+            filename,
+            "restore",
+            genid,
+            todir,
+        ],
     )
 
 

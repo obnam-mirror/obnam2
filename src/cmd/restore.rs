@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use tempfile::NamedTempFile;
 
-pub fn restore(config: &Path, gen_id: &str, to: &Path) -> anyhow::Result<()> {
+pub fn restore(config: &ClientConfig, gen_id: &str, to: &Path) -> anyhow::Result<()> {
     // Create a named temporary file. We don't meed the open file
     // handle, so we discard that.
     let dbname = {
@@ -22,8 +22,6 @@ pub fn restore(config: &Path, gen_id: &str, to: &Path) -> anyhow::Result<()> {
         let (_, dbname) = temp.keep()?;
         dbname
     };
-
-    let config = ClientConfig::read_config(&config).unwrap();
 
     let client = BackupClient::new(&config.server_url)?;
     let gen_chunk = client.fetch_generation(&gen_id)?;
