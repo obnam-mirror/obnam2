@@ -4,7 +4,7 @@
 - given: "a client config based on {filename}"
   function: configure_client
 
-- when: "I invoke obnam restore {filename} <{genid}> {todir}"
+- when: "I invoke obnam --config {filename} restore <{genid}> {todir}"
   function: run_obnam_restore
 
 - then: "backup generation is {varname}"

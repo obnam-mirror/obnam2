@@ -795,11 +795,11 @@ and a running chunk server
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
-when I run obnam backup smoke.yaml
+when I run obnam --config smoke.yaml backup
 then backup generation is GEN
-when I run obnam list smoke.yaml
+when I run obnam --config  smoke.yaml list
 then generation list contains <GEN>
-when I invoke obnam restore smoke.yaml <GEN> rest
+when I invoke obnam --config smoke.yaml restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
 then files live.yaml and rest.yaml match
 ~~~
@@ -832,9 +832,9 @@ and a running chunk server
 and a client config based on metadata.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
-when I run obnam backup metadata.yaml
+when I run obnam --config metadata.yaml backup
 then backup generation is GEN
-when I invoke obnam restore metadata.yaml <GEN> rest
+when I invoke obnam --config metadata.yaml restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
 then files live.yaml and rest.yaml match
 ~~~
@@ -851,9 +851,9 @@ and a client config based on metadata.yaml
 and a file live/data.dat containing some random data
 and file live/data.dat has mode 464
 and a manifest of the directory live in live.yaml
-when I run obnam backup metadata.yaml
+when I run obnam --config metadata.yaml backup
 then backup generation is GEN
-when I invoke obnam restore metadata.yaml <GEN> rest
+when I invoke obnam --config metadata.yaml restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
 then files live.yaml and rest.yaml match
 ~~~
@@ -869,9 +869,9 @@ and a client config based on metadata.yaml
 and a file live/data.dat containing some random data
 and symbolink link live/link that points at data.dat
 and a manifest of the directory live in live.yaml
-when I run obnam backup metadata.yaml
+when I run obnam --config metadata.yaml backup
 then backup generation is GEN
-when I invoke obnam restore metadata.yaml <GEN> rest
+when I invoke obnam --config metadata.yaml restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
 then files live.yaml and rest.yaml match
 ~~~

@@ -1,4 +1,5 @@
 use log::{debug, info};
+use obnam::client::ClientConfig;
 use obnam::cmd::{backup, list, restore};
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -9,32 +10,34 @@ fn main() -> anyhow::Result<()> {
     pretty_env_logger::init();
 
     let opt = Opt::from_args();
+    let config = ClientConfig::read_config(&opt.config)?;
+
     info!("obnam starts");
     debug!("opt: {:?}", opt);
 
-    match opt {
-        Opt::Backup { config } => backup(&config, BUFFER_SIZE)?,
-        Opt::List { config } => list(&config)?,
-        Opt::Restore { config, gen_id, to } => restore(&config, &gen_id, &to)?,
+    match opt.cmd {
+        Command::Backup => backup(&config, BUFFER_SIZE)?,
+        Command::List => list(&config)?,
+        Command::Restore { gen_id, to } => restore(&config, &gen_id, &to)?,
     }
     Ok(())
 }
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "obnam-backup", about = "Simplistic backup client")]
-enum Opt {
-    Backup {
-        #[structopt(parse(from_os_str))]
-        config: PathBuf,
-    },
-    List {
-        #[structopt(parse(from_os_str))]
-        config: PathBuf,
-    },
-    Restore {
-        #[structopt(parse(from_os_str))]
-        config: PathBuf,
+struct Opt {
+    #[structopt(long, short, parse(from_os_str))]
+    config: PathBuf,
 
+    #[structopt(subcommand)]
+    cmd: Command,
+}
+
+#[derive(Debug, StructOpt)]
+enum Command {
+    Backup,
+    List,
+    Restore {
         #[structopt()]
         gen_id: String,
 
