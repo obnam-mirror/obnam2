@@ -7,6 +7,7 @@ use obnam::indexedstore::IndexedStore;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::default::Default;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use structopt::StructOpt;
@@ -27,6 +28,13 @@ async fn main() -> anyhow::Result<()> {
 
     let opt = Opt::from_args();
     let config = Config::read_config(&opt.config).unwrap();
+
+    let addresses: Vec<SocketAddr> = config.address.to_socket_addrs()?.collect();
+    if addresses.is_empty() {
+        error!("specified address is empty set: {:?}", addresses);
+        eprintln!("ERROR: server address is empty: {:?}", addresses);
+        return Err(ConfigError::BadServerAddress.into());
+    }
 
     let store = IndexedStore::new(&config.chunks);
     let store = Arc::new(Mutex::new(store));
@@ -69,7 +77,7 @@ async fn main() -> anyhow::Result<()> {
         .tls()
         .key_path(config.tls_key)
         .cert_path(config.tls_cert)
-        .run(([127, 0, 0, 1], config.port))
+        .run(addresses[0])
         .await;
     Ok(())
 }
@@ -77,16 +85,13 @@ async fn main() -> anyhow::Result<()> {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub chunks: PathBuf,
-    pub port: u16,
+    pub address: String,
     pub tls_key: PathBuf,
     pub tls_cert: PathBuf,
 }
 
 #[derive(Debug, thiserror::Error)]
 enum ConfigError {
-    #[error("Port number {0} too small, would require running as root")]
-    PortTooSmall(u16),
-
     #[error("Directory for chunks {0} does not exist")]
     ChunksDirNotFound(PathBuf),
 
@@ -95,6 +100,9 @@ enum ConfigError {
 
     #[error("TLS key {0} does not exist")]
     TlsKeyNotFound(PathBuf),
+
+    #[error("server address can't be resolved")]
+    BadServerAddress,
 }
 
 impl Config {
@@ -106,9 +114,6 @@ impl Config {
     }
 
     pub fn check(&self) -> anyhow::Result<()> {
-        if self.port < 1024 {
-            return Err(ConfigError::PortTooSmall(self.port).into());
-        }
         if !self.chunks.exists() {
             return Err(ConfigError::ChunksDirNotFound(self.chunks.clone()).into());
         }
