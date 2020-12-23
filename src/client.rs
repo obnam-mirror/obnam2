@@ -90,11 +90,15 @@ impl BackupClient {
         &self.base_url
     }
 
+    fn chunks_url(&self) -> String {
+        format!("{}/chunks", self.base_url())
+    }
+
     pub fn has_chunk(&self, meta: &ChunkMeta) -> anyhow::Result<Option<ChunkId>> {
         trace!("has_chunk: url={:?}", self.base_url());
         let req = self
             .client
-            .get(self.base_url())
+            .get(&self.chunks_url())
             .query(&[("sha256", meta.sha256())])
             .build()?;
 
@@ -123,7 +127,7 @@ impl BackupClient {
     pub fn upload_chunk(&self, meta: ChunkMeta, chunk: DataChunk) -> anyhow::Result<ChunkId> {
         let res = self
             .client
-            .post(self.base_url())
+            .post(&self.chunks_url())
             .header("chunk-meta", meta.to_json())
             .body(chunk.data().to_vec())
             .send()?;
@@ -145,7 +149,7 @@ impl BackupClient {
     ) -> anyhow::Result<ChunkId> {
         let res = self
             .client
-            .post(self.base_url())
+            .post(&self.chunks_url())
             .header("chunk-meta", meta.to_json())
             .body(serde_json::to_string(&gen)?)
             .send()?;
@@ -176,7 +180,7 @@ impl BackupClient {
     }
 
     pub fn list_generations(&self) -> anyhow::Result<Vec<ChunkId>> {
-        let url = format!("{}/?generation=true", self.base_url());
+        let url = format!("{}?generation=true", &self.chunks_url());
         trace!("list_generations: url={:?}", url);
         let req = self.client.get(&url).build()?;
         let res = self.client.execute(req)?;
@@ -189,7 +193,7 @@ impl BackupClient {
     }
 
     pub fn fetch_chunk(&self, chunk_id: &ChunkId) -> anyhow::Result<DataChunk> {
-        let url = format!("{}/{}", self.base_url(), chunk_id);
+        let url = format!("{}/{}", &self.chunks_url(), chunk_id);
         trace!("fetch_chunk: url={:?}", url);
         let req = self.client.get(&url).build()?;
         let res = self.client.execute(req)?;
@@ -203,7 +207,7 @@ impl BackupClient {
     }
 
     pub fn fetch_generation(&self, gen_id: &str) -> anyhow::Result<GenerationChunk> {
-        let url = format!("{}/{}", self.base_url(), gen_id);
+        let url = format!("{}/{}", &self.chunks_url(), gen_id);
         trace!("fetch_generation: url={:?}", url);
         let req = self.client.get(&url).build()?;
         let res = self.client.execute(req)?;
