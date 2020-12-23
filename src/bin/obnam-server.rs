@@ -163,9 +163,11 @@ pub async fn fetch_chunk(
     let store = store.lock().await;
     let id: ChunkId = id.parse().unwrap();
     match store.load(&id) {
-        Ok((meta, chunk)) => {
+        Ok(loaded) => {
+            let meta = loaded.meta().clone();
+            let data = loaded.data().clone();
             info!("found chunk {}: {:?}", id, meta);
-            Ok(ChunkResult::Fetched(meta, chunk))
+            Ok(ChunkResult::Fetched(meta, data))
         }
         Err(e) => {
             error!("chunk not found: {}: {:?}", id, e);

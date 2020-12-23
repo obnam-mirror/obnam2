@@ -2,7 +2,7 @@ use crate::chunk::DataChunk;
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
 use crate::index::Index;
-use crate::store::Store;
+use crate::store::{LoadedChunk, Store};
 use std::path::Path;
 
 /// A store for chunks and their metadata.
@@ -31,7 +31,7 @@ impl IndexedStore {
         Ok(id)
     }
 
-    pub fn load(&self, id: &ChunkId) -> anyhow::Result<(ChunkMeta, DataChunk)> {
+    pub fn load(&self, id: &ChunkId) -> anyhow::Result<LoadedChunk> {
         self.store.load(id)
     }
 
@@ -48,8 +48,8 @@ impl IndexedStore {
     }
 
     pub fn remove(&mut self, id: &ChunkId) -> anyhow::Result<()> {
-        let (meta, _) = self.store.load(id)?;
-        self.index.remove("sha256", meta.sha256());
+        let loaded = self.store.load(id)?;
+        self.index.remove("sha256", loaded.meta().sha256());
         self.index.remove_generation(id);
         self.store.delete(id)?;
         Ok(())
