@@ -8,7 +8,7 @@ use std::default::Default;
 ///
 /// A chunk also contains its associated metadata, except its
 /// identifier.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataChunk {
     data: Vec<u8>,
 }

@@ -61,11 +61,12 @@ impl Store {
     }
 
     /// Load a chunk from a store.
-    pub fn load(&self, id: &ChunkId) -> anyhow::Result<(ChunkMeta, DataChunk)> {
+    pub fn load(&self, id: &ChunkId) -> anyhow::Result<LoadedChunk> {
         let (_, _, dataname) = &self.filenames(id);
         let meta = self.load_meta(id)?;
         let data = std::fs::read(&dataname)?;
-        Ok((meta, DataChunk::new(data)))
+        let data = DataChunk::new(data);
+        Ok(LoadedChunk { meta, data })
     }
 
     /// Delete a chunk from a store.
@@ -74,5 +75,24 @@ impl Store {
         std::fs::remove_file(&metaname)?;
         std::fs::remove_file(&dataname)?;
         Ok(())
+    }
+}
+
+pub struct LoadedChunk {
+    meta: ChunkMeta,
+    data: DataChunk,
+}
+
+impl LoadedChunk {
+    pub fn new(meta: ChunkMeta, data: DataChunk) -> Self {
+        Self { meta, data }
+    }
+
+    pub fn meta(&self) -> &ChunkMeta {
+        &self.meta
+    }
+
+    pub fn data(&self) -> &DataChunk {
+        &self.data
     }
 }
