@@ -1,25 +1,36 @@
-use log::{debug, info};
+use log::{debug, error, info, LevelFilter};
+use log4rs::append::file::FileAppender;
+use log4rs::config::{Appender, Config, Logger, Root};
 use obnam::client::ClientConfig;
 use obnam::cmd::{backup, list, restore};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
 const BUFFER_SIZE: usize = 1024 * 1024;
 
 fn main() -> anyhow::Result<()> {
-    pretty_env_logger::init();
-
     let opt = Opt::from_args();
     let config = ClientConfig::read_config(&opt.config)?;
-
-    info!("obnam starts");
-    debug!("opt: {:?}", opt);
-
-    match opt.cmd {
-        Command::Backup => backup(&config, BUFFER_SIZE)?,
-        Command::List => list(&config)?,
-        Command::Restore { gen_id, to } => restore(&config, &gen_id, &to)?,
+    if let Some(ref log) = config.log {
+        setup_logging(&log)?;
     }
+
+    info!("client starts");
+    debug!("{:?}", opt);
+
+    let result = match opt.cmd {
+        Command::Backup => backup(&config, BUFFER_SIZE),
+        Command::List => list(&config),
+        Command::Restore { gen_id, to } => restore(&config, &gen_id, &to),
+    };
+
+    if let Err(ref e) = result {
+        error!("{}", e);
+        eprintln!("ERROR: {}", e);
+        return result;
+    }
+
+    info!("client ends successfully");
     Ok(())
 }
 
@@ -44,4 +55,17 @@ enum Command {
         #[structopt(parse(from_os_str))]
         to: PathBuf,
     },
+}
+
+fn setup_logging(filename: &Path) -> anyhow::Result<()> {
+    let logfile = FileAppender::builder().build(filename)?;
+
+    let config = Config::builder()
+        .appender(Appender::builder().build("obnam", Box::new(logfile)))
+        .logger(Logger::builder().build("obnam", LevelFilter::Debug))
+        .build(Root::builder().appender("obnam").build(LevelFilter::Debug))?;
+
+    log4rs::init_config(config)?;
+
+    Ok(())
 }
