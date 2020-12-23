@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 pub struct ClientConfig {
     pub server_url: String,
     pub root: PathBuf,
+    pub log: Option<PathBuf>,
 }
 
 impl ClientConfig {
