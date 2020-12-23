@@ -26,14 +26,19 @@ def start_chunk_server(ctx):
     chunks = "chunks"
     os.mkdir(chunks)
 
-    config = {"chunks": chunks, "tls_key": "test.key", "tls_cert": "test.pem"}
-    port = config["port"] = random.randint(2000, 30000)
+    port = random.randint(2000, 30000)
+    ctx["config"] = config = {
+        "chunks": chunks,
+        "tls_key": "test.key",
+        "tls_cert": "test.pem",
+        "address": f"localhost:{port}",
+    }
+
     filename = "config.yaml"
     yaml.safe_dump(config, stream=open(filename, "w"))
-    logging.debug(f"Picked randomly port for obnam-server: {config['port']}")
-    ctx["config"] = config
+    logging.debug(f"Picked randomly port for obnam-server: {config['address']}")
 
-    ctx["server_url"] = f"https://localhost:{port}/chunks"
+    ctx["server_url"] = f"https://{config['address']}/chunks"
 
     start_daemon(
         ctx,
