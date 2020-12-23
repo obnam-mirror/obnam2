@@ -38,7 +38,7 @@ def start_chunk_server(ctx):
     yaml.safe_dump(config, stream=open(filename, "w"))
     logging.debug(f"Picked randomly port for obnam-server: {config['address']}")
 
-    ctx["server_url"] = f"https://{config['address']}/chunks"
+    ctx["server_url"] = f"https://{config['address']}"
 
     start_daemon(
         ctx,
@@ -58,7 +58,7 @@ def stop_chunk_server(ctx):
 
 
 def post_file(ctx, filename=None, path=None, header=None, json=None):
-    url = f"{ctx['server_url']}"
+    url = f"{ctx['server_url']}/chunks"
     headers = {header: json}
     data = open(filename, "rb").read()
     _request(ctx, requests.post, url, headers=headers, data=data)
@@ -70,12 +70,12 @@ def get_chunk_via_var(ctx, var=None):
 
 
 def get_chunk_by_id(ctx, chunk_id=None):
-    url = f"{ctx['server_url']}/{chunk_id}"
+    url = f"{ctx['server_url']}/chunks/{chunk_id}"
     _request(ctx, requests.get, url)
 
 
 def find_chunks_with_sha(ctx, sha=None):
-    url = f"{ctx['server_url']}?sha256={sha}"
+    url = f"{ctx['server_url']}/chunks?sha256={sha}"
     _request(ctx, requests.get, url)
 
 
@@ -85,7 +85,7 @@ def delete_chunk_via_var(ctx, var=None):
 
 
 def delete_chunk_by_id(ctx, chunk_id=None):
-    url = f"{ctx['server_url']}/{chunk_id}"
+    url = f"{ctx['server_url']}/chunks/{chunk_id}"
     _request(ctx, requests.delete, url)
 
 
