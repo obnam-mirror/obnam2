@@ -81,7 +81,7 @@ fn restore_generation(
     progress: &ProgressBar,
 ) -> anyhow::Result<()> {
     debug!("restoring {:?}", entry);
-    progress.set_message(&format!("{}", entry.path().display()));
+    progress.set_message(&format!("{}", entry.pathbuf().display()));
     progress.inc(1);
 
     let to = restored_path(entry, to)?;
@@ -112,10 +112,11 @@ fn restore_directory_metadata(entry: &FilesystemEntry, to: &Path) -> anyhow::Res
 }
 
 fn restored_path(entry: &FilesystemEntry, to: &Path) -> anyhow::Result<PathBuf> {
-    let path = if entry.path().is_absolute() {
-        entry.path().strip_prefix("/")?
+    let path = &entry.pathbuf();
+    let path = if path.is_absolute() {
+        path.strip_prefix("/")?
     } else {
-        entry.path()
+        path
     };
     Ok(to.join(path))
 }
@@ -158,7 +159,7 @@ fn restore_symlink(path: &Path, entry: &FilesystemEntry) -> anyhow::Result<()> {
 }
 
 fn restore_metadata(path: &Path, entry: &FilesystemEntry) -> anyhow::Result<()> {
-    debug!("restoring metadata for {}", entry.path().display());
+    debug!("restoring metadata for {}", entry.pathbuf().display());
 
     let handle = File::open(path)?;
 

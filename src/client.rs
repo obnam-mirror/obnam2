@@ -62,7 +62,7 @@ impl BackupClient {
     ) -> anyhow::Result<(FilesystemEntry, Vec<ChunkId>)> {
         debug!("entry: {:?}", e);
         let ids = match e.kind() {
-            FilesystemKind::Regular => self.read_file(e.path(), size)?,
+            FilesystemKind::Regular => self.read_file(e.pathbuf(), size)?,
             FilesystemKind::Directory => vec![],
             FilesystemKind::Symlink => vec![],
         };
@@ -70,7 +70,7 @@ impl BackupClient {
     }
 
     pub fn upload_generation(&self, filename: &Path, size: usize) -> anyhow::Result<ChunkId> {
-        let ids = self.read_file(filename, size)?;
+        let ids = self.read_file(filename.to_path_buf(), size)?;
         let gen = GenerationChunk::new(ids);
         let data = gen.to_data_chunk()?;
         let meta = ChunkMeta::new_generation(&sha256(data.data()), "timestamp");
@@ -78,7 +78,7 @@ impl BackupClient {
         Ok(gen_id)
     }
 
-    fn read_file(&self, filename: &Path, size: usize) -> anyhow::Result<Vec<ChunkId>> {
+    fn read_file(&self, filename: PathBuf, size: usize) -> anyhow::Result<Vec<ChunkId>> {
         info!("uploading {}", filename.display());
         let file = std::fs::File::open(filename)?;
         let chunker = Chunker::new(size, file);
