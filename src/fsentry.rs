@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
+use std::ffi::OsString;
 use std::fs::read_link;
 use std::fs::{FileType, Metadata};
 use std::os::linux::fs::MetadataExt;
+use std::os::unix::ffi::OsStringExt;
 use std::path::{Path, PathBuf};
 
 /// A file system entry.
@@ -16,7 +18,7 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FilesystemEntry {
     kind: FilesystemKind,
-    path: PathBuf,
+    path: Vec<u8>,
     len: u64,
 
     // 16 bits should be enough for a Unix mode_t.
@@ -40,7 +42,7 @@ impl FilesystemEntry {
     pub fn from_metadata(path: &Path, meta: &Metadata) -> anyhow::Result<Self> {
         let kind = FilesystemKind::from_file_type(meta.file_type());
         Ok(Self {
-            path: path.to_path_buf(),
+            path: path.to_path_buf().into_os_string().into_vec(),
             kind: FilesystemKind::from_file_type(meta.file_type()),
             len: meta.len(),
             mode: meta.st_mode(),
@@ -61,7 +63,8 @@ impl FilesystemEntry {
     }
 
     pub fn pathbuf(&self) -> PathBuf {
-        self.path.to_path_buf()
+        let path = self.path.clone();
+        PathBuf::from(OsString::from_vec(path))
     }
 
     pub fn len(&self) -> u64 {
