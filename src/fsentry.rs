@@ -60,8 +60,8 @@ impl FilesystemEntry {
         self.kind
     }
 
-    pub fn path(&self) -> &Path {
-        &self.path
+    pub fn pathbuf(&self) -> PathBuf {
+        self.path.to_path_buf()
     }
 
     pub fn len(&self) -> u64 {

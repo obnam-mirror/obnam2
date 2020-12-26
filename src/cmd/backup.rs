@@ -30,8 +30,9 @@ pub fn backup(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<()> {
             match entry {
                 Err(err) => Err(err),
                 Ok(entry) => {
-                    info!("backup: {}", entry.path().display());
-                    progress.set_message(&format!("{}", entry.path().display()));
+                    let path = &entry.pathbuf();
+                    info!("backup: {}", path.display());
+                    progress.set_message(&format!("{}", path.display()));
                     client.upload_filesystem_entry(entry, buffer_size)
                 }
             }
