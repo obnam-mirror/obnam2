@@ -13,6 +13,12 @@ def create_file_with_random_data(ctx, filename=None):
         f.write(data)
 
 
+def create_nonutf8_filename(ctx, dirname=None):
+    filename = "\x88"
+    os.mkdir(dirname)
+    open(filename, "wb").close()
+
+
 def chmod_file(ctx, filename=None, mode=None):
     os.chmod(filename, int(mode, 8))
 

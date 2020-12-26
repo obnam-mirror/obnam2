@@ -876,6 +876,25 @@ given a manifest of the directory live restored in rest in rest.yaml
 then files live.yaml and rest.yaml match
 ~~~
 
+## Tricky filenames
+
+Obnam needs to handle all filenames the underlying operating and file
+system can handle. This scenario verifies it can handle a filename
+that consists on a single byte with its top bit set. This is not
+ASCII, and it's not UTF-8.
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on metadata.yaml
+and a file in live with a non-UTF8 filename
+and a manifest of the directory live in live.yaml
+when I run obnam --config metadata.yaml backup
+then backup generation is GEN
+when I invoke obnam --config metadata.yaml restore <GEN> rest
+given a manifest of the directory live restored in rest in rest.yaml
+then files live.yaml and rest.yaml match
+~~~
 
 
 
