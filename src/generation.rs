@@ -4,12 +4,12 @@ use rusqlite::{params, Connection, OpenFlags, Row, Transaction};
 use std::path::Path;
 
 /// A backup generation.
-pub struct Generation {
+pub struct NascentGeneration {
     conn: Connection,
     fileno: u64,
 }
 
-impl Generation {
+impl NascentGeneration {
     pub fn create<P>(filename: P) -> anyhow::Result<Self>
     where
         P: AsRef<Path>,
@@ -136,14 +136,14 @@ fn find_max_fileno(conn: &Connection) -> anyhow::Result<u64> {
 
 #[cfg(test)]
 mod test {
-    use super::Generation;
+    use super::NascentGeneration;
     use tempfile::NamedTempFile;
 
     #[test]
     fn empty() {
         let filename = NamedTempFile::new().unwrap().path().to_path_buf();
         {
-            let mut _gen = Generation::create(&filename).unwrap();
+            let mut _gen = NascentGeneration::create(&filename).unwrap();
             // _gen is dropped here; the connection is close; the file
             // should not be removed.
         }
