@@ -3,7 +3,11 @@ use crate::fsentry::FilesystemEntry;
 use rusqlite::{params, Connection, OpenFlags, Row, Transaction};
 use std::path::Path;
 
-/// A backup generation.
+/// A nascent backup generation.
+///
+/// A nascent generation is one that is being prepared. It isn't
+/// finished yet, and it's not actually on the server, yet, or not
+/// completely. It can't be restored.
 pub struct NascentGeneration {
     conn: Connection,
     fileno: u64,
@@ -148,5 +152,30 @@ mod test {
             // should not be removed.
         }
         assert!(filename.exists());
+    }
+}
+
+/// A finished generation.
+///
+/// A generation is finished when it's on the server. It can be restored.
+pub struct FinishedGeneration {
+    id: ChunkId,
+    ended: String,
+}
+
+impl FinishedGeneration {
+    pub fn new(id: ChunkId, ended: &str) -> Self {
+        Self {
+            id: id.clone(),
+            ended: ended.to_string(),
+        }
+    }
+
+    pub fn id(&self) -> ChunkId {
+        self.id.clone()
+    }
+
+    pub fn ended(&self) -> &str {
+        &self.ended
     }
 }
