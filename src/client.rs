@@ -232,5 +232,5 @@ impl BackupClient {
 
 fn current_timestamp() -> String {
     let now: DateTime<Local> = Local::now();
-    format!("{}", now.format("%Y-%m-%d %H:%M:%S %z"))
+    format!("{}", now.format("%Y-%m-%d %H:%M:%S.%f %z"))
 }
