@@ -1,5 +1,6 @@
 use crate::client::BackupClient;
 use crate::client::ClientConfig;
+use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::NascentGeneration;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -14,7 +15,7 @@ use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use tempfile::NamedTempFile;
 
-pub fn restore(config: &ClientConfig, gen_id: &str, to: &Path) -> anyhow::Result<()> {
+pub fn restore(config: &ClientConfig, gen_ref: &str, to: &Path) -> anyhow::Result<()> {
     // Create a named temporary file. We don't meed the open file
     // handle, so we discard that.
     let dbname = {
@@ -24,6 +25,13 @@ pub fn restore(config: &ClientConfig, gen_id: &str, to: &Path) -> anyhow::Result
     };
 
     let client = BackupClient::new(&config.server_url)?;
+
+    let genlist = client.list_generations()?;
+    let gen_id: String = match genlist.resolve(gen_ref) {
+        None => return Err(ObnamError::UnknownGeneration(gen_ref.to_string()).into()),
+        Some(id) => id,
+    };
+
     let gen_chunk = client.fetch_generation(&gen_id)?;
     debug!("gen: {:?}", gen_chunk);
 

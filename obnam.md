@@ -896,6 +896,29 @@ given a manifest of the directory live restored in rest in rest.yaml
 then files live.yaml and rest.yaml match
 ~~~
 
+## Restore latest generation
+
+This scenario verifies that the latest backup generation can be
+specified with literal string "latest". It makes two backups, which
+are different.
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on metadata.yaml
+
+given a file live/data.dat containing some random data
+when I run obnam --config metadata.yaml backup
+
+given a file live/more.dat containing some random data
+and a manifest of the directory live in second.yaml
+when I run obnam --config metadata.yaml backup
+
+when I invoke obnam --config metadata.yaml restore latest rest
+given a manifest of the directory live restored in rest in rest.yaml
+then files second.yaml and rest.yaml match
+~~~
+
 
 
 
