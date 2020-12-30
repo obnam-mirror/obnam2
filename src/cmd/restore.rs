@@ -1,7 +1,7 @@
 use crate::client::BackupClient;
 use crate::client::ClientConfig;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
-use crate::generation::Generation;
+use crate::generation::NascentGeneration;
 use indicatif::{ProgressBar, ProgressStyle};
 use libc::{fchmod, futimens, timespec};
 use log::{debug, error, info};
@@ -37,7 +37,7 @@ pub fn restore(config: &ClientConfig, gen_id: &str, to: &Path) -> anyhow::Result
     }
     info!("downloaded generation to {}", dbname.display());
 
-    let gen = Generation::open(&dbname)?;
+    let gen = NascentGeneration::open(&dbname)?;
     info!("restore file count: {}", gen.file_count());
     let progress = create_progress_bar(gen.file_count(), true);
     for (fileid, entry) in gen.files()? {
@@ -74,7 +74,7 @@ struct Opt {
 
 fn restore_generation(
     client: &BackupClient,
-    gen: &Generation,
+    gen: &NascentGeneration,
     fileid: u64,
     entry: &FilesystemEntry,
     to: &Path,
@@ -123,7 +123,7 @@ fn restored_path(entry: &FilesystemEntry, to: &Path) -> anyhow::Result<PathBuf> 
 
 fn restore_regular(
     client: &BackupClient,
-    gen: &Generation,
+    gen: &NascentGeneration,
     path: &Path,
     fileid: u64,
     entry: &FilesystemEntry,

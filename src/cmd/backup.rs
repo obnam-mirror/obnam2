@@ -1,6 +1,6 @@
 use crate::client::{BackupClient, ClientConfig};
 use crate::fsiter::FsIterator;
-use crate::generation::Generation;
+use crate::generation::NascentGeneration;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::info;
 use tempfile::NamedTempFile;
@@ -22,7 +22,7 @@ pub fn backup(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<()> {
         // Create the SQLite database using the named temporary file.
         // The fetching is in its own block so that the file handles
         // get closed and data flushed to disk.
-        let mut gen = Generation::create(&dbname)?;
+        let mut gen = NascentGeneration::create(&dbname)?;
         let progress = create_progress_bar(GUESS_FILE_COUNT, true);
         progress.enable_steady_tick(100);
         gen.insert_iter(FsIterator::new(&config.root).map(|entry| {

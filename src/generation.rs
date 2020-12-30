@@ -3,13 +3,17 @@ use crate::fsentry::FilesystemEntry;
 use rusqlite::{params, Connection, OpenFlags, Row, Transaction};
 use std::path::Path;
 
-/// A backup generation.
-pub struct Generation {
+/// A nascent backup generation.
+///
+/// A nascent generation is one that is being prepared. It isn't
+/// finished yet, and it's not actually on the server, yet, or not
+/// completely. It can't be restored.
+pub struct NascentGeneration {
     conn: Connection,
     fileno: u64,
 }
 
-impl Generation {
+impl NascentGeneration {
     pub fn create<P>(filename: P) -> anyhow::Result<Self>
     where
         P: AsRef<Path>,
@@ -136,17 +140,43 @@ fn find_max_fileno(conn: &Connection) -> anyhow::Result<u64> {
 
 #[cfg(test)]
 mod test {
-    use super::Generation;
+    use super::NascentGeneration;
     use tempfile::NamedTempFile;
 
     #[test]
     fn empty() {
         let filename = NamedTempFile::new().unwrap().path().to_path_buf();
         {
-            let mut _gen = Generation::create(&filename).unwrap();
+            let mut _gen = NascentGeneration::create(&filename).unwrap();
             // _gen is dropped here; the connection is close; the file
             // should not be removed.
         }
         assert!(filename.exists());
+    }
+}
+
+/// A finished generation.
+///
+/// A generation is finished when it's on the server. It can be restored.
+pub struct FinishedGeneration {
+    id: ChunkId,
+    ended: String,
+}
+
+impl FinishedGeneration {
+    pub fn new(id: &str, ended: &str) -> Self {
+        let id = id.parse().unwrap(); // this never fails
+        Self {
+            id,
+            ended: ended.to_string(),
+        }
+    }
+
+    pub fn id(&self) -> ChunkId {
+        self.id.clone()
+    }
+
+    pub fn ended(&self) -> &str {
+        &self.ended
     }
 }

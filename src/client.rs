@@ -5,6 +5,8 @@ use crate::chunker::Chunker;
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
+use crate::generation::FinishedGeneration;
+use chrono::{DateTime, Local};
 use log::{debug, error, info, trace};
 use reqwest::blocking::Client;
 use serde::Deserialize;
@@ -73,7 +75,7 @@ impl BackupClient {
         let ids = self.read_file(filename.to_path_buf(), size)?;
         let gen = GenerationChunk::new(ids);
         let data = gen.to_data_chunk()?;
-        let meta = ChunkMeta::new_generation(&sha256(data.data()), "timestamp");
+        let meta = ChunkMeta::new_generation(&sha256(data.data()), &current_timestamp());
         let gen_id = self.upload_gen_chunk(meta, gen)?;
         Ok(gen_id)
     }
@@ -179,7 +181,7 @@ impl BackupClient {
         Ok(chunk_ids)
     }
 
-    pub fn list_generations(&self) -> anyhow::Result<Vec<ChunkId>> {
+    pub fn list_generations(&self) -> anyhow::Result<Vec<FinishedGeneration>> {
         let url = format!("{}?generation=true", &self.chunks_url());
         trace!("list_generations: url={:?}", url);
         let req = self.client.get(&url).build()?;
@@ -189,7 +191,11 @@ impl BackupClient {
         debug!("list_generationgs: body={:?}", body);
         let map: HashMap<String, ChunkMeta> = serde_yaml::from_slice(&body)?;
         debug!("list_generations: map={:?}", map);
-        Ok(map.keys().into_iter().map(|key| key.into()).collect())
+        let finished = map
+            .iter()
+            .map(|(id, meta)| FinishedGeneration::new(id, meta.ended().map_or("", |s| s)))
+            .collect();
+        Ok(finished)
     }
 
     pub fn fetch_chunk(&self, chunk_id: &ChunkId) -> anyhow::Result<DataChunk> {
@@ -221,4 +227,9 @@ impl BackupClient {
         let gen = serde_json::from_str(&text)?;
         Ok(gen)
     }
+}
+
+fn current_timestamp() -> String {
+    let now: DateTime<Local> = Local::now();
+    format!("{}", now.format("%Y-%m-%d %H:%M:%S %z"))
 }
