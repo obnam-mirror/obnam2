@@ -192,6 +192,7 @@ impl BackupClient {
         debug!("list_generationgs: body={:?}", body);
         let map: HashMap<String, ChunkMeta> = serde_yaml::from_slice(&body)?;
         debug!("list_generations: map={:?}", map);
+        eprintln!("list_generations: map={:?}", map);
         let finished = map
             .iter()
             .map(|(id, meta)| FinishedGeneration::new(id, meta.ended().map_or("", |s| s)))
