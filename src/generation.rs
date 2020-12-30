@@ -164,9 +164,10 @@ pub struct FinishedGeneration {
 }
 
 impl FinishedGeneration {
-    pub fn new(id: ChunkId, ended: &str) -> Self {
+    pub fn new(id: &str, ended: &str) -> Self {
+        let id = id.parse().unwrap(); // this never fails
         Self {
-            id: id.clone(),
+            id,
             ended: ended.to_string(),
         }
     }
