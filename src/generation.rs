@@ -158,6 +158,7 @@ mod test {
 /// A finished generation.
 ///
 /// A generation is finished when it's on the server. It can be restored.
+#[derive(Debug, Clone)]
 pub struct FinishedGeneration {
     id: ChunkId,
     ended: String,

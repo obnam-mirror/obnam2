@@ -9,6 +9,7 @@ pub mod cmd;
 pub mod fsentry;
 pub mod fsiter;
 pub mod generation;
+pub mod genlist;
 pub mod index;
 pub mod indexedstore;
 pub mod server;

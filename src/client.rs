@@ -6,6 +6,7 @@ use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::FinishedGeneration;
+use crate::genlist::GenerationList;
 use chrono::{DateTime, Local};
 use log::{debug, error, info, trace};
 use reqwest::blocking::Client;
@@ -181,7 +182,7 @@ impl BackupClient {
         Ok(chunk_ids)
     }
 
-    pub fn list_generations(&self) -> anyhow::Result<Vec<FinishedGeneration>> {
+    pub fn list_generations(&self) -> anyhow::Result<GenerationList> {
         let url = format!("{}?generation=true", &self.chunks_url());
         trace!("list_generations: url={:?}", url);
         let req = self.client.get(&url).build()?;
@@ -195,7 +196,7 @@ impl BackupClient {
             .iter()
             .map(|(id, meta)| FinishedGeneration::new(id, meta.ended().map_or("", |s| s)))
             .collect();
-        Ok(finished)
+        Ok(GenerationList::new(finished))
     }
 
     pub fn fetch_chunk(&self, chunk_id: &ChunkId) -> anyhow::Result<DataChunk> {
