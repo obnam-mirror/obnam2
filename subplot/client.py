@@ -24,9 +24,17 @@ def configure_client(ctx, filename=None):
 
 
 def run_obnam_restore(ctx, filename=None, genid=None, todir=None):
+    genid = ctx["vars"][genid]
+    run_obnam_restore_with_genref(ctx, filename=filename, genref=genid, todir=todir)
+
+
+def run_obnam_restore_latest(ctx, filename=None, todir=None):
+    run_obnam_restore_with_genref(ctx, filename=filename, genref="latest", todir=todir)
+
+
+def run_obnam_restore_with_genref(ctx, filename=None, genref=None, todir=None):
     runcmd_run = globals()["runcmd_run"]
 
-    genid = ctx["vars"][genid]
     runcmd_run(
         ctx,
         [
@@ -36,7 +44,7 @@ def run_obnam_restore(ctx, filename=None, genid=None, todir=None):
             "--config",
             filename,
             "restore",
-            genid,
+            genref,
             todir,
         ],
     )

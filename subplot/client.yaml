@@ -7,6 +7,9 @@
 - when: "I invoke obnam --config {filename} restore <{genid}> {todir}"
   function: run_obnam_restore
 
+- when: "I invoke obnam --config {filename} restore latest {todir}"
+  function: run_obnam_restore_latest
+
 - then: "backup generation is {varname}"
   function: capture_generation_id
 
