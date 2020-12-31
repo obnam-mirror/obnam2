@@ -939,7 +939,7 @@ functions:
   - subplot/server.py
   - subplot/client.py
   - subplot/data.py
-  - subplot/daemon.py
+  - subplot/vendored/daemon.py
   - subplot/vendored/runcmd.py
 classes:
   - json
