@@ -15,7 +15,7 @@ urllib3.disable_warnings()
 
 
 def start_chunk_server(ctx):
-    start_daemon = globals()["start_daemon"]
+    daemon_start_on_port = globals()["daemon_start_on_port"]
     srcdir = globals()["srcdir"]
 
     logging.debug(f"Starting obnam-server")
@@ -34,27 +34,27 @@ def start_chunk_server(ctx):
         "address": f"localhost:{port}",
     }
 
+    server_binary = os.path.abspath(os.path.join(srcdir, "target", "debug", "obnam-server"))
+
     filename = "config.yaml"
     yaml.safe_dump(config, stream=open(filename, "w"))
     logging.debug(f"Picked randomly port for obnam-server: {config['address']}")
 
     ctx["server_url"] = f"https://{config['address']}"
 
-    start_daemon(
+    daemon_start_on_port(
         ctx,
-        "obnam-server",
-        [os.path.join(srcdir, "target", "debug", "obnam-server"), filename],
+        name="obnam-server",
+        path=server_binary,
+        args=filename,
+        port=port,
     )
-
-    if not port_open("localhost", port, 5.0):
-        stderr = open(ctx["daemon"]["obnam-server"]["stderr"]).read()
-        logging.debug(f"Stderr from daemon: {stderr!r}")
 
 
 def stop_chunk_server(ctx):
     logging.debug("Stopping obnam-server")
-    stop_daemon = globals()["stop_daemon"]
-    stop_daemon(ctx, "obnam-server")
+    daemon_stop = globals()["daemon_stop"]
+    daemon_stop(ctx, name="obnam-server")
 
 
 def post_file(ctx, filename=None, path=None, header=None, json=None):
@@ -127,20 +127,6 @@ def json_body_matches(ctx, wanted=None):
         assert_eq(body.get(key, "not.there"), wanted[key])
 
 
-# Wait for a port to be open
-def port_open(host, port, timeout):
-    logging.debug(f"Waiting for port localhost:{port} to be available")
-    started = time.time()
-    while time.time() < started + timeout:
-        try:
-            socket.create_connection((host, port), timeout=timeout)
-            return True
-        except socket.error:
-            pass
-    logging.error(f"Port localhost:{port} is not open")
-    return False
-
-
 # Make an HTTP request.
 def _request(ctx, method, url, headers=None, data=None):
     r = method(url, headers=headers, data=data, verify=False)
@@ -159,7 +145,8 @@ def _request(ctx, method, url, headers=None, data=None):
     logging.debug(f"  json: {ctx['http.json']!r}")
     logging.debug(f"  text: {r.content!r}")
     if not r.ok:
-        stderr = open(ctx["daemon"]["obnam-server"]["stderr"], "rb").read()
+        daemon = ctx.declare("_daemon")
+        stderr = open(daemon["obnam-server"]["stderr"], "rb").read()
         logging.debug(f"  server stderr: {stderr!r}")
 
 

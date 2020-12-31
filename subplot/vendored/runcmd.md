@@ -162,6 +162,7 @@ then stderr doesn't match regex world$
 ---
 title: Acceptance criteria for the lib/runcmd Subplot library
 author: The Subplot project
+template: python
 bindings:
 - runcmd.yaml
 functions:
