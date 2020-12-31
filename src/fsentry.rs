@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 ///
 /// This is everything Obnam cares about each file system object, when
 /// making a backup.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FilesystemEntry {
     kind: FilesystemKind,
     path: Vec<u8>,

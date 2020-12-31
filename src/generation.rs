@@ -1,4 +1,5 @@
 use crate::chunkid::ChunkId;
+use crate::error::ObnamError;
 use crate::fsentry::FilesystemEntry;
 use rusqlite::{params, Connection, OpenFlags, Row, Transaction};
 use std::path::Path;
@@ -183,5 +184,36 @@ impl LocalGeneration {
             ids.push(ChunkId::from(&fileno));
         }
         Ok(ids)
+    }
+
+    pub fn get_file(&self, filename: &Path) -> anyhow::Result<Option<FilesystemEntry>> {
+        match self.get_file_and_fileno(filename)? {
+            None => Ok(None),
+            Some((_, e)) => Ok(Some(e)),
+        }
+    }
+
+    pub fn get_fileno(&self, filename: &Path) -> anyhow::Result<Option<u64>> {
+        match self.get_file_and_fileno(filename)? {
+            None => Ok(None),
+            Some((id, _)) => Ok(Some(id)),
+        }
+    }
+
+    fn get_file_and_fileno(
+        &self,
+        filename: &Path,
+    ) -> anyhow::Result<Option<(u64, FilesystemEntry)>> {
+        let files = self.files()?;
+        let files: Vec<(u64, FilesystemEntry)> = files
+            .iter()
+            .filter(|(_, e)| e.pathbuf() == filename)
+            .map(|(id, e)| (*id, e.clone()))
+            .collect();
+        match files.len() {
+            0 => Ok(None),
+            1 => Ok(Some((files[0].0, files[0].1.clone()))),
+            _ => return Err(ObnamError::TooManyFiles(filename.to_path_buf()).into()),
+        }
     }
 }
