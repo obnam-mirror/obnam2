@@ -5,13 +5,16 @@ use crate::chunker::Chunker;
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
-use crate::generation::FinishedGeneration;
+use crate::generation::{FinishedGeneration, LocalGeneration};
 use crate::genlist::GenerationList;
+
 use chrono::{DateTime, Local};
 use log::{debug, error, info, trace};
 use reqwest::blocking::Client;
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Deserialize, Clone)]
@@ -192,6 +195,7 @@ impl BackupClient {
         debug!("list_generationgs: body={:?}", body);
         let map: HashMap<String, ChunkMeta> = serde_yaml::from_slice(&body)?;
         debug!("list_generations: map={:?}", map);
+        eprintln!("list_generations: map={:?}", map);
         let finished = map
             .iter()
             .map(|(id, meta)| FinishedGeneration::new(id, meta.ended().map_or("", |s| s)))
@@ -213,19 +217,35 @@ impl BackupClient {
         Ok(DataChunk::new(body.to_vec()))
     }
 
-    pub fn fetch_generation(&self, gen_id: &str) -> anyhow::Result<GenerationChunk> {
+    fn fetch_generation_chunk(&self, gen_id: &str) -> anyhow::Result<GenerationChunk> {
         let url = format!("{}/{}", &self.chunks_url(), gen_id);
-        trace!("fetch_generation: url={:?}", url);
+        trace!("fetch_generation_chunk: url={:?}", url);
         let req = self.client.get(&url).build()?;
         let res = self.client.execute(req)?;
-        debug!("fetch_generation: status={}", res.status());
+        debug!("fetch_generation_chunk: status={}", res.status());
         if res.status() != 200 {
             return Err(ClientError::GenerationNotFound(gen_id.to_string()).into());
         }
 
         let text = res.text()?;
-        debug!("fetch_generation: text={:?}", text);
-        let gen = serde_json::from_str(&text)?;
+        debug!("fetch_generation_chunk: text={:?}", text);
+        let gen: GenerationChunk = serde_json::from_str(&text)?;
+        debug!("fetch_generation_chunk: {:?}", gen);
+        Ok(gen)
+    }
+
+    pub fn fetch_generation(&self, gen_id: &str, dbname: &Path) -> anyhow::Result<LocalGeneration> {
+        let gen = self.fetch_generation_chunk(gen_id)?;
+
+        // Fetch the SQLite file, storing it in the named file.
+        let mut dbfile = File::create(&dbname)?;
+        for id in gen.chunk_ids() {
+            let chunk = self.fetch_chunk(id)?;
+            dbfile.write_all(chunk.data())?;
+        }
+        info!("downloaded generation to {}", dbname.display());
+
+        let gen = LocalGeneration::open(dbname)?;
         Ok(gen)
     }
 }

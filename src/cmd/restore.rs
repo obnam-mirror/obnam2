@@ -2,7 +2,7 @@ use crate::client::BackupClient;
 use crate::client::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
-use crate::generation::NascentGeneration;
+use crate::generation::LocalGeneration;
 use indicatif::{ProgressBar, ProgressStyle};
 use libc::{fchmod, futimens, timespec};
 use log::{debug, error, info};
@@ -32,22 +32,9 @@ pub fn restore(config: &ClientConfig, gen_ref: &str, to: &Path) -> anyhow::Resul
         Some(id) => id,
     };
 
-    let gen_chunk = client.fetch_generation(&gen_id)?;
-    debug!("gen: {:?}", gen_chunk);
-
-    {
-        // Fetch the SQLite file, storing it in the temporary file.
-        let mut dbfile = File::create(&dbname)?;
-        for id in gen_chunk.chunk_ids() {
-            let chunk = client.fetch_chunk(id)?;
-            dbfile.write_all(chunk.data())?;
-        }
-    }
-    info!("downloaded generation to {}", dbname.display());
-
-    let gen = NascentGeneration::open(&dbname)?;
-    info!("restore file count: {}", gen.file_count());
-    let progress = create_progress_bar(gen.file_count(), true);
+    let gen = client.fetch_generation(&gen_id, &dbname)?;
+    info!("restore file count: {}", gen.file_count()?);
+    let progress = create_progress_bar(gen.file_count()?.into(), true);
     for (fileid, entry) in gen.files()? {
         restore_generation(&client, &gen, fileid, &entry, &to, &progress)?;
     }
@@ -82,7 +69,7 @@ struct Opt {
 
 fn restore_generation(
     client: &BackupClient,
-    gen: &NascentGeneration,
+    gen: &LocalGeneration,
     fileid: u64,
     entry: &FilesystemEntry,
     to: &Path,
@@ -131,7 +118,7 @@ fn restored_path(entry: &FilesystemEntry, to: &Path) -> anyhow::Result<PathBuf> 
 
 fn restore_regular(
     client: &BackupClient,
-    gen: &NascentGeneration,
+    gen: &LocalGeneration,
     path: &Path,
     fileid: u64,
     entry: &FilesystemEntry,

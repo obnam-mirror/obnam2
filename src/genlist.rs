@@ -18,9 +18,11 @@ impl GenerationList {
 
     pub fn resolve(&self, genref: &str) -> Option<String> {
         let gen = if self.list.is_empty() {
+            eprintln!("genlist: empty");
             None
         } else if genref == "latest" {
             let i = self.list.len() - 1;
+            eprintln!("genlist: latest={} of {}", i, self.list.len());
             Some(self.list[i].clone())
         } else {
             let genref: ChunkId = genref.parse().unwrap();
@@ -29,15 +31,18 @@ impl GenerationList {
                 .filter(|gen| gen.id() == genref)
                 .map(|gen| gen.clone())
                 .collect();
+            eprintln!("genlist: hits={}", hits.len());
             if hits.len() == 1 {
                 Some(hits[0].clone())
             } else {
                 None
             }
         };
-        match gen {
+        let ret = match gen {
             None => None,
             Some(gen) => Some(gen.id().to_string()),
-        }
+        };
+        eprintln!("genlist: return {:?}", ret);
+        ret
     }
 }

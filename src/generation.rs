@@ -6,8 +6,8 @@ use std::path::Path;
 /// A nascent backup generation.
 ///
 /// A nascent generation is one that is being prepared. It isn't
-/// finished yet, and it's not actually on the server, yet, or not
-/// completely. It can't be restored.
+/// finished yet, and it's not actually on the server until the upload
+/// of its generation chunk.
 pub struct NascentGeneration {
     conn: Connection,
     fileno: u64,
@@ -32,16 +32,8 @@ impl NascentGeneration {
         Ok(Self { conn, fileno: 0 })
     }
 
-    pub fn open<P>(filename: P) -> anyhow::Result<Self>
-    where
-        P: AsRef<Path>,
-    {
-        let flags = OpenFlags::SQLITE_OPEN_READ_WRITE;
-        let conn = Connection::open_with_flags(filename, flags)?;
-        conn.pragma_update(None, "journal_mode", &"WAL")?;
-        let fileno = find_max_fileno(&conn)?;
-
-        Ok(Self { conn, fileno })
+    pub fn file_count(&self) -> u64 {
+        self.fileno
     }
 
     pub fn insert(&mut self, e: FilesystemEntry, ids: &[ChunkId]) -> anyhow::Result<()> {
@@ -64,36 +56,6 @@ impl NascentGeneration {
         }
         t.commit()?;
         Ok(())
-    }
-
-    pub fn file_count(&self) -> u64 {
-        self.fileno
-    }
-
-    pub fn files(&self) -> anyhow::Result<Vec<(u64, FilesystemEntry)>> {
-        let mut stmt = self.conn.prepare("SELECT * FROM files")?;
-        let iter = stmt.query_map(params![], |row| row_to_entry(row))?;
-        let mut files: Vec<(u64, FilesystemEntry)> = vec![];
-        for x in iter {
-            let (fileno, json) = x?;
-            let entry = serde_json::from_str(&json)?;
-            files.push((fileno, entry));
-        }
-        Ok(files)
-    }
-
-    pub fn chunkids(&self, fileno: u64) -> anyhow::Result<Vec<ChunkId>> {
-        let fileno = fileno as i64;
-        let mut stmt = self
-            .conn
-            .prepare("SELECT chunkid FROM chunks WHERE fileno = ?1")?;
-        let iter = stmt.query_map(params![fileno], |row| Ok(row.get(0)?))?;
-        let mut ids: Vec<ChunkId> = vec![];
-        for x in iter {
-            let fileno: String = x?;
-            ids.push(ChunkId::from(&fileno));
-        }
-        Ok(ids)
     }
 }
 
@@ -123,19 +85,6 @@ fn insert_one(
         )?;
     }
     Ok(())
-}
-
-fn find_max_fileno(conn: &Connection) -> anyhow::Result<u64> {
-    let mut stmt = conn.prepare("SELECT fileno FROM files ORDER BY fileno")?;
-    let mut rows = stmt.query(params![])?;
-    let mut fileno: i64 = 0;
-    while let Some(row) = rows.next()? {
-        let x = row.get(0)?;
-        if x > fileno {
-            fileno = x;
-        }
-    }
-    Ok(fileno as u64)
 }
 
 #[cfg(test)]
@@ -179,5 +128,60 @@ impl FinishedGeneration {
 
     pub fn ended(&self) -> &str {
         &self.ended
+    }
+}
+
+/// A local representation of a finished generation.
+///
+/// This is for querying an existing generation, and other read-only
+/// operations.
+pub struct LocalGeneration {
+    conn: Connection,
+}
+
+impl LocalGeneration {
+    pub fn open<P>(filename: P) -> anyhow::Result<Self>
+    where
+        P: AsRef<Path>,
+    {
+        let flags = OpenFlags::SQLITE_OPEN_READ_WRITE;
+        let conn = Connection::open_with_flags(filename, flags)?;
+        conn.pragma_update(None, "journal_mode", &"WAL")?;
+
+        Ok(Self { conn })
+    }
+
+    pub fn file_count(&self) -> anyhow::Result<u32> {
+        let mut stmt = self.conn.prepare("SELECT count(*) FROM files")?;
+        let mut iter = stmt.query_map(params![], |row| row.get(0))?;
+        let count = iter.next().expect("SQL count result");
+        let count = count?;
+        Ok(count)
+    }
+
+    pub fn files(&self) -> anyhow::Result<Vec<(u64, FilesystemEntry)>> {
+        let mut stmt = self.conn.prepare("SELECT * FROM files")?;
+        let iter = stmt.query_map(params![], |row| row_to_entry(row))?;
+        let mut files: Vec<(u64, FilesystemEntry)> = vec![];
+        for x in iter {
+            let (fileno, json) = x?;
+            let entry = serde_json::from_str(&json)?;
+            files.push((fileno, entry));
+        }
+        Ok(files)
+    }
+
+    pub fn chunkids(&self, fileno: u64) -> anyhow::Result<Vec<ChunkId>> {
+        let fileno = fileno as i64;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT chunkid FROM chunks WHERE fileno = ?1")?;
+        let iter = stmt.query_map(params![fileno], |row| Ok(row.get(0)?))?;
+        let mut ids: Vec<ChunkId> = vec![];
+        for x in iter {
+            let fileno: String = x?;
+            ids.push(ChunkId::from(&fileno));
+        }
+        Ok(ids)
     }
 }
