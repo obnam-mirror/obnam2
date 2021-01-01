@@ -1,0 +1,4 @@
+address: 0.0.0.0:8888
+chunks: /srv/obnam/chunks
+tls_key: /etc/obnam/server.key
+tls_cert: /etc/obnam/server.pem
