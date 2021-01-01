@@ -34,7 +34,7 @@ pub fn restore(config: &ClientConfig, gen_ref: &str, to: &Path) -> anyhow::Resul
 
     let gen = client.fetch_generation(&gen_id, &dbname)?;
     info!("restore file count: {}", gen.file_count()?);
-    let progress = create_progress_bar(gen.file_count()?.into(), true);
+    let progress = create_progress_bar(gen.file_count()?, true);
     for (fileid, entry) in gen.files()? {
         restore_generation(&client, &gen, fileid, &entry, &to, &progress)?;
     }
@@ -70,7 +70,7 @@ struct Opt {
 fn restore_generation(
     client: &BackupClient,
     gen: &LocalGeneration,
-    fileid: u64,
+    fileid: i64,
     entry: &FilesystemEntry,
     to: &Path,
     progress: &ProgressBar,
@@ -120,7 +120,7 @@ fn restore_regular(
     client: &BackupClient,
     gen: &LocalGeneration,
     path: &Path,
-    fileid: u64,
+    fileid: i64,
     entry: &FilesystemEntry,
 ) -> anyhow::Result<()> {
     debug!("restoring regular {}", path.display());
@@ -191,9 +191,9 @@ fn restore_metadata(path: &Path, entry: &FilesystemEntry) -> anyhow::Result<()> 
     Ok(())
 }
 
-fn create_progress_bar(file_count: u64, verbose: bool) -> ProgressBar {
+fn create_progress_bar(file_count: i64, verbose: bool) -> ProgressBar {
     let progress = if verbose {
-        ProgressBar::new(file_count)
+        ProgressBar::new(file_count as u64)
     } else {
         ProgressBar::hidden()
     };
