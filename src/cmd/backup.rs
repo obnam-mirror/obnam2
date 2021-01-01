@@ -51,7 +51,7 @@ pub fn backup(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<()> {
             Some(old) => {
                 info!("incremental backup based on {}", old);
                 let old = client.fetch_generation(&old, &oldname)?;
-                progress.set_length(old.file_count()?.into());
+                progress.set_length(old.file_count()? as u64);
                 new.insert_iter(iter.map(|entry| {
                     progress.inc(1);
                     match entry {
@@ -76,7 +76,7 @@ pub fn backup(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<()> {
                 }))?;
             }
         }
-        progress.set_length(new.file_count());
+        progress.set_length(new.file_count() as u64);
         progress.finish();
     }
 

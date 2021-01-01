@@ -10,7 +10,7 @@ use std::path::Path;
 /// of its generation chunk.
 pub struct NascentGeneration {
     conn: Connection,
-    fileno: u64,
+    fileno: i64,
 }
 
 impl NascentGeneration {
@@ -22,7 +22,7 @@ impl NascentGeneration {
         Ok(Self { conn, fileno: 0 })
     }
 
-    pub fn file_count(&self) -> u64 {
+    pub fn file_count(&self) -> i64 {
         self.fileno
     }
 
@@ -110,15 +110,15 @@ impl LocalGeneration {
         Ok(Self { conn })
     }
 
-    pub fn file_count(&self) -> anyhow::Result<u32> {
+    pub fn file_count(&self) -> anyhow::Result<i64> {
         Ok(sql::file_count(&self.conn)?)
     }
 
-    pub fn files(&self) -> anyhow::Result<Vec<(u64, FilesystemEntry)>> {
+    pub fn files(&self) -> anyhow::Result<Vec<(i64, FilesystemEntry)>> {
         Ok(sql::files(&self.conn)?)
     }
 
-    pub fn chunkids(&self, fileno: u64) -> anyhow::Result<Vec<ChunkId>> {
+    pub fn chunkids(&self, fileno: i64) -> anyhow::Result<Vec<ChunkId>> {
         Ok(sql::chunkids(&self.conn, fileno)?)
     }
 
@@ -126,7 +126,7 @@ impl LocalGeneration {
         Ok(sql::get_file(&self.conn, filename)?)
     }
 
-    pub fn get_fileno(&self, filename: &Path) -> anyhow::Result<Option<u64>> {
+    pub fn get_fileno(&self, filename: &Path) -> anyhow::Result<Option<i64>> {
         Ok(sql::get_fileno(&self.conn, filename)?)
     }
 }
@@ -163,10 +163,9 @@ mod sql {
     pub fn insert_one(
         t: &Transaction,
         e: FilesystemEntry,
-        fileno: u64,
+        fileno: i64,
         ids: &[ChunkId],
     ) -> anyhow::Result<()> {
-        let fileno = fileno as i64;
         let json = serde_json::to_string(&e)?;
         t.execute(
             "INSERT INTO files (fileno, json) VALUES (?1, ?2)",
@@ -181,14 +180,13 @@ mod sql {
         Ok(())
     }
 
-    pub fn row_to_entry(row: &Row) -> rusqlite::Result<(u64, String)> {
+    pub fn row_to_entry(row: &Row) -> rusqlite::Result<(i64, String)> {
         let fileno: i64 = row.get(row.column_index("fileno")?)?;
-        let fileno = fileno as u64;
         let json: String = row.get(row.column_index("json")?)?;
         Ok((fileno, json))
     }
 
-    pub fn file_count(conn: &Connection) -> anyhow::Result<u32> {
+    pub fn file_count(conn: &Connection) -> anyhow::Result<i64> {
         let mut stmt = conn.prepare("SELECT count(*) FROM files")?;
         let mut iter = stmt.query_map(params![], |row| row.get(0))?;
         let count = iter.next().expect("SQL count result");
@@ -196,10 +194,10 @@ mod sql {
         Ok(count)
     }
 
-    pub fn files(conn: &Connection) -> anyhow::Result<Vec<(u64, FilesystemEntry)>> {
+    pub fn files(conn: &Connection) -> anyhow::Result<Vec<(i64, FilesystemEntry)>> {
         let mut stmt = conn.prepare("SELECT * FROM files")?;
         let iter = stmt.query_map(params![], |row| row_to_entry(row))?;
-        let mut files: Vec<(u64, FilesystemEntry)> = vec![];
+        let mut files: Vec<(i64, FilesystemEntry)> = vec![];
         for x in iter {
             let (fileno, json) = x?;
             let entry = serde_json::from_str(&json)?;
@@ -208,7 +206,7 @@ mod sql {
         Ok(files)
     }
 
-    pub fn chunkids(conn: &Connection, fileno: u64) -> anyhow::Result<Vec<ChunkId>> {
+    pub fn chunkids(conn: &Connection, fileno: i64) -> anyhow::Result<Vec<ChunkId>> {
         let fileno = fileno as i64;
         let mut stmt = conn.prepare("SELECT chunkid FROM chunks WHERE fileno = ?1")?;
         let iter = stmt.query_map(params![fileno], |row| Ok(row.get(0)?))?;
@@ -227,7 +225,7 @@ mod sql {
         }
     }
 
-    pub fn get_fileno(conn: &Connection, filename: &Path) -> anyhow::Result<Option<u64>> {
+    pub fn get_fileno(conn: &Connection, filename: &Path) -> anyhow::Result<Option<i64>> {
         match get_file_and_fileno(conn, filename)? {
             None => Ok(None),
             Some((id, _)) => Ok(Some(id)),
@@ -237,9 +235,9 @@ mod sql {
     fn get_file_and_fileno(
         conn: &Connection,
         filename: &Path,
-    ) -> anyhow::Result<Option<(u64, FilesystemEntry)>> {
+    ) -> anyhow::Result<Option<(i64, FilesystemEntry)>> {
         let files = files(conn)?;
-        let files: Vec<(u64, FilesystemEntry)> = files
+        let files: Vec<(i64, FilesystemEntry)> = files
             .iter()
             .filter(|(_, e)| e.pathbuf() == filename)
             .map(|(id, e)| (*id, e.clone()))
