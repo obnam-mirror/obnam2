@@ -136,19 +136,21 @@ mod sql {
     use crate::error::ObnamError;
     use crate::fsentry::FilesystemEntry;
     use rusqlite::{params, Connection, OpenFlags, Row, Transaction};
+    use std::os::unix::ffi::OsStrExt;
     use std::path::Path;
 
     pub fn create_db(filename: &Path) -> anyhow::Result<Connection> {
         let flags = OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.execute(
-            "CREATE TABLE files (fileno INTEGER PRIMARY KEY, json TEXT)",
+            "CREATE TABLE files (fileno INTEGER PRIMARY KEY, filename BLOB, json TEXT)",
             params![],
         )?;
         conn.execute(
             "CREATE TABLE chunks (fileno INTEGER, chunkid TEXT)",
             params![],
         )?;
+        conn.execute("CREATE INDEX filenames ON files (filename)", params![])?;
         conn.pragma_update(None, "journal_mode", &"WAL")?;
         Ok(conn)
     }
@@ -168,8 +170,8 @@ mod sql {
     ) -> anyhow::Result<()> {
         let json = serde_json::to_string(&e)?;
         t.execute(
-            "INSERT INTO files (fileno, json) VALUES (?1, ?2)",
-            params![fileno, &json],
+            "INSERT INTO files (fileno, filename, json) VALUES (?1, ?2, ?3)",
+            params![fileno, path_into_blob(&e.pathbuf()), &json],
         )?;
         for id in ids {
             t.execute(
@@ -178,6 +180,10 @@ mod sql {
             )?;
         }
         Ok(())
+    }
+
+    fn path_into_blob(path: &Path) -> Vec<u8> {
+        path.as_os_str().as_bytes().to_vec()
     }
 
     pub fn row_to_entry(row: &Row) -> rusqlite::Result<(i64, String)> {
@@ -189,7 +195,7 @@ mod sql {
     pub fn file_count(conn: &Connection) -> anyhow::Result<i64> {
         let mut stmt = conn.prepare("SELECT count(*) FROM files")?;
         let mut iter = stmt.query_map(params![], |row| row.get(0))?;
-        let count = iter.next().expect("SQL count result");
+        let count = iter.next().expect("SQL count result (1)");
         let count = count?;
         Ok(count)
     }
@@ -236,16 +242,20 @@ mod sql {
         conn: &Connection,
         filename: &Path,
     ) -> anyhow::Result<Option<(i64, FilesystemEntry)>> {
-        let files = files(conn)?;
-        let files: Vec<(i64, FilesystemEntry)> = files
-            .iter()
-            .filter(|(_, e)| e.pathbuf() == filename)
-            .map(|(id, e)| (*id, e.clone()))
-            .collect();
-        match files.len() {
-            0 => Ok(None),
-            1 => Ok(Some((files[0].0, files[0].1.clone()))),
-            _ => return Err(ObnamError::TooManyFiles(filename.to_path_buf()).into()),
+        let mut stmt = conn.prepare("SELECT fileno, json FROM files WHERE filename = ?1")?;
+        let mut iter =
+            stmt.query_map(params![path_into_blob(filename)], |row| row_to_entry(row))?;
+        match iter.next() {
+            None => Ok(None),
+            Some(Err(e)) => Err(e.into()),
+            Some(Ok((fileno, json))) => {
+                let entry = serde_json::from_str(&json)?;
+                if iter.next() == None {
+                    Ok(Some((fileno, entry)))
+                } else {
+                    Err(ObnamError::TooManyFiles(filename.to_path_buf()).into())
+                }
+            }
         }
     }
 }
