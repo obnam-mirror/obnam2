@@ -24,7 +24,8 @@ def start_chunk_server(ctx):
         shutil.copy(os.path.join(srcdir, x), x)
 
     chunks = "chunks"
-    os.mkdir(chunks)
+    if not os.path.exists(chunks):
+        os.mkdir(chunks)
 
     port = random.randint(2000, 30000)
     ctx["config"] = config = {

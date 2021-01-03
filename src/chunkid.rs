@@ -2,6 +2,7 @@ use crate::checksummer::sha256;
 use rusqlite::types::ToSqlOutput;
 use rusqlite::ToSql;
 use serde::{Deserialize, Serialize};
+use std::ffi::OsStr;
 use std::fmt;
 use std::hash::Hash;
 use std::str::FromStr;
@@ -65,6 +66,14 @@ impl fmt::Display for ChunkId {
 impl From<&String> for ChunkId {
     fn from(s: &String) -> Self {
         ChunkId { id: s.to_string() }
+    }
+}
+
+impl From<&OsStr> for ChunkId {
+    fn from(s: &OsStr) -> Self {
+        ChunkId {
+            id: s.to_string_lossy().to_string(),
+        }
     }
 }
 

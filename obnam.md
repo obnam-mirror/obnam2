@@ -777,6 +777,49 @@ then HTTP status code is 404
 ~~~
 
 
+## Persistent across restarts
+
+Chunk storage, and the index of chunk metadata for searches, needs to
+be persistent across restarts. This scenario verifies it is so.
+
+First, create a chunk.
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a file data.dat containing some random data
+when I POST data.dat to /chunks, with chunk-meta: {"sha256":"abc"}
+then HTTP status code is 201
+and content-type is application/json
+and the JSON body has a field chunk_id, henceforth ID
+~~~
+
+Then, restart the server.
+
+~~~scenario
+when the chunk server is stopped
+given a running chunk server
+~~~
+
+Can we still find it by its metadata?
+
+~~~scenario
+when I GET /chunks?sha256=abc
+then HTTP status code is 200
+and content-type is application/json
+and the JSON body matches {"<ID>":{"sha256":"abc","generation":null,"ended":null}}
+~~~
+
+Can we still retrieve it by its identifier?
+
+~~~scenario
+when I GET /chunks/<ID>
+then HTTP status code is 200
+and content-type is application/octet-stream
+and chunk-meta is {"sha256":"abc","generation":null,"ended":null}
+and the body matches file data.dat
+~~~
+
 # Acceptance criteria for Obnam as a whole
 
 The scenarios in this chapter apply to Obnam as a whole: the client
