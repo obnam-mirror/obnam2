@@ -36,7 +36,9 @@ async fn main() -> anyhow::Result<()> {
         return Err(ConfigError::BadServerAddress.into());
     }
 
-    let store = IndexedStore::new(&config.chunks);
+    let mut store = IndexedStore::new(&config.chunks);
+    store.fill_index()?;
+    println!("existing generations: {:?}", store.find_generations());
     let store = Arc::new(Mutex::new(store));
     let store = warp::any().map(move || Arc::clone(&store));
 

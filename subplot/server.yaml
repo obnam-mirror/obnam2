@@ -2,6 +2,9 @@
   function: start_chunk_server
   cleanup: stop_chunk_server
 
+- when: "the chunk server is stopped"
+  function: stop_chunk_server
+
 - when: "I POST (?P<filename>\\S+) to (?P<path>\\S+), with (?P<header>\\S+): (?P<json>.*)"
   regex: true
   function: post_file
