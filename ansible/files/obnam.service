@@ -1,0 +1,10 @@
+[Unit]
+Description=Obnam server
+
+[Service]
+Type=simple
+ConditionPathExists=/etc/obnam/server.yaml
+ExecStart=/usr/bin/obnam-server /etc/obnam/server.yaml
+
+[Install]
+WantedBy=multi-user.target

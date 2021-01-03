@@ -1,0 +1,39 @@
+- hosts: obnam-server
+  remote_user: root
+  tasks:
+    - file:
+        path: /etc/obnam
+        state: directory
+    - file:
+        path: /srv/obnam/chunks
+        state: directory
+    - filesystem:
+        dev: "{{ chunkdev }}"
+        fstype: ext4
+        opts: -Lchunks
+    - mount:
+        src: LABEL=chunks
+        path: /srv/obnam/chunks
+        fstype: auto
+        state: mounted
+    - apt_repository:
+        repo: "deb [trusted=yes]  http://ci-prod-controller.vm.liw.fi/debian unstable-ci main"
+    - apt:
+        name: obnam
+    - copy:
+        src: obnam.service
+        dest: /etc/systemd/system/obnam.service
+    - copy:
+        src: "{{ item }}"
+        dest: "/etc/obnam/{{ item }}"
+      with_items:
+        - server.yaml
+        - server.key
+        - server.pem
+    - systemd:
+        name: obnam
+        enabled: true
+        state: restarted
+        daemon_reload: true
+  vars:
+    chunkdev: /dev/vdb
