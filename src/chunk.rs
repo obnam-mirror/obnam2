@@ -35,6 +35,12 @@ impl GenerationChunk {
         Self { chunk_ids }
     }
 
+    pub fn from_data_chunk(chunk: &DataChunk) -> anyhow::Result<Self> {
+        let data = chunk.data();
+        let data = std::str::from_utf8(data)?;
+        Ok(serde_json::from_str(data)?)
+    }
+
     pub fn is_empty(&self) -> bool {
         self.chunk_ids.is_empty()
     }

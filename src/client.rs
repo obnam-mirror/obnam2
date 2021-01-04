@@ -4,6 +4,7 @@ use crate::chunk::GenerationChunk;
 use crate::chunker::Chunker;
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
+use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::{FinishedGeneration, LocalGeneration};
 use crate::genlist::GenerationList;
@@ -212,24 +213,30 @@ impl BackupClient {
             return Err(ClientError::ChunkNotFound(chunk_id.to_string()).into());
         }
 
+        let headers = res.headers();
+        let meta = headers.get("chunk-meta");
+        if meta.is_none() {
+            return Err(ObnamError::NoChunkMeta(chunk_id.to_string()).into());
+        }
+        let meta = meta.unwrap().to_str()?;
+        let meta: ChunkMeta = serde_json::from_str(meta)?;
+
         let body = res.bytes()?;
-        Ok(DataChunk::new(body.to_vec()))
+        let body = body.to_vec();
+        let actual = sha256(&body);
+        if actual != meta.sha256() {
+            return Err(ObnamError::WrongChecksum(chunk_id.to_string()).into());
+        }
+
+        let chunk: DataChunk = DataChunk::new(body);
+
+        Ok(chunk)
     }
 
     fn fetch_generation_chunk(&self, gen_id: &str) -> anyhow::Result<GenerationChunk> {
-        let url = format!("{}/{}", &self.chunks_url(), gen_id);
-        trace!("fetch_generation_chunk: url={:?}", url);
-        let req = self.client.get(&url).build()?;
-        let res = self.client.execute(req)?;
-        debug!("fetch_generation_chunk: status={}", res.status());
-        if res.status() != 200 {
-            return Err(ClientError::GenerationNotFound(gen_id.to_string()).into());
-        }
-
-        let text = res.text()?;
-        debug!("fetch_generation_chunk: text={:?}", text);
-        let gen: GenerationChunk = serde_json::from_str(&text)?;
-        debug!("fetch_generation_chunk: {:?}", gen);
+        let chunk_id = ChunkId::from_str(gen_id);
+        let chunk = self.fetch_chunk(&chunk_id)?;
+        let gen = GenerationChunk::from_data_chunk(&chunk)?;
         Ok(gen)
     }
 

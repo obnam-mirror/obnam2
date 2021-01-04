@@ -10,6 +10,9 @@
 - when: "I invoke obnam --config {filename} restore latest {todir}"
   function: run_obnam_restore_latest
 
+- when: "I invoke obnam --config {filename} get-chunk <{gen_id}>"
+  function: run_obnam_get_chunk
+
 - then: "backup generation is {varname}"
   function: capture_generation_id
 
@@ -24,3 +27,6 @@
 
 - then: "file {filename} was not backed up because it was unchanged"
   function: file_was_unchanged
+
+- then: "stdout matches file {filename}"
+  function: stdout_matches_file
