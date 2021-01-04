@@ -50,6 +50,13 @@ def run_obnam_restore_with_genref(ctx, filename=None, genref=None, todir=None):
     )
 
 
+def run_obnam_get_chunk(ctx, filename=None, gen_id=None, todir=None):
+    runcmd_run = globals()["runcmd_run"]
+    gen_id = ctx["vars"][gen_id]
+    logging.debug(f"run_obnam_get_chunk: gen_id={gen_id}")
+    runcmd_run(ctx, ["obnam", "--config", filename, "get-chunk", gen_id])
+
+
 def capture_generation_id(ctx, varname=None):
     runcmd_get_stdout = globals()["runcmd_get_stdout"]
 
@@ -95,3 +102,11 @@ def get_backup_reason(ctx, filename):
     lines = [line for line in lines if filename in line]
     line = lines[0]
     return line.split()[-1]
+
+
+def stdout_matches_file(ctx, filename=None):
+    runcmd_get_stdout = globals()["runcmd_get_stdout"]
+    assert_eq = globals()["assert_eq"]
+    stdout = runcmd_get_stdout(ctx)
+    data = open(filename).read()
+    assert_eq(stdout, data)

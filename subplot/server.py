@@ -90,6 +90,16 @@ def delete_chunk_by_id(ctx, chunk_id=None):
     _request(ctx, requests.delete, url)
 
 
+def make_chunk_file_be_empty(ctx, chunk_id=None):
+    chunk_id = ctx["vars"][chunk_id]
+    chunks = ctx["config"]["chunks"]
+    for (dirname, _, _) in os.walk(chunks):
+        filename = os.path.join(dirname, chunk_id + ".data")
+        if os.path.exists(filename):
+            logging.debug(f"emptying chunk file {filename}")
+            open(filename, "w").close()
+
+
 def status_code_is(ctx, status=None):
     assert_eq = globals()["assert_eq"]
     assert_eq(ctx["http.status"], int(status))

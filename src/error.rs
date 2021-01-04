@@ -9,4 +9,10 @@ pub enum ObnamError {
 
     #[error("Generation has more than one file with the name {0}")]
     TooManyFiles(PathBuf),
+
+    #[error("Server response did not have a 'chunk-meta' header for chunk {0}")]
+    NoChunkMeta(String),
+
+    #[error("Wrong checksum for chunk {0}")]
+    WrongChecksum(String),
 }

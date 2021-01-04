@@ -976,6 +976,26 @@ when I run obnam --config  smoke.yaml list-files
 then file live/data.dat was backed up because it was changed
 ~~~
 
+## Checksum verification
+
+Each chunk has metadata with the checksum of the chunk contents. This
+scenario verifies that the client checks the contents hasn't been
+modified.
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on smoke.yaml
+and a file live/data.dat containing some random data
+when I run obnam --config smoke.yaml backup
+then backup generation is GEN
+when I invoke obnam --config smoke.yaml get-chunk <GEN>
+then exit code is 0
+when chunk <GEN> on chunk server is replaced by an empty file
+when I invoke obnam --config smoke.yaml get-chunk <GEN>
+then command fails
+~~~
+
 ## Tricky filenames
 
 Obnam needs to handle all filenames the underlying operating and file

@@ -25,6 +25,9 @@
 - when: "I try to DELETE /chunks/{chunk_id}"
   function: delete_chunk_by_id
 
+- when: "chunk <{chunk_id}> on chunk server is replaced by an empty file"
+  function: make_chunk_file_be_empty
+
 - then: "HTTP status code is {status}"
   function: status_code_is
 
