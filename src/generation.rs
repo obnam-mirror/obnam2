@@ -4,6 +4,9 @@ use crate::fsentry::FilesystemEntry;
 use rusqlite::Connection;
 use std::path::Path;
 
+/// An identifier for a file in a generation.
+type FileId = i64;
+
 /// A nascent backup generation.
 ///
 /// A nascent generation is one that is being prepared. It isn't
@@ -11,7 +14,7 @@ use std::path::Path;
 /// of its generation chunk.
 pub struct NascentGeneration {
     conn: Connection,
-    fileno: i64,
+    fileno: FileId,
 }
 
 impl NascentGeneration {
@@ -23,7 +26,7 @@ impl NascentGeneration {
         Ok(Self { conn, fileno: 0 })
     }
 
-    pub fn file_count(&self) -> i64 {
+    pub fn file_count(&self) -> FileId {
         self.fileno
     }
 
@@ -120,11 +123,11 @@ impl LocalGeneration {
         Ok(sql::file_count(&self.conn)?)
     }
 
-    pub fn files(&self) -> anyhow::Result<Vec<(i64, FilesystemEntry, String)>> {
+    pub fn files(&self) -> anyhow::Result<Vec<(FileId, FilesystemEntry, String)>> {
         Ok(sql::files(&self.conn)?)
     }
 
-    pub fn chunkids(&self, fileno: i64) -> anyhow::Result<Vec<ChunkId>> {
+    pub fn chunkids(&self, fileno: FileId) -> anyhow::Result<Vec<ChunkId>> {
         Ok(sql::chunkids(&self.conn, fileno)?)
     }
 
@@ -132,12 +135,13 @@ impl LocalGeneration {
         Ok(sql::get_file(&self.conn, filename)?)
     }
 
-    pub fn get_fileno(&self, filename: &Path) -> anyhow::Result<Option<i64>> {
+    pub fn get_fileno(&self, filename: &Path) -> anyhow::Result<Option<FileId>> {
         Ok(sql::get_fileno(&self.conn, filename)?)
     }
 }
 
 mod sql {
+    use super::FileId;
     use crate::chunkid::ChunkId;
     use crate::cmd::Reason;
     use crate::error::ObnamError;
@@ -173,7 +177,7 @@ mod sql {
     pub fn insert_one(
         t: &Transaction,
         e: FilesystemEntry,
-        fileno: i64,
+        fileno: FileId,
         ids: &[ChunkId],
         reason: Reason,
     ) -> anyhow::Result<()> {
@@ -195,14 +199,14 @@ mod sql {
         path.as_os_str().as_bytes().to_vec()
     }
 
-    pub fn row_to_entry(row: &Row) -> rusqlite::Result<(i64, String, String)> {
-        let fileno: i64 = row.get(row.column_index("fileno")?)?;
+    pub fn row_to_entry(row: &Row) -> rusqlite::Result<(FileId, String, String)> {
+        let fileno: FileId = row.get(row.column_index("fileno")?)?;
         let json: String = row.get(row.column_index("json")?)?;
         let reason: String = row.get(row.column_index("reason")?)?;
         Ok((fileno, json, reason))
     }
 
-    pub fn file_count(conn: &Connection) -> anyhow::Result<i64> {
+    pub fn file_count(conn: &Connection) -> anyhow::Result<FileId> {
         let mut stmt = conn.prepare("SELECT count(*) FROM files")?;
         let mut iter = stmt.query_map(params![], |row| row.get(0))?;
         let count = iter.next().expect("SQL count result (1)");
@@ -210,10 +214,10 @@ mod sql {
         Ok(count)
     }
 
-    pub fn files(conn: &Connection) -> anyhow::Result<Vec<(i64, FilesystemEntry, String)>> {
+    pub fn files(conn: &Connection) -> anyhow::Result<Vec<(FileId, FilesystemEntry, String)>> {
         let mut stmt = conn.prepare("SELECT * FROM files")?;
         let iter = stmt.query_map(params![], |row| row_to_entry(row))?;
-        let mut files: Vec<(i64, FilesystemEntry, String)> = vec![];
+        let mut files: Vec<(FileId, FilesystemEntry, String)> = vec![];
         for x in iter {
             let (fileno, json, reason) = x?;
             let entry = serde_json::from_str(&json)?;
@@ -222,8 +226,7 @@ mod sql {
         Ok(files)
     }
 
-    pub fn chunkids(conn: &Connection, fileno: i64) -> anyhow::Result<Vec<ChunkId>> {
-        let fileno = fileno as i64;
+    pub fn chunkids(conn: &Connection, fileno: FileId) -> anyhow::Result<Vec<ChunkId>> {
         let mut stmt = conn.prepare("SELECT chunkid FROM chunks WHERE fileno = ?1")?;
         let iter = stmt.query_map(params![fileno], |row| Ok(row.get(0)?))?;
         let mut ids: Vec<ChunkId> = vec![];
@@ -241,7 +244,7 @@ mod sql {
         }
     }
 
-    pub fn get_fileno(conn: &Connection, filename: &Path) -> anyhow::Result<Option<i64>> {
+    pub fn get_fileno(conn: &Connection, filename: &Path) -> anyhow::Result<Option<FileId>> {
         match get_file_and_fileno(conn, filename)? {
             None => Ok(None),
             Some((id, _, _)) => Ok(Some(id)),
@@ -251,7 +254,7 @@ mod sql {
     fn get_file_and_fileno(
         conn: &Connection,
         filename: &Path,
-    ) -> anyhow::Result<Option<(i64, FilesystemEntry, String)>> {
+    ) -> anyhow::Result<Option<(FileId, FilesystemEntry, String)>> {
         let mut stmt = conn.prepare("SELECT * FROM files WHERE filename = ?1")?;
         let mut iter =
             stmt.query_map(params![path_into_blob(filename)], |row| row_to_entry(row))?;
