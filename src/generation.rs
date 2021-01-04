@@ -151,6 +151,7 @@ mod sql {
             params![],
         )?;
         conn.execute("CREATE INDEX filenames ON files (filename)", params![])?;
+        conn.execute("CREATE INDEX filenos ON chunks (fileno)", params![])?;
         conn.pragma_update(None, "journal_mode", &"WAL")?;
         Ok(conn)
     }
