@@ -919,6 +919,63 @@ given a manifest of the directory live restored in rest in rest.yaml
 then files live.yaml and rest.yaml match
 ~~~
 
+## Backup or not for the right reason
+
+The decision of whether to back up a file or keep the version in the
+previous backup is crucial. This scenario verifies that Obnam makes
+the right decisions.
+
+### First backup backs up all files because they're new
+
+This scenario verifies that in the first backup all files are backed
+up because they were new.
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on smoke.yaml
+and a file live/data.dat containing some random data
+and a manifest of the directory live in live.yaml
+when I run obnam --config smoke.yaml backup
+when I run obnam --config  smoke.yaml list-files
+then file live/data.dat was backed up because it was new
+~~~
+
+### All files in second backup are unchanged
+
+This scenario verifies that if a file hasn't been changed, it's not
+backed up.
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on smoke.yaml
+and a file live/data.dat containing some random data
+and a manifest of the directory live in live.yaml
+when I run obnam --config smoke.yaml backup
+when I run obnam --config smoke.yaml backup
+when I run obnam --config  smoke.yaml list-files
+then file live/data.dat was not backed up because it was unchanged
+~~~
+
+### Second backup back up changed file
+
+This scenario verifies that if a file has indeed been changed, it's
+backed up.
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on smoke.yaml
+and a file live/data.dat containing some random data
+and a manifest of the directory live in live.yaml
+when I run obnam --config smoke.yaml backup
+given a file live/data.dat containing some random data
+when I run obnam --config smoke.yaml backup
+when I run obnam --config  smoke.yaml list-files
+then file live/data.dat was backed up because it was changed
+~~~
+
 ## Tricky filenames
 
 Obnam needs to handle all filenames the underlying operating and file

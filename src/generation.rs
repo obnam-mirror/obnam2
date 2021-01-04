@@ -1,4 +1,5 @@
 use crate::chunkid::ChunkId;
+use crate::cmd::Reason;
 use crate::fsentry::FilesystemEntry;
 use rusqlite::Connection;
 use std::path::Path;
@@ -26,23 +27,28 @@ impl NascentGeneration {
         self.fileno
     }
 
-    pub fn insert(&mut self, e: FilesystemEntry, ids: &[ChunkId]) -> anyhow::Result<()> {
+    pub fn insert(
+        &mut self,
+        e: FilesystemEntry,
+        ids: &[ChunkId],
+        reason: Reason,
+    ) -> anyhow::Result<()> {
         let t = self.conn.transaction()?;
         self.fileno += 1;
-        sql::insert_one(&t, e, self.fileno, ids)?;
+        sql::insert_one(&t, e, self.fileno, ids, reason)?;
         t.commit()?;
         Ok(())
     }
 
-    pub fn insert_iter(
+    pub fn insert_iter<'a>(
         &mut self,
-        entries: impl Iterator<Item = anyhow::Result<(FilesystemEntry, Vec<ChunkId>)>>,
+        entries: impl Iterator<Item = anyhow::Result<(FilesystemEntry, Vec<ChunkId>, Reason)>>,
     ) -> anyhow::Result<()> {
         let t = self.conn.transaction()?;
         for r in entries {
-            let (e, ids) = r?;
+            let (e, ids, reason) = r?;
             self.fileno += 1;
-            sql::insert_one(&t, e, self.fileno, &ids[..])?;
+            sql::insert_one(&t, e, self.fileno, &ids[..], reason)?;
         }
         t.commit()?;
         Ok(())
@@ -114,7 +120,7 @@ impl LocalGeneration {
         Ok(sql::file_count(&self.conn)?)
     }
 
-    pub fn files(&self) -> anyhow::Result<Vec<(i64, FilesystemEntry)>> {
+    pub fn files(&self) -> anyhow::Result<Vec<(i64, FilesystemEntry, String)>> {
         Ok(sql::files(&self.conn)?)
     }
 
@@ -133,6 +139,7 @@ impl LocalGeneration {
 
 mod sql {
     use crate::chunkid::ChunkId;
+    use crate::cmd::Reason;
     use crate::error::ObnamError;
     use crate::fsentry::FilesystemEntry;
     use rusqlite::{params, Connection, OpenFlags, Row, Transaction};
@@ -143,7 +150,7 @@ mod sql {
         let flags = OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.execute(
-            "CREATE TABLE files (fileno INTEGER PRIMARY KEY, filename BLOB, json TEXT)",
+            "CREATE TABLE files (fileno INTEGER PRIMARY KEY, filename BLOB, json TEXT, reason TEXT)",
             params![],
         )?;
         conn.execute(
@@ -168,11 +175,12 @@ mod sql {
         e: FilesystemEntry,
         fileno: i64,
         ids: &[ChunkId],
+        reason: Reason,
     ) -> anyhow::Result<()> {
         let json = serde_json::to_string(&e)?;
         t.execute(
-            "INSERT INTO files (fileno, filename, json) VALUES (?1, ?2, ?3)",
-            params![fileno, path_into_blob(&e.pathbuf()), &json],
+            "INSERT INTO files (fileno, filename, json, reason) VALUES (?1, ?2, ?3, ?4)",
+            params![fileno, path_into_blob(&e.pathbuf()), &json, reason,],
         )?;
         for id in ids {
             t.execute(
@@ -187,10 +195,11 @@ mod sql {
         path.as_os_str().as_bytes().to_vec()
     }
 
-    pub fn row_to_entry(row: &Row) -> rusqlite::Result<(i64, String)> {
+    pub fn row_to_entry(row: &Row) -> rusqlite::Result<(i64, String, String)> {
         let fileno: i64 = row.get(row.column_index("fileno")?)?;
         let json: String = row.get(row.column_index("json")?)?;
-        Ok((fileno, json))
+        let reason: String = row.get(row.column_index("reason")?)?;
+        Ok((fileno, json, reason))
     }
 
     pub fn file_count(conn: &Connection) -> anyhow::Result<i64> {
@@ -201,14 +210,14 @@ mod sql {
         Ok(count)
     }
 
-    pub fn files(conn: &Connection) -> anyhow::Result<Vec<(i64, FilesystemEntry)>> {
+    pub fn files(conn: &Connection) -> anyhow::Result<Vec<(i64, FilesystemEntry, String)>> {
         let mut stmt = conn.prepare("SELECT * FROM files")?;
         let iter = stmt.query_map(params![], |row| row_to_entry(row))?;
-        let mut files: Vec<(i64, FilesystemEntry)> = vec![];
+        let mut files: Vec<(i64, FilesystemEntry, String)> = vec![];
         for x in iter {
-            let (fileno, json) = x?;
+            let (fileno, json, reason) = x?;
             let entry = serde_json::from_str(&json)?;
-            files.push((fileno, entry));
+            files.push((fileno, entry, reason));
         }
         Ok(files)
     }
@@ -228,31 +237,31 @@ mod sql {
     pub fn get_file(conn: &Connection, filename: &Path) -> anyhow::Result<Option<FilesystemEntry>> {
         match get_file_and_fileno(conn, filename)? {
             None => Ok(None),
-            Some((_, e)) => Ok(Some(e)),
+            Some((_, e, _)) => Ok(Some(e)),
         }
     }
 
     pub fn get_fileno(conn: &Connection, filename: &Path) -> anyhow::Result<Option<i64>> {
         match get_file_and_fileno(conn, filename)? {
             None => Ok(None),
-            Some((id, _)) => Ok(Some(id)),
+            Some((id, _, _)) => Ok(Some(id)),
         }
     }
 
     fn get_file_and_fileno(
         conn: &Connection,
         filename: &Path,
-    ) -> anyhow::Result<Option<(i64, FilesystemEntry)>> {
-        let mut stmt = conn.prepare("SELECT fileno, json FROM files WHERE filename = ?1")?;
+    ) -> anyhow::Result<Option<(i64, FilesystemEntry, String)>> {
+        let mut stmt = conn.prepare("SELECT * FROM files WHERE filename = ?1")?;
         let mut iter =
             stmt.query_map(params![path_into_blob(filename)], |row| row_to_entry(row))?;
         match iter.next() {
             None => Ok(None),
             Some(Err(e)) => Err(e.into()),
-            Some(Ok((fileno, json))) => {
+            Some(Ok((fileno, json, reason))) => {
                 let entry = serde_json::from_str(&json)?;
                 if iter.next() == None {
-                    Ok(Some((fileno, entry)))
+                    Ok(Some((fileno, entry, reason)))
                 } else {
                     Err(ObnamError::TooManyFiles(filename.to_path_buf()).into())
                 }
