@@ -21,6 +21,15 @@ got_cargo_cmd()
     cargo --list | grep " $1 " > /dev/null
 }
 
+# Check version numbers in Cargo.toml vs debian/changelog
+v1="$(awk '/^version/ { print $NF }' Cargo.toml | tr -d '"')"
+v2="$(dpkg-parsechangelog -SVersion | sed 's/-.*$//')"
+if [ "$v1" != "$v2" ]
+then
+    echo "Version from Carog.toml ($v1) and debian/changelog ($v2) don't match" 1>&2
+    exit 1
+fi
+
 cargo build --all-targets $quiet
 got_cargo_cmd clippy && cargo clippy $quiet
 got_cargo_cmd fmt && cargo fmt -- --check
