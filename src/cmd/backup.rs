@@ -4,6 +4,9 @@ use crate::fsiter::FsIterator;
 use crate::generation::{LocalGeneration, NascentGeneration};
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{debug, info};
+use rusqlite::types::ToSqlOutput;
+use rusqlite::ToSql;
+use std::fmt;
 use tempfile::NamedTempFile;
 
 pub fn backup(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<()> {
@@ -43,7 +46,9 @@ pub fn backup(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<()> {
                             let path = &entry.pathbuf();
                             info!("backup: {}", path.display());
                             progress.set_message(&format!("{}", path.display()));
-                            client.upload_filesystem_entry(entry, buffer_size)
+                            let (new_entry, ids) =
+                                client.upload_filesystem_entry(entry, buffer_size)?;
+                            Ok((new_entry, ids, Reason::IsNew))
                         }
                     }
                 }))?;
@@ -60,16 +65,22 @@ pub fn backup(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<()> {
                             let path = &entry.pathbuf();
                             info!("backup: {}", path.display());
                             progress.set_message(&format!("{}", path.display()));
-                            if needs_backup(&old, &entry) {
-                                client.upload_filesystem_entry(entry, buffer_size)
-                            } else {
-                                let fileno = old.get_fileno(&entry.pathbuf())?;
-                                let ids = if let Some(fileno) = fileno {
-                                    old.chunkids(fileno)?
-                                } else {
-                                    vec![]
-                                };
-                                Ok((entry.clone(), ids))
+                            let reason = needs_backup(&old, &entry);
+                            match reason {
+                                Reason::IsNew | Reason::Changed | Reason::Error => {
+                                    let (new_entry, ids) =
+                                        client.upload_filesystem_entry(entry, buffer_size)?;
+                                    Ok((new_entry, ids, reason))
+                                }
+                                Reason::Unchanged => {
+                                    let fileno = old.get_fileno(&entry.pathbuf())?;
+                                    let ids = if let Some(fileno) = fileno {
+                                        old.chunkids(fileno)?
+                                    } else {
+                                        vec![]
+                                    };
+                                    Ok((entry.clone(), ids, Reason::Unchanged))
+                                }
                             }
                         }
                     }
@@ -85,11 +96,40 @@ pub fn backup(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<()> {
     let gen_id = client.upload_generation(&newname, buffer_size)?;
     println!("gen id: {}", gen_id);
 
-    // Delete the temporary file.
+    // Delete the temporary file.q
     std::fs::remove_file(&newname)?;
     std::fs::remove_file(&oldname)?;
 
     Ok(())
+}
+
+#[derive(Debug)]
+pub enum Reason {
+    IsNew,
+    Changed,
+    Unchanged,
+    Error,
+}
+
+impl ToSql for Reason {
+    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput> {
+        Ok(ToSqlOutput::Owned(rusqlite::types::Value::Text(format!(
+            "{}",
+            self
+        ))))
+    }
+}
+
+impl fmt::Display for Reason {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let reason = match self {
+            Reason::IsNew => "new",
+            Reason::Changed => "changed",
+            Reason::Unchanged => "unchanged",
+            Reason::Error => "error",
+        };
+        write!(f, "{}", reason)
+    }
 }
 
 fn create_progress_bar(verbose: bool) -> ProgressBar {
@@ -109,7 +149,7 @@ fn create_progress_bar(verbose: bool) -> ProgressBar {
     progress
 }
 
-fn needs_backup(old: &LocalGeneration, new_entry: &FilesystemEntry) -> bool {
+fn needs_backup(old: &LocalGeneration, new_entry: &FilesystemEntry) -> Reason {
     let new_name = new_entry.pathbuf();
     match old.get_file(&new_name) {
         // File is not in old generation.
@@ -118,17 +158,17 @@ fn needs_backup(old: &LocalGeneration, new_entry: &FilesystemEntry) -> bool {
                 "needs_backup: file is not in old generation, needs backup: {:?}",
                 new_name
             );
-            true
+            Reason::IsNew
         }
 
         // File is in old generation. Has its metadata changed?
         Ok(Some(old_entry)) => {
             if file_has_changed(&old_entry, new_entry) {
                 debug!("needs_backup: file has changed: {:?}", new_name);
-                true
+                Reason::Changed
             } else {
                 debug!("needs_backup: file has NOT changed: {:?}", new_name);
-                false
+                Reason::Unchanged
             }
         }
 
@@ -139,7 +179,7 @@ fn needs_backup(old: &LocalGeneration, new_entry: &FilesystemEntry) -> bool {
                 "needs_backup: lookup in old generation returned error, ignored: {:?}: {}",
                 new_name, err
             );
-            true
+            Reason::Error
         }
     }
 }

@@ -68,3 +68,30 @@ def generation_list_contains(ctx, gen_id=None):
     runcmd_stdout_contains = globals()["runcmd_stdout_contains"]
     gen_id = ctx["vars"][gen_id]
     runcmd_stdout_contains(ctx, text=gen_id)
+
+
+def file_was_new(ctx, filename=None):
+    assert_eq = globals()["assert_eq"]
+    reason = get_backup_reason(ctx, filename)
+    assert_eq(reason, "(new)")
+
+
+def file_was_changed(ctx, filename=None):
+    assert_eq = globals()["assert_eq"]
+    reason = get_backup_reason(ctx, filename)
+    assert_eq(reason, "(changed)")
+
+
+def file_was_unchanged(ctx, filename=None):
+    assert_eq = globals()["assert_eq"]
+    reason = get_backup_reason(ctx, filename)
+    assert_eq(reason, "(unchanged)")
+
+
+def get_backup_reason(ctx, filename):
+    runcmd_get_stdout = globals()["runcmd_get_stdout"]
+    stdout = runcmd_get_stdout(ctx)
+    lines = stdout.splitlines()
+    lines = [line for line in lines if filename in line]
+    line = lines[0]
+    return line.split()[-1]

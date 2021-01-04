@@ -15,3 +15,12 @@
 
 - then: "generation list contains <{gen_id}>"
   function: generation_list_contains
+
+- then: "file {filename} was backed up because it was new"
+  function: file_was_new
+
+- then: "file {filename} was backed up because it was changed"
+  function: file_was_changed
+
+- then: "file {filename} was not backed up because it was unchanged"
+  function: file_was_unchanged

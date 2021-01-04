@@ -2,7 +2,7 @@ use log::{debug, error, info, LevelFilter};
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Logger, Root};
 use obnam::client::ClientConfig;
-use obnam::cmd::{backup, list, restore};
+use obnam::cmd::{backup, list, list_files, restore};
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
@@ -21,6 +21,7 @@ fn main() -> anyhow::Result<()> {
     let result = match opt.cmd {
         Command::Backup => backup(&config, BUFFER_SIZE),
         Command::List => list(&config),
+        Command::ListFiles { gen_id } => list_files(&config, &gen_id),
         Command::Restore { gen_id, to } => restore(&config, &gen_id, &to),
     };
 
@@ -48,6 +49,10 @@ struct Opt {
 enum Command {
     Backup,
     List,
+    ListFiles {
+        #[structopt(default_value = "latest")]
+        gen_id: String,
+    },
     Restore {
         #[structopt()]
         gen_id: String,
