@@ -35,12 +35,12 @@ pub fn restore(config: &ClientConfig, gen_ref: &str, to: &Path) -> anyhow::Resul
     let gen = client.fetch_generation(&gen_id, &dbname)?;
     info!("restore file count: {}", gen.file_count()?);
     let progress = create_progress_bar(gen.file_count()?, true);
-    for (fileid, entry, _) in gen.files()? {
-        restore_generation(&client, &gen, fileid, &entry, &to, &progress)?;
+    for file in gen.files()? {
+        restore_generation(&client, &gen, file.fileno(), file.entry(), &to, &progress)?;
     }
-    for (_, entry, _) in gen.files()? {
-        if entry.is_dir() {
-            restore_directory_metadata(&entry, &to)?;
+    for file in gen.files()? {
+        if file.entry().is_dir() {
+            restore_directory_metadata(file.entry(), &to)?;
         }
     }
     progress.finish();

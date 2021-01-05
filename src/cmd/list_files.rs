@@ -1,3 +1,4 @@
+use crate::backup_reason::Reason;
 use crate::client::BackupClient;
 use crate::client::ClientConfig;
 use crate::error::ObnamError;
@@ -22,8 +23,8 @@ pub fn list_files(config: &ClientConfig, gen_ref: &str) -> anyhow::Result<()> {
     };
 
     let gen = client.fetch_generation(&gen_id, &dbname)?;
-    for (_, entry, reason) in gen.files()? {
-        println!("{}", format_entry(&entry, &reason));
+    for file in gen.files()? {
+        println!("{}", format_entry(&file.entry(), file.reason()));
     }
 
     // Delete the temporary file.
@@ -32,7 +33,7 @@ pub fn list_files(config: &ClientConfig, gen_ref: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn format_entry(e: &FilesystemEntry, reason: &str) -> String {
+fn format_entry(e: &FilesystemEntry, reason: Reason) -> String {
     let kind = match e.kind() {
         FilesystemKind::Regular => "-",
         FilesystemKind::Directory => "d",
