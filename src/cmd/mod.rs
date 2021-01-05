@@ -1,5 +1,5 @@
 mod backup;
-pub use backup::{backup, Reason};
+pub use backup::backup;
 
 mod list;
 pub use list::list;
