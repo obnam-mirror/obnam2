@@ -110,6 +110,35 @@ pub struct LocalGeneration {
     conn: Connection,
 }
 
+pub struct BackedUpFile {
+    fileno: FileId,
+    entry: FilesystemEntry,
+    reason: Reason,
+}
+
+impl BackedUpFile {
+    pub fn new(fileno: FileId, entry: FilesystemEntry, reason: &str) -> Self {
+        let reason = Reason::from_str(reason);
+        Self {
+            fileno,
+            entry,
+            reason,
+        }
+    }
+
+    pub fn fileno(&self) -> FileId {
+        self.fileno
+    }
+
+    pub fn entry(&self) -> &FilesystemEntry {
+        &self.entry
+    }
+
+    pub fn reason(&self) -> Reason {
+        self.reason
+    }
+}
+
 impl LocalGeneration {
     pub fn open<P>(filename: P) -> anyhow::Result<Self>
     where
@@ -123,7 +152,7 @@ impl LocalGeneration {
         Ok(sql::file_count(&self.conn)?)
     }
 
-    pub fn files(&self) -> anyhow::Result<Vec<(FileId, FilesystemEntry, String)>> {
+    pub fn files(&self) -> anyhow::Result<Vec<BackedUpFile>> {
         Ok(sql::files(&self.conn)?)
     }
 
@@ -141,6 +170,7 @@ impl LocalGeneration {
 }
 
 mod sql {
+    use super::BackedUpFile;
     use super::FileId;
     use crate::backup_reason::Reason;
     use crate::chunkid::ChunkId;
@@ -214,14 +244,14 @@ mod sql {
         Ok(count)
     }
 
-    pub fn files(conn: &Connection) -> anyhow::Result<Vec<(FileId, FilesystemEntry, String)>> {
+    pub fn files(conn: &Connection) -> anyhow::Result<Vec<BackedUpFile>> {
         let mut stmt = conn.prepare("SELECT * FROM files")?;
         let iter = stmt.query_map(params![], |row| row_to_entry(row))?;
-        let mut files: Vec<(FileId, FilesystemEntry, String)> = vec![];
+        let mut files = vec![];
         for x in iter {
             let (fileno, json, reason) = x?;
             let entry = serde_json::from_str(&json)?;
-            files.push((fileno, entry, reason));
+            files.push(BackedUpFile::new(fileno, entry, &reason));
         }
         Ok(files)
     }

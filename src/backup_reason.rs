@@ -2,13 +2,25 @@ use rusqlite::types::ToSqlOutput;
 use rusqlite::ToSql;
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Reason {
     Skipped,
     IsNew,
     Changed,
     Unchanged,
     Error,
+}
+
+impl Reason {
+    pub fn from_str(text: &str) -> Reason {
+        match text {
+            "skipped" => Reason::Skipped,
+            "new" => Reason::IsNew,
+            "changed" => Reason::Changed,
+            "unchanged" => Reason::Unchanged,
+            _ => Reason::Error,
+        }
+    }
 }
 
 impl ToSql for Reason {
