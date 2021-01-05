@@ -64,16 +64,16 @@ impl BackupClient {
 
     pub fn upload_filesystem_entry(
         &self,
-        e: FilesystemEntry,
+        e: &FilesystemEntry,
         size: usize,
-    ) -> anyhow::Result<(FilesystemEntry, Vec<ChunkId>)> {
+    ) -> anyhow::Result<Vec<ChunkId>> {
         debug!("entry: {:?}", e);
         let ids = match e.kind() {
             FilesystemKind::Regular => self.read_file(e.pathbuf(), size)?,
             FilesystemKind::Directory => vec![],
             FilesystemKind::Symlink => vec![],
         };
-        Ok((e, ids))
+        Ok(ids)
     }
 
     pub fn upload_generation(&self, filename: &Path, size: usize) -> anyhow::Result<ChunkId> {

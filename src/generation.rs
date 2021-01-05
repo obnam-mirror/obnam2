@@ -1,5 +1,5 @@
+use crate::backup_reason::Reason;
 use crate::chunkid::ChunkId;
-use crate::cmd::Reason;
 use crate::fsentry::FilesystemEntry;
 use rusqlite::Connection;
 use std::path::Path;
@@ -142,8 +142,8 @@ impl LocalGeneration {
 
 mod sql {
     use super::FileId;
+    use crate::backup_reason::Reason;
     use crate::chunkid::ChunkId;
-    use crate::cmd::Reason;
     use crate::error::ObnamError;
     use crate::fsentry::FilesystemEntry;
     use rusqlite::{params, Connection, OpenFlags, Row, Transaction};
