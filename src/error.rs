@@ -13,6 +13,12 @@ pub enum ObnamError {
     #[error("Server response did not have a 'chunk-meta' header for chunk {0}")]
     NoChunkMeta(String),
 
-    #[error("Wrong checksum for chunk {0}")]
-    WrongChecksum(String),
+    #[error("Wrong checksum for chunk {0}, got {1}, expected {2}")]
+    WrongChecksum(String, String, String),
+
+    #[error("Chunk is missing: {0}")]
+    MissingChunk(String),
+
+    #[error("Chunk is in store too many times: {0}")]
+    DuplicateChunk(String),
 }

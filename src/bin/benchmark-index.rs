@@ -1,4 +1,5 @@
 use obnam::benchmark::ChunkGenerator;
+use obnam::chunkmeta::ChunkMeta;
 use obnam::index::Index;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -24,9 +25,10 @@ fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
     let gen = ChunkGenerator::new(opt.num);
 
-    let mut index = Index::default();
+    let mut index = Index::new(".")?;
     for (id, checksum, _, _) in gen {
-        index.insert(id, "sha25", &checksum);
+        let meta = ChunkMeta::new(&checksum);
+        index.insert_meta(id, meta)?;
     }
 
     Ok(())

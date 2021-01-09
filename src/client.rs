@@ -67,7 +67,7 @@ impl BackupClient {
         e: &FilesystemEntry,
         size: usize,
     ) -> anyhow::Result<Vec<ChunkId>> {
-        debug!("entry: {:?}", e);
+        info!("upload entry: {:?}", e);
         let ids = match e.kind() {
             FilesystemKind::Regular => self.read_file(e.pathbuf(), size)?,
             FilesystemKind::Directory => vec![],
@@ -77,16 +77,18 @@ impl BackupClient {
     }
 
     pub fn upload_generation(&self, filename: &Path, size: usize) -> anyhow::Result<ChunkId> {
+        info!("upload SQLite {}", filename.display());
         let ids = self.read_file(filename.to_path_buf(), size)?;
         let gen = GenerationChunk::new(ids);
         let data = gen.to_data_chunk()?;
         let meta = ChunkMeta::new_generation(&sha256(data.data()), &current_timestamp());
-        let gen_id = self.upload_gen_chunk(meta, gen)?;
+        let gen_id = self.upload_gen_chunk(meta.clone(), gen)?;
+        info!("uploaded generation {}, meta {:?}", gen_id, meta);
         Ok(gen_id)
     }
 
     fn read_file(&self, filename: PathBuf, size: usize) -> anyhow::Result<Vec<ChunkId>> {
-        info!("uploading {}", filename.display());
+        info!("upload file {}", filename.display());
         let file = std::fs::File::open(filename)?;
         let chunker = Chunker::new(size, file);
         let chunk_ids = self.upload_new_file_chunks(chunker)?;
@@ -128,6 +130,7 @@ impl BackupClient {
             }
         };
 
+        info!("has_chunk result: {:?}", has);
         Ok(has)
     }
 
@@ -146,6 +149,7 @@ impl BackupClient {
         } else {
             return Err(ClientError::NoCreatedChunkId.into());
         };
+        info!("uploaded_chunk {} meta {:?}", chunk_id, meta);
         Ok(chunk_id)
     }
 
@@ -168,6 +172,7 @@ impl BackupClient {
         } else {
             return Err(ClientError::NoCreatedChunkId.into());
         };
+        info!("uploaded_generation chunk {}", chunk_id);
         Ok(chunk_id)
     }
 
@@ -176,10 +181,12 @@ impl BackupClient {
         for item in chunker {
             let (meta, chunk) = item?;
             if let Some(chunk_id) = self.has_chunk(&meta)? {
-                chunk_ids.push(chunk_id);
+                chunk_ids.push(chunk_id.clone());
+                info!("reusing existing chunk {}", chunk_id);
             } else {
                 let chunk_id = self.upload_chunk(meta, chunk)?;
-                chunk_ids.push(chunk_id);
+                chunk_ids.push(chunk_id.clone());
+                info!("created new chunk {}", chunk_id);
             }
         }
 
@@ -193,7 +200,7 @@ impl BackupClient {
         let res = self.client.execute(req)?;
         debug!("list_generations: status={}", res.status());
         let body = res.bytes()?;
-        debug!("list_generationgs: body={:?}", body);
+        debug!("list_generations: body={:?}", body);
         let map: HashMap<String, ChunkMeta> = serde_yaml::from_slice(&body)?;
         debug!("list_generations: map={:?}", map);
         let finished = map
@@ -204,28 +211,37 @@ impl BackupClient {
     }
 
     pub fn fetch_chunk(&self, chunk_id: &ChunkId) -> anyhow::Result<DataChunk> {
+        info!("fetch chunk {}", chunk_id);
+
         let url = format!("{}/{}", &self.chunks_url(), chunk_id);
-        trace!("fetch_chunk: url={:?}", url);
         let req = self.client.get(&url).build()?;
         let res = self.client.execute(req)?;
-        debug!("fetch_chunk: status={}", res.status());
         if res.status() != 200 {
-            return Err(ClientError::ChunkNotFound(chunk_id.to_string()).into());
+            let err = ClientError::ChunkNotFound(chunk_id.to_string());
+            error!("fetching chunk {} failed: {}", chunk_id, err);
+            return Err(err.into());
         }
 
         let headers = res.headers();
         let meta = headers.get("chunk-meta");
         if meta.is_none() {
-            return Err(ObnamError::NoChunkMeta(chunk_id.to_string()).into());
+            let err = ObnamError::NoChunkMeta(chunk_id.to_string());
+            error!("fetching chunk {} failed: {}", chunk_id, err);
+            return Err(err.into());
         }
         let meta = meta.unwrap().to_str()?;
+        debug!("fetching chunk {}: meta={:?}", chunk_id, meta);
         let meta: ChunkMeta = serde_json::from_str(meta)?;
+        debug!("fetching chunk {}: meta={:?}", chunk_id, meta);
 
         let body = res.bytes()?;
         let body = body.to_vec();
         let actual = sha256(&body);
         if actual != meta.sha256() {
-            return Err(ObnamError::WrongChecksum(chunk_id.to_string()).into());
+            let id = chunk_id.to_string();
+            let err = ObnamError::WrongChecksum(id, actual, meta.sha256().to_string());
+            error!("fetching chunk {} failed: {}", chunk_id, err);
+            return Err(err.into());
         }
 
         let chunk: DataChunk = DataChunk::new(body);
