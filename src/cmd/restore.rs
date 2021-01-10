@@ -31,9 +31,10 @@ pub fn restore(config: &ClientConfig, gen_ref: &str, to: &Path) -> anyhow::Resul
         None => return Err(ObnamError::UnknownGeneration(gen_ref.to_string()).into()),
         Some(id) => id,
     };
+    info!("generation id is {}", gen_id);
 
     let gen = client.fetch_generation(&gen_id, &dbname)?;
-    info!("restore file count: {}", gen.file_count()?);
+    info!("restoring {} files", gen.file_count()?);
     let progress = create_progress_bar(gen.file_count()?, true);
     for file in gen.files()? {
         restore_generation(&client, &gen, file.fileno(), file.entry(), &to, &progress)?;
@@ -75,7 +76,7 @@ fn restore_generation(
     to: &Path,
     progress: &ProgressBar,
 ) -> anyhow::Result<()> {
-    debug!("restoring {:?}", entry);
+    info!("restoring {:?}", entry);
     progress.set_message(&format!("{}", entry.pathbuf().display()));
     progress.inc(1);
 

@@ -19,7 +19,7 @@ fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
     let gen = ChunkGenerator::new(opt.num);
 
-    let mut store = IndexedStore::new(&opt.chunks);
+    let mut store = IndexedStore::new(&opt.chunks)?;
     for (_, _, meta, chunk) in gen {
         store.save(&meta, &chunk)?;
     }

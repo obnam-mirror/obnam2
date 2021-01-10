@@ -36,9 +36,7 @@ async fn main() -> anyhow::Result<()> {
         return Err(ConfigError::BadServerAddress.into());
     }
 
-    let mut store = IndexedStore::new(&config.chunks);
-    store.fill_index()?;
-    println!("existing generations: {:?}", store.find_generations());
+    let store = IndexedStore::new(&config.chunks)?;
     let store = Arc::new(Mutex::new(store));
     let store = warp::any().map(move || Arc::clone(&store));
 
@@ -165,9 +163,7 @@ pub async fn fetch_chunk(
     let store = store.lock().await;
     let id: ChunkId = id.parse().unwrap();
     match store.load(&id) {
-        Ok(loaded) => {
-            let meta = loaded.meta().clone();
-            let data = loaded.data().clone();
+        Ok((data, meta)) => {
             info!("found chunk {}: {:?}", id, meta);
             Ok(ChunkResult::Fetched(meta, data))
         }
@@ -191,9 +187,9 @@ pub async fn search_chunks(
             return Ok(ChunkResult::BadRequest);
         }
         if key == "generation" && value == "true" {
-            store.find_generations()
+            store.find_generations().expect("SQL lookup failed")
         } else if key == "sha256" {
-            store.find_by_sha256(value)
+            store.find_by_sha256(value).expect("SQL lookup failed")
         } else {
             error!("unknown search key {:?}", key);
             return Ok(ChunkResult::BadRequest);
@@ -210,10 +206,10 @@ pub async fn search_chunks(
                 info!("search found chunk {}", chunk_id);
                 meta
             }
-            Err(_) => {
+            Err(err) => {
                 error!(
-                    "search found chunk {} in index, but but not on disk",
-                    chunk_id
+                    "search found chunk {} in index, but but not on disk: {}",
+                    chunk_id, err
                 );
                 return Ok(ChunkResult::InternalServerError);
             }
