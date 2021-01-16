@@ -1,3 +1,4 @@
+import logging
 import os
 import yaml
 
@@ -63,7 +64,7 @@ def capture_generation_id(ctx, varname=None):
     stdout = runcmd_get_stdout(ctx)
     gen_id = "unknown"
     for line in stdout.splitlines():
-        if line.startswith("gen id:"):
+        if line.startswith("generation-id:"):
             gen_id = line.split()[-1]
 
     v = ctx.get("vars", {})

@@ -41,5 +41,6 @@ impl BackupProgress {
 
     pub fn finish(&self) {
         self.progress.set_length(self.progress.position());
+        self.progress.finish_and_clear();
     }
 }

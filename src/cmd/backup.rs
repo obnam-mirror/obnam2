@@ -3,9 +3,12 @@ use crate::client::ClientConfig;
 use crate::fsiter::FsIterator;
 use crate::generation::NascentGeneration;
 use log::info;
+use std::time::SystemTime;
 use tempfile::NamedTempFile;
 
 pub fn backup(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<()> {
+    let runtime = SystemTime::now();
+
     let run = BackupRun::new(config, buffer_size)?;
 
     // Create a named temporary file. We don't meed the open file
@@ -25,7 +28,7 @@ pub fn backup(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<()> {
     };
 
     let genlist = run.client().list_generations()?;
-    {
+    let file_count = {
         let iter = FsIterator::new(&config.root);
         let mut new = NascentGeneration::create(&newname)?;
 
@@ -43,12 +46,16 @@ pub fn backup(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<()> {
             }
         }
         run.progress().finish();
-    }
+        new.file_count()
+    };
 
     // Upload the SQLite file, i.e., the named temporary file, which
     // still exists, since we persisted it above.
     let gen_id = run.client().upload_generation(&newname, buffer_size)?;
-    println!("gen id: {}", gen_id);
+    println!("status: OK");
+    println!("duration: {}", runtime.elapsed()?.as_secs());
+    println!("file-count: {}", file_count);
+    println!("generation-id: {}", gen_id);
 
     // Delete the temporary file.q
     std::fs::remove_file(&newname)?;
