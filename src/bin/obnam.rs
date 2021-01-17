@@ -10,7 +10,11 @@ const BUFFER_SIZE: usize = 1024 * 1024;
 
 fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
-    let config = ClientConfig::read_config(&opt.config)?;
+    let config_file = match opt.config {
+        None => default_config(),
+        Some(ref path) => path.to_path_buf(),
+    };
+    let config = ClientConfig::read_config(&config_file)?;
     if let Some(ref log) = config.log {
         setup_logging(&log)?;
     }
@@ -37,11 +41,21 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn default_config() -> PathBuf {
+    if let Some(path) = dirs::config_dir() {
+        path.join("obnam").join("obnam.yaml")
+    } else if let Some(path) = dirs::home_dir() {
+        path.join(".config").join("obnam").join("obnam.yaml")
+    } else {
+        panic!("can't find config dir or home dir");
+    }
+}
+
 #[derive(Debug, StructOpt)]
 #[structopt(name = "obnam-backup", about = "Simplistic backup client")]
 struct Opt {
     #[structopt(long, short, parse(from_os_str))]
-    config: PathBuf,
+    config: Option<PathBuf>,
 
     #[structopt(subcommand)]
     cmd: Command,
