@@ -9,6 +9,7 @@ use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::{FinishedGeneration, LocalGeneration};
 use crate::genlist::GenerationList;
 
+use anyhow::Context;
 use chrono::{DateTime, Local};
 use log::{debug, error, info, trace};
 use reqwest::blocking::Client;
@@ -28,7 +29,8 @@ pub struct ClientConfig {
 impl ClientConfig {
     pub fn read_config(filename: &Path) -> anyhow::Result<Self> {
         trace!("read_config: filename={:?}", filename);
-        let config = std::fs::read_to_string(filename)?;
+        let config = std::fs::read_to_string(filename)
+            .with_context(|| format!("reading configuration file {}", filename.display()))?;
         let config = serde_yaml::from_str(&config)?;
         Ok(config)
     }
