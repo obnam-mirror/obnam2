@@ -1,3 +1,4 @@
+use crate::chunkid::ChunkId;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -11,14 +12,14 @@ pub enum ObnamError {
     TooManyFiles(PathBuf),
 
     #[error("Server response did not have a 'chunk-meta' header for chunk {0}")]
-    NoChunkMeta(String),
+    NoChunkMeta(ChunkId),
 
     #[error("Wrong checksum for chunk {0}, got {1}, expected {2}")]
-    WrongChecksum(String, String, String),
+    WrongChecksum(ChunkId, String, String),
 
     #[error("Chunk is missing: {0}")]
-    MissingChunk(String),
+    MissingChunk(ChunkId),
 
     #[error("Chunk is in store too many times: {0}")]
-    DuplicateChunk(String),
+    DuplicateChunk(ChunkId),
 }
