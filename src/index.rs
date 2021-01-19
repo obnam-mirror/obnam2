@@ -189,14 +189,14 @@ mod sql {
                 eprintln!("lookup: meta={:?}", meta);
                 metas.push(meta);
             } else {
-                let err = ObnamError::DuplicateChunk(id.to_string());
+                let err = ObnamError::DuplicateChunk(id.clone());
                 error!("{}", err);
                 return Err(err.into());
             }
         }
         if metas.len() == 0 {
             eprintln!("lookup: no hits");
-            return Err(ObnamError::MissingChunk(format!("{}", id)).into());
+            return Err(ObnamError::MissingChunk(id.clone()).into());
         }
         let r = metas[0].clone();
         Ok(r)

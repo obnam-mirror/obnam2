@@ -227,7 +227,7 @@ impl BackupClient {
         let headers = res.headers();
         let meta = headers.get("chunk-meta");
         if meta.is_none() {
-            let err = ObnamError::NoChunkMeta(chunk_id.to_string());
+            let err = ObnamError::NoChunkMeta(chunk_id.clone());
             error!("fetching chunk {} failed: {}", chunk_id, err);
             return Err(err.into());
         }
@@ -240,8 +240,8 @@ impl BackupClient {
         let body = body.to_vec();
         let actual = sha256(&body);
         if actual != meta.sha256() {
-            let id = chunk_id.to_string();
-            let err = ObnamError::WrongChecksum(id, actual, meta.sha256().to_string());
+            let err =
+                ObnamError::WrongChecksum(chunk_id.clone(), actual, meta.sha256().to_string());
             error!("fetching chunk {} failed: {}", chunk_id, err);
             return Err(err.into());
         }
