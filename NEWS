@@ -1,0 +1,12 @@
+# NEWS for Obnam2, the backup software
+
+This file summarizes changes between releases of the second generation
+of Obnam, the backup software. The software is technically called
+"obnam2" to distinguish it from the first generation of Obnam, which
+ended in 2017 with version number 1.22.
+
+
+## Obnam2 version 0.2, not yet released
+
+This if the first release of Obnam2. It can just barely make and
+restore backups. It's ready for a light trial, but not for real use.
