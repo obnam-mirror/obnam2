@@ -1,39 +1,96 @@
-- hosts: obnam-server
+- hosts: server
   remote_user: root
   tasks:
-    - file:
+    - name: add Obnam package repository to APT
+      apt_repository:
+        repo: "deb [trusted=yes]  http://ci-prod-controller.vm.liw.fi/debian unstable-ci main"
+
+    - name: refresh APT package lists and upgrade all installed packages
+      apt:
+        update_cache: true
+        upgrade: true
+
+    - name: install packages for an Obnam server
+      apt:
+        name:
+          - obnam
+          - psmisc
+
+    - name: "install packages for Let's Encrypt TLS certificates"
+      apt:
+        name:
+          - apache2
+          - dehydrated
+          - dehydrated-apache2
+      when: domain is defined
+
+    - name: create Obnam configuration directory
+      file:
         path: /etc/obnam
         state: directory
-    - file:
+
+    - name: create Obnam directory for chunk storage
+      file:
         path: /srv/obnam/chunks
         state: directory
-    - filesystem:
-        dev: "{{ chunkdev }}"
-        fstype: ext4
-        opts: -Lchunks
-    - mount:
-        src: LABEL=chunks
-        path: /srv/obnam/chunks
-        fstype: auto
-        state: mounted
-    - apt_repository:
-        repo: "deb [trusted=yes]  http://ci-prod-controller.vm.liw.fi/debian unstable-ci main"
-    - apt:
-        name: obnam
-    - copy:
-        src: obnam.service
-        dest: /etc/systemd/system/obnam.service
-    - copy:
+
+    - name: "install Obnam server configuration for provided TLS certifiactes"
+      copy:
         src: "{{ item }}"
         dest: "/etc/obnam/{{ item }}"
       with_items:
         - server.yaml
         - server.key
         - server.pem
-    - systemd:
-        name: obnam
-        enabled: true
-        state: restarted
+      when: domain is not defined
+
+    - name: "install Obnam server configuration for Let's Encrypt TLS certifiactes"
+      template:
+        src: server.yaml.j2
+        dest: /etc/obnam/server.yaml
+      when: domain is defined
+
+    - name: install Obnam service file for systemd
+      copy:
+        src: obnam.service
+        dest: /etc/systemd/system/obnam.service
+
+    - name: configure domains for TLS certificates
+      copy:
+        content: |
+          {{ domain }}
+        dest: /etc/dehydrated/domains.txt
+      when: domain is defined
+
+    - name: stop Obnam service for getting TLS certificates
+      systemd:
         daemon_reload: true
+        name: obnam
+        state: stopped
+      when: domain is defined
+
+    - name: start Apache server for getting TLS certificates
+      systemd:
+        name: apache2
+        state: started
+      when: domain is defined
+
+    - name: get TLS certificates
+      shell: |
+        dehydrated --register --accept-terms
+        dehydrated -c
+      when: domain is defined
+
+    - name: stop Apache server so Obnam server can be started again
+      systemd:
+        name: apache2
+        state: stopped
+      when: domain is defined
+
+    - name: start Obnam server
+      systemd:
+        name: obnam
+        state: restarted
   vars:
-    chunkdev: /dev/vdb
+    tls_key_path: "/var/lib/dehydrated/certs/{{ domain }}/privkey.pem"
+    tls_cert_path: "/var/lib/dehydrated/certs/{{ domain }}/cert.pem"
