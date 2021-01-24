@@ -1,0 +1,60 @@
+#!/usr/bin/python3
+#
+# This lists all new release tags, which need to be built. The list of
+# previously known tags is kept in a file given as the argument to this script.
+# If the file doesn't exist, all existing release tags are saved there, and
+# nothing is printed: this is so that on the first run, nothing is new and
+# nothing needs to be built.
+#
+# A release tag MUST match "vX.Y.Z", where X, Y, and Z are integers.
+
+import os
+import re
+import subprocess
+import sys
+
+
+TAG_PATTERN = re.compile(r"^v(\d+)?.(\d+)\.(\d+)$")
+
+
+def release_tags():
+    p = subprocess.run(["git", "tag", "-l"], check=True, capture_output=True)
+    lines = p.stdout.decode().splitlines()
+    return [line for line in lines if tag_sort_key(line) is not None]
+
+
+def sorted_tags(tags):
+    return list(sorted(tags, key=tag_sort_key))
+
+
+def tag_sort_key(tag):
+    m = TAG_PATTERN.match(tag)
+    if not m:
+        return None
+    return (m.group(1), m.group(2), m.group(3))
+
+
+def built_tags(filename):
+    if os.path.exists(filename):
+        return list(line.strip() for line in open(filename).readlines())
+    return []
+
+
+def save_built_tags(filename, tags):
+    return open(filename, "w").write("".join(f"{tag}\n" for tag in tags))
+
+
+tags_filename = sys.argv[1]
+
+tags = sorted_tags(release_tags())
+
+if os.path.exists(tags_filename):
+    built = built_tags(tags_filename)
+    for tag in tags:
+        if tag not in built:
+            print(tag)
+            built.append(tag)
+else:
+    built = tags
+
+save_built_tags(tags_filename, built)
