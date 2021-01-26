@@ -15,6 +15,7 @@ Follow these steps to make a release of Obnam2.
 * create a signed, annotated git tag `vX.Y.Z` for version X.Y.Z for
   the release commit
 * push tag to `gitlab.com` and `git.liw.fi`
+* publish Obnam crate to crates.io.
 * announce new release
   - obnam.org blog, possibly other blogs
   - `#obnam` IRC channel
