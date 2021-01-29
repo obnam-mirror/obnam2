@@ -1039,11 +1039,51 @@ given a manifest of the directory live restored in rest in rest.yaml
 then files second.yaml and rest.yaml match
 ~~~
 
+# Acceptance criteria for backup encryption
 
+This chapter outlines scenarios, to be implemented later, for
+verifying that Obnam properly encrypts the backups. These scenarios
+verify only encryption aspects of Obnam.
+
+## Backup without passphrase fails
+
+Verify that trying to backup without having set a passphrase fails
+with an error message that clearly identifies the lack of a
+passphrase.
+
+## A passphrase can be set
+
+Set a passphrase. Verify that it's stored in a file that is only
+readable by it owner. Verify that a backup can be made.
+
+## A passphrase stored insecurely is rejected
+
+Verify that a backup fails if the file where the passphrase is stored
+is readable by anyone but its owner. Verify that the error message
+explains that the backup failed due to the passphrase file insecurity.
+
+## The passphrase can be changed
+
+Verify that the passphrase can be changed and that backups made before
+the change can no longer be restored. (Later, this requirement will be
+re-evaluated, but this is simple and gets us started.)
+
+## The passphrase is not on server in cleartext
+
+Verify that after the passphrase has been set, and a backup has been
+made, the passphrase is not stored in cleartext on the server.
+
+## A backup is encrypted
+
+Verify that the backup repository does not contain the backed up data
+in cleartext.
 
 
 <!-- -------------------------------------------------------------------- -->
 
+# Colophon
+
+This manual is edited in Markdown and typeset using [Subplot][].
 
 ---
 title: "Obnam2&mdash;a backup system"
