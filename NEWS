@@ -6,7 +6,7 @@ of Obnam, the backup software. The software is technically called
 ended in 2017 with version number 1.22.
 
 
-## Obnam2 version 0.2, released 2021-01-29
+## Obnam2 version 0.2.1, released 2021-01-29
 
 This is the first release of Obnam2. It can just barely make and
 restore backups. It's ready for a light trial, but not for real use.
