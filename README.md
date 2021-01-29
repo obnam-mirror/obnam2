@@ -19,7 +19,7 @@ following commands in the Obnam source tree, replacing
 
 ```sh
 $ cd ansible
-$ printf '[obnam-server]\nobnam.example.com\n' > hosts
+$ printf '[server]\nobnam.example.com\n' > hosts
 $ ansible-playbook -i hosts obnam-server.yml -e domain=obnam.example.com
 ```
 
@@ -29,7 +29,7 @@ private host use the following instead:
 
 ```sh
 $ cd ansible
-$ printf '[obnam-server]\nprivate-vm\n' > hosts
+$ printf '[server]\nprivate-vm\n' > hosts
 $ ansible-playbook -i hosts obnam-server.yml
 ```
 
