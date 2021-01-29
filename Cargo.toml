@@ -3,6 +3,11 @@ name = "obnam"
 version = "0.2.1"
 authors = ["Lars Wirzenius <liw@liw.fi>"]
 edition = "2018"
+description = "a backup program"
+license = "GPL-3.0-or-later"
+homepage = "https://obnam.org/"
+repository = "https://gitlab.com/larswirzenius/obnam"
+
 
 [dependencies]
 anyhow = "1"
