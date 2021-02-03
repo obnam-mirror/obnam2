@@ -5,6 +5,12 @@ pub struct GenerationList {
     list: Vec<FinishedGeneration>,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum GenerationListError {
+    #[error("Unknown generation: {0}")]
+    UnknownGeneration(String),
+}
+
 impl GenerationList {
     pub fn new(gens: Vec<FinishedGeneration>) -> Self {
         let mut list = gens.clone();
@@ -16,7 +22,7 @@ impl GenerationList {
         self.list.iter()
     }
 
-    pub fn resolve(&self, genref: &str) -> Option<String> {
+    pub fn resolve(&self, genref: &str) -> Result<String, GenerationListError> {
         let gen = if self.list.is_empty() {
             None
         } else if genref == "latest" {
@@ -36,8 +42,8 @@ impl GenerationList {
             }
         };
         match gen {
-            None => None,
-            Some(gen) => Some(gen.id().to_string()),
+            None => Err(GenerationListError::UnknownGeneration(genref.to_string())),
+            Some(gen) => Ok(gen.id().to_string()),
         }
     }
 }

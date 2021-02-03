@@ -1,9 +1,10 @@
 use crate::backup_progress::BackupProgress;
 use crate::backup_reason::Reason;
 use crate::chunkid::ChunkId;
-use crate::client::{BackupClient, ClientConfig};
+use crate::client::{BackupClient, ClientConfig, ClientError};
 use crate::fsentry::FilesystemEntry;
-use crate::generation::LocalGeneration;
+use crate::fsiter::{FsIterError, FsIterResult};
+use crate::generation::{LocalGeneration, LocalGenerationError};
 use crate::policy::BackupPolicy;
 use log::{info, warn};
 
@@ -14,8 +15,22 @@ pub struct BackupRun {
     progress: BackupProgress,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum BackupError {
+    #[error(transparent)]
+    ClientError(#[from] ClientError),
+
+    #[error(transparent)]
+    FsIterError(#[from] FsIterError),
+
+    #[error(transparent)]
+    LocalGenerationError(#[from] LocalGenerationError),
+}
+
+pub type BackupResult<T> = Result<T, BackupError>;
+
 impl BackupRun {
-    pub fn new(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<Self> {
+    pub fn new(config: &ClientConfig, buffer_size: usize) -> BackupResult<Self> {
         let client = BackupClient::new(&config.server_url)?;
         let policy = BackupPolicy::new();
         let progress = BackupProgress::new();
@@ -37,8 +52,8 @@ impl BackupRun {
 
     pub fn backup_file_initially(
         &self,
-        entry: anyhow::Result<FilesystemEntry>,
-    ) -> anyhow::Result<(FilesystemEntry, Vec<ChunkId>, Reason)> {
+        entry: FsIterResult<FilesystemEntry>,
+    ) -> BackupResult<(FilesystemEntry, Vec<ChunkId>, Reason)> {
         match entry {
             Err(err) => Err(err.into()),
             Ok(entry) => {
@@ -55,14 +70,14 @@ impl BackupRun {
 
     pub fn backup_file_incrementally(
         &self,
-        entry: anyhow::Result<FilesystemEntry>,
+        entry: FsIterResult<FilesystemEntry>,
         old: &LocalGeneration,
-    ) -> anyhow::Result<(FilesystemEntry, Vec<ChunkId>, Reason)> {
+    ) -> BackupResult<(FilesystemEntry, Vec<ChunkId>, Reason)> {
         match entry {
             Err(err) => {
                 warn!("backup: {}", err);
                 self.progress.found_problem();
-                Err(err)
+                Err(BackupError::FsIterError(err))
             }
             Ok(entry) => {
                 let path = &entry.pathbuf();

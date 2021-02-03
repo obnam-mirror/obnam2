@@ -30,12 +30,25 @@ pub struct GenerationChunk {
     chunk_ids: Vec<ChunkId>,
 }
 
+/// All the errors that may be returned for `GenerationChunk` operations.
+#[derive(Debug, thiserror::Error)]
+pub enum GenerationChunkError {
+    #[error(transparent)]
+    Utf8Error(#[from] std::str::Utf8Error),
+
+    #[error(transparent)]
+    SerdeJsonError(#[from] serde_json::Error),
+}
+
+/// A result from a chunk operation.
+pub type GenerationChunkResult<T> = Result<T, GenerationChunkError>;
+
 impl GenerationChunk {
     pub fn new(chunk_ids: Vec<ChunkId>) -> Self {
         Self { chunk_ids }
     }
 
-    pub fn from_data_chunk(chunk: &DataChunk) -> anyhow::Result<Self> {
+    pub fn from_data_chunk(chunk: &DataChunk) -> GenerationChunkResult<Self> {
         let data = chunk.data();
         let data = std::str::from_utf8(data)?;
         Ok(serde_json::from_str(data)?)
@@ -53,7 +66,7 @@ impl GenerationChunk {
         self.chunk_ids.iter()
     }
 
-    pub fn to_data_chunk(&self) -> anyhow::Result<DataChunk> {
+    pub fn to_data_chunk(&self) -> GenerationChunkResult<DataChunk> {
         let json = serde_json::to_string(self)?;
         Ok(DataChunk::new(json.as_bytes().to_vec()))
     }

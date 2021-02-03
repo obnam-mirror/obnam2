@@ -50,7 +50,7 @@ impl SearchHits {
         self.map.insert(id.to_string(), meta);
     }
 
-    pub fn from_json(s: &str) -> anyhow::Result<Self> {
+    pub fn from_json(s: &str) -> Result<Self, serde_json::Error> {
         let map = serde_json::from_str(s)?;
         Ok(SearchHits { map })
     }

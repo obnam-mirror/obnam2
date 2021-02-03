@@ -1,25 +1,43 @@
-use crate::chunkid::ChunkId;
-use std::path::PathBuf;
+use crate::backup_run::BackupError;
+use crate::client::{ClientConfigError, ClientError};
+use crate::cmd::restore::RestoreError;
+use crate::generation::{LocalGenerationError, NascentError};
+use crate::genlist::GenerationListError;
+use std::time::SystemTimeError;
+use tempfile::PersistError;
 use thiserror::Error;
 
-/// Define all the kinds of errors any part of this crate can return.
+/// Define all the kinds of errors that functions corresponding to
+/// subcommands of the main program can return.
 #[derive(Debug, Error)]
 pub enum ObnamError {
-    #[error("Can't find backup '{0}'")]
-    UnknownGeneration(String),
+    #[error(transparent)]
+    GenerationListError(#[from] GenerationListError),
 
-    #[error("Generation has more than one file with the name {0}")]
-    TooManyFiles(PathBuf),
+    #[error(transparent)]
+    ClientError(#[from] ClientError),
 
-    #[error("Server response did not have a 'chunk-meta' header for chunk {0}")]
-    NoChunkMeta(ChunkId),
+    #[error(transparent)]
+    ClientConfigError(#[from] ClientConfigError),
 
-    #[error("Wrong checksum for chunk {0}, got {1}, expected {2}")]
-    WrongChecksum(ChunkId, String, String),
+    #[error(transparent)]
+    BackupError(#[from] BackupError),
 
-    #[error("Chunk is missing: {0}")]
-    MissingChunk(ChunkId),
+    #[error(transparent)]
+    NascentError(#[from] NascentError),
 
-    #[error("Chunk is in store too many times: {0}")]
-    DuplicateChunk(ChunkId),
+    #[error(transparent)]
+    LocalGenerationError(#[from] LocalGenerationError),
+
+    #[error(transparent)]
+    RestoreError(#[from] RestoreError),
+
+    #[error(transparent)]
+    PersistError(#[from] PersistError),
+
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+
+    #[error(transparent)]
+    SystemTimeError(#[from] SystemTimeError),
 }
