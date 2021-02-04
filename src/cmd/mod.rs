@@ -15,3 +15,6 @@ pub use get_chunk::get_chunk;
 
 pub mod show_gen;
 pub use show_gen::show_generation;
+
+pub mod show_config;
+pub use show_config::show_config;

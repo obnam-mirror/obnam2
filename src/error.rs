@@ -40,4 +40,7 @@ pub enum ObnamError {
 
     #[error(transparent)]
     SystemTimeError(#[from] SystemTimeError),
+
+    #[error(transparent)]
+    SerdeJsonError(#[from] serde_json::Error),
 }

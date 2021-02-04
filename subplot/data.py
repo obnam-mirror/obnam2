@@ -1,6 +1,8 @@
+import json
 import logging
 import os
 import random
+import yaml
 
 
 def create_file_with_random_data(ctx, filename=None):
@@ -57,3 +59,30 @@ def files_match(ctx, first=None, second=None):
     logging.debug(f"files_match: f:\n{f}")
     logging.debug(f"files_match: s:\n{s}")
     assert_eq(f, s)
+
+
+def convert_yaml_to_json(ctx, yaml_name=None, json_name=None):
+    with open(yaml_name) as f:
+        obj = yaml.safe_load(f)
+    with open(json_name, "w") as f:
+        json.dump(obj, f)
+
+
+def match_stdout_to_json_file(ctx, filename=None):
+    runcmd_get_stdout = globals()["runcmd_get_stdout"]
+    assert_eq = globals()["assert_eq"]
+
+    stdout = runcmd_get_stdout(ctx)
+    stdout = json.loads(stdout.strip())
+    obj = json.load(open(filename))
+    logging.debug(f"match_stdout_to_json_file: stdout={stdout!r}")
+    logging.debug(f"match_stdout_to_json_file: file={obj!r}")
+
+    for key in obj:
+        if key not in stdout:
+            logging.error(f"{key} not in stdout")
+            assert key in stdout
+
+        if stdout[key] != obj[key]:
+            logging.error(f"stdout value for key is not what was exptected")
+            assert_eq(stdout[key], obj[key])

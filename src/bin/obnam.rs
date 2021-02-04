@@ -2,7 +2,7 @@ use log::{debug, error, info, LevelFilter};
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Logger, Root};
 use obnam::client::ClientConfig;
-use obnam::cmd::{backup, get_chunk, list, list_files, restore, show_generation};
+use obnam::cmd::{backup, get_chunk, list, list_files, restore, show_config, show_generation};
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
@@ -29,6 +29,7 @@ fn main() -> anyhow::Result<()> {
         Command::ListFiles { gen_id } => list_files(&config, &gen_id),
         Command::Restore { gen_id, to } => restore(&config, &gen_id, &to),
         Command::GetChunk { chunk_id } => get_chunk(&config, &chunk_id),
+        Command::Config => show_config(&config),
     };
 
     if let Err(ref e) = result {
@@ -84,6 +85,7 @@ enum Command {
         #[structopt()]
         chunk_id: String,
     },
+    Config,
 }
 
 fn setup_logging(filename: &Path) -> anyhow::Result<()> {
