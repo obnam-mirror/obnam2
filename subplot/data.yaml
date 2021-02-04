@@ -21,5 +21,8 @@
 - given: a manifest of the directory {dirname} restored in {restored} in {manifest}
   function: create_manifest_of_restored
 
-- then: files {first} and {second} match
-  function: files_match
+- given: "JSON file {json_name} converted from YAML file {yaml_name}"
+  function: convert_yaml_to_json
+
+- then: "stdout, as JSON, matches file {filename}"
+  function: match_stdout_to_json_file

@@ -820,6 +820,32 @@ and chunk-meta is {"sha256":"abc","generation":null,"ended":null}
 and the body matches file data.dat
 ~~~
 
+# Acceptance criteria for the Obnam client
+
+The scenarios in chapter verify that the Obnam client works as it
+should, when it is used independently of an Obnam chunk server.
+
+## Client shows its configuration
+
+This scenario verifies that the client can show its current
+configuration, with the `obnam config` command. The configuration is
+stored as YAML, but the command outputs JSON, to make sure it doesn't
+just copy the configuration file to the output.
+
+~~~scenario
+given an installed obnam
+and file config.yaml
+and JSON file config.json converted from YAML file config.yaml
+when I run obnam --config config.yaml config
+then stdout, as JSON, matches file config.json
+~~~
+
+~~~{#config.yaml .file .yaml .numberLines}
+root: live
+server_url: https://backup.example.com
+~~~
+
+
 # Acceptance criteria for Obnam as a whole
 
 The scenarios in this chapter apply to Obnam as a whole: the client
@@ -1093,6 +1119,7 @@ bindings:
   - subplot/server.yaml
   - subplot/client.yaml
   - subplot/data.yaml
+  - subplot/vendored/files.yaml
   - subplot/vendored/runcmd.yaml
 template: python
 functions:
@@ -1100,6 +1127,7 @@ functions:
   - subplot/client.py
   - subplot/data.py
   - subplot/vendored/daemon.py
+  - subplot/vendored/files.py
   - subplot/vendored/runcmd.py
 classes:
   - json
