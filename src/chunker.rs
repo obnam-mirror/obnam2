@@ -9,6 +9,14 @@ pub struct Chunker {
     handle: std::fs::File,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum ChunkerError {
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+}
+
+pub type ChunkerResult<T> = Result<T, ChunkerError>;
+
 impl Chunker {
     pub fn new(chunk_size: usize, handle: std::fs::File) -> Self {
         let mut buf = vec![];
@@ -20,7 +28,7 @@ impl Chunker {
         }
     }
 
-    pub fn read_chunk(&mut self) -> anyhow::Result<Option<(ChunkMeta, DataChunk)>> {
+    pub fn read_chunk(&mut self) -> ChunkerResult<Option<(ChunkMeta, DataChunk)>> {
         let mut used = 0;
 
         loop {
@@ -44,9 +52,9 @@ impl Chunker {
 }
 
 impl Iterator for Chunker {
-    type Item = anyhow::Result<(ChunkMeta, DataChunk)>;
+    type Item = ChunkerResult<(ChunkMeta, DataChunk)>;
 
-    fn next(&mut self) -> Option<anyhow::Result<(ChunkMeta, DataChunk)>> {
+    fn next(&mut self) -> Option<ChunkerResult<(ChunkMeta, DataChunk)>> {
         match self.read_chunk() {
             Ok(None) => None,
             Ok(Some((meta, chunk))) => Some(Ok((meta, chunk))),

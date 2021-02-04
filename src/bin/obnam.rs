@@ -34,7 +34,7 @@ fn main() -> anyhow::Result<()> {
     if let Err(ref e) = result {
         error!("{}", e);
         eprintln!("ERROR: {}", e);
-        return result;
+        result?
     }
 
     info!("client ends successfully");

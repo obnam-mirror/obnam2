@@ -1,8 +1,9 @@
 use crate::backup_reason::Reason;
+use crate::backup_run::{BackupError, BackupResult};
 use crate::chunkid::ChunkId;
 use crate::fsentry::FilesystemEntry;
 use rusqlite::Connection;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// An identifier for a file in a generation.
 type FileId = i64;
@@ -17,8 +18,25 @@ pub struct NascentGeneration {
     fileno: FileId,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum NascentError {
+    #[error(transparent)]
+    LocalGenerationError(#[from] LocalGenerationError),
+
+    #[error(transparent)]
+    BackupError(#[from] BackupError),
+
+    #[error(transparent)]
+    RusqliteError(#[from] rusqlite::Error),
+
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+}
+
+pub type NascentResult<T> = Result<T, NascentError>;
+
 impl NascentGeneration {
-    pub fn create<P>(filename: P) -> anyhow::Result<Self>
+    pub fn create<P>(filename: P) -> NascentResult<Self>
     where
         P: AsRef<Path>,
     {
@@ -35,7 +53,7 @@ impl NascentGeneration {
         e: FilesystemEntry,
         ids: &[ChunkId],
         reason: Reason,
-    ) -> anyhow::Result<()> {
+    ) -> NascentResult<()> {
         let t = self.conn.transaction()?;
         self.fileno += 1;
         sql::insert_one(&t, e, self.fileno, ids, reason)?;
@@ -45,8 +63,8 @@ impl NascentGeneration {
 
     pub fn insert_iter<'a>(
         &mut self,
-        entries: impl Iterator<Item = anyhow::Result<(FilesystemEntry, Vec<ChunkId>, Reason)>>,
-    ) -> anyhow::Result<()> {
+        entries: impl Iterator<Item = BackupResult<(FilesystemEntry, Vec<ChunkId>, Reason)>>,
+    ) -> NascentResult<()> {
         let t = self.conn.transaction()?;
         for r in entries {
             let (e, ids, reason) = r?;
@@ -110,6 +128,23 @@ pub struct LocalGeneration {
     conn: Connection,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum LocalGenerationError {
+    #[error("Generation has more than one file with the name {0}")]
+    TooManyFiles(PathBuf),
+
+    #[error(transparent)]
+    RusqliteError(#[from] rusqlite::Error),
+
+    #[error(transparent)]
+    SerdeJsonError(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+}
+
+pub type LocalGenerationResult<T> = Result<T, LocalGenerationError>;
+
 pub struct BackedUpFile {
     fileno: FileId,
     entry: FilesystemEntry,
@@ -140,7 +175,7 @@ impl BackedUpFile {
 }
 
 impl LocalGeneration {
-    pub fn open<P>(filename: P) -> anyhow::Result<Self>
+    pub fn open<P>(filename: P) -> LocalGenerationResult<Self>
     where
         P: AsRef<Path>,
     {
@@ -148,23 +183,23 @@ impl LocalGeneration {
         Ok(Self { conn })
     }
 
-    pub fn file_count(&self) -> anyhow::Result<i64> {
+    pub fn file_count(&self) -> LocalGenerationResult<i64> {
         Ok(sql::file_count(&self.conn)?)
     }
 
-    pub fn files(&self) -> anyhow::Result<Vec<BackedUpFile>> {
+    pub fn files(&self) -> LocalGenerationResult<Vec<BackedUpFile>> {
         Ok(sql::files(&self.conn)?)
     }
 
-    pub fn chunkids(&self, fileno: FileId) -> anyhow::Result<Vec<ChunkId>> {
+    pub fn chunkids(&self, fileno: FileId) -> LocalGenerationResult<Vec<ChunkId>> {
         Ok(sql::chunkids(&self.conn, fileno)?)
     }
 
-    pub fn get_file(&self, filename: &Path) -> anyhow::Result<Option<FilesystemEntry>> {
+    pub fn get_file(&self, filename: &Path) -> LocalGenerationResult<Option<FilesystemEntry>> {
         Ok(sql::get_file(&self.conn, filename)?)
     }
 
-    pub fn get_fileno(&self, filename: &Path) -> anyhow::Result<Option<FileId>> {
+    pub fn get_fileno(&self, filename: &Path) -> LocalGenerationResult<Option<FileId>> {
         Ok(sql::get_fileno(&self.conn, filename)?)
     }
 }
@@ -172,15 +207,16 @@ impl LocalGeneration {
 mod sql {
     use super::BackedUpFile;
     use super::FileId;
+    use super::LocalGenerationError;
+    use super::LocalGenerationResult;
     use crate::backup_reason::Reason;
     use crate::chunkid::ChunkId;
-    use crate::error::ObnamError;
     use crate::fsentry::FilesystemEntry;
     use rusqlite::{params, Connection, OpenFlags, Row, Transaction};
     use std::os::unix::ffi::OsStrExt;
     use std::path::Path;
 
-    pub fn create_db(filename: &Path) -> anyhow::Result<Connection> {
+    pub fn create_db(filename: &Path) -> LocalGenerationResult<Connection> {
         let flags = OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.execute(
@@ -197,7 +233,7 @@ mod sql {
         Ok(conn)
     }
 
-    pub fn open_db(filename: &Path) -> anyhow::Result<Connection> {
+    pub fn open_db(filename: &Path) -> LocalGenerationResult<Connection> {
         let flags = OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.pragma_update(None, "journal_mode", &"WAL")?;
@@ -210,7 +246,7 @@ mod sql {
         fileno: FileId,
         ids: &[ChunkId],
         reason: Reason,
-    ) -> anyhow::Result<()> {
+    ) -> LocalGenerationResult<()> {
         let json = serde_json::to_string(&e)?;
         t.execute(
             "INSERT INTO files (fileno, filename, json, reason) VALUES (?1, ?2, ?3, ?4)",
@@ -236,7 +272,7 @@ mod sql {
         Ok((fileno, json, reason))
     }
 
-    pub fn file_count(conn: &Connection) -> anyhow::Result<FileId> {
+    pub fn file_count(conn: &Connection) -> LocalGenerationResult<FileId> {
         let mut stmt = conn.prepare("SELECT count(*) FROM files")?;
         let mut iter = stmt.query_map(params![], |row| row.get(0))?;
         let count = iter.next().expect("SQL count result (1)");
@@ -244,7 +280,7 @@ mod sql {
         Ok(count)
     }
 
-    pub fn files(conn: &Connection) -> anyhow::Result<Vec<BackedUpFile>> {
+    pub fn files(conn: &Connection) -> LocalGenerationResult<Vec<BackedUpFile>> {
         let mut stmt = conn.prepare("SELECT * FROM files")?;
         let iter = stmt.query_map(params![], |row| row_to_entry(row))?;
         let mut files = vec![];
@@ -256,7 +292,7 @@ mod sql {
         Ok(files)
     }
 
-    pub fn chunkids(conn: &Connection, fileno: FileId) -> anyhow::Result<Vec<ChunkId>> {
+    pub fn chunkids(conn: &Connection, fileno: FileId) -> LocalGenerationResult<Vec<ChunkId>> {
         let mut stmt = conn.prepare("SELECT chunkid FROM chunks WHERE fileno = ?1")?;
         let iter = stmt.query_map(params![fileno], |row| Ok(row.get(0)?))?;
         let mut ids: Vec<ChunkId> = vec![];
@@ -267,14 +303,17 @@ mod sql {
         Ok(ids)
     }
 
-    pub fn get_file(conn: &Connection, filename: &Path) -> anyhow::Result<Option<FilesystemEntry>> {
+    pub fn get_file(
+        conn: &Connection,
+        filename: &Path,
+    ) -> LocalGenerationResult<Option<FilesystemEntry>> {
         match get_file_and_fileno(conn, filename)? {
             None => Ok(None),
             Some((_, e, _)) => Ok(Some(e)),
         }
     }
 
-    pub fn get_fileno(conn: &Connection, filename: &Path) -> anyhow::Result<Option<FileId>> {
+    pub fn get_fileno(conn: &Connection, filename: &Path) -> LocalGenerationResult<Option<FileId>> {
         match get_file_and_fileno(conn, filename)? {
             None => Ok(None),
             Some((id, _, _)) => Ok(Some(id)),
@@ -284,7 +323,7 @@ mod sql {
     fn get_file_and_fileno(
         conn: &Connection,
         filename: &Path,
-    ) -> anyhow::Result<Option<(FileId, FilesystemEntry, String)>> {
+    ) -> LocalGenerationResult<Option<(FileId, FilesystemEntry, String)>> {
         let mut stmt = conn.prepare("SELECT * FROM files WHERE filename = ?1")?;
         let mut iter =
             stmt.query_map(params![path_into_blob(filename)], |row| row_to_entry(row))?;
@@ -296,7 +335,7 @@ mod sql {
                 if iter.next() == None {
                     Ok(Some((fileno, entry, reason)))
                 } else {
-                    Err(ObnamError::TooManyFiles(filename.to_path_buf()).into())
+                    Err(LocalGenerationError::TooManyFiles(filename.to_path_buf()).into())
                 }
             }
         }

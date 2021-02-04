@@ -1,7 +1,6 @@
 use crate::chunk::DataChunk;
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
-use anyhow::Context;
 use std::path::{Path, PathBuf};
 
 /// Store chunks, with metadata, persistently.
@@ -12,6 +11,12 @@ use std::path::{Path, PathBuf};
 pub struct Store {
     dir: PathBuf,
 }
+
+/// An error from a `Store` operation.
+pub type StoreError = std::io::Error;
+
+/// A result from an `Store` operation.
+pub type StoreResult<T> = Result<T, StoreError>;
 
 impl Store {
     /// Create a new Store to represent on-disk storage of chunks.x
@@ -38,14 +43,11 @@ impl Store {
     }
 
     /// Save a chunk into a store.
-    pub fn save(&self, id: &ChunkId, meta: &ChunkMeta, chunk: &DataChunk) -> anyhow::Result<()> {
+    pub fn save(&self, id: &ChunkId, meta: &ChunkMeta, chunk: &DataChunk) -> StoreResult<()> {
         let (dir, metaname, dataname) = &self.filenames(id);
 
         if !dir.exists() {
-            let res = std::fs::create_dir_all(dir).into();
-            if let Err(_) = res {
-                return res.with_context(|| format!("creating directory {}", dir.display()));
-            }
+            std::fs::create_dir_all(dir)?;
         }
 
         std::fs::write(&metaname, meta.to_json())?;
@@ -54,7 +56,7 @@ impl Store {
     }
 
     /// Load a chunk from a store.
-    pub fn load(&self, id: &ChunkId) -> anyhow::Result<DataChunk> {
+    pub fn load(&self, id: &ChunkId) -> StoreResult<DataChunk> {
         let (_, _, dataname) = &self.filenames(id);
         let data = std::fs::read(&dataname)?;
         let data = DataChunk::new(data);
@@ -62,7 +64,7 @@ impl Store {
     }
 
     /// Delete a chunk from a store.
-    pub fn delete(&self, id: &ChunkId) -> anyhow::Result<()> {
+    pub fn delete(&self, id: &ChunkId) -> StoreResult<()> {
         let (_, metaname, dataname) = &self.filenames(id);
         std::fs::remove_file(&metaname)?;
         std::fs::remove_file(&dataname)?;

@@ -37,9 +37,20 @@ pub struct FilesystemEntry {
     symlink_target: Option<PathBuf>,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum FsEntryError {
+    #[error("Unknown file kind {0}")]
+    UnknownFileKindCode(u8),
+
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+}
+
+pub type FsEntryResult<T> = Result<T, FsEntryError>;
+
 #[allow(clippy::len_without_is_empty)]
 impl FilesystemEntry {
-    pub fn from_metadata(path: &Path, meta: &Metadata) -> anyhow::Result<Self> {
+    pub fn from_metadata(path: &Path, meta: &Metadata) -> FsEntryResult<Self> {
         let kind = FilesystemKind::from_file_type(meta.file_type());
         Ok(Self {
             path: path.to_path_buf().into_os_string().into_vec(),
@@ -129,12 +140,12 @@ impl FilesystemKind {
         }
     }
 
-    pub fn from_code(code: u8) -> anyhow::Result<Self> {
+    pub fn from_code(code: u8) -> FsEntryResult<Self> {
         match code {
             0 => Ok(FilesystemKind::Regular),
             1 => Ok(FilesystemKind::Directory),
             2 => Ok(FilesystemKind::Symlink),
-            _ => Err(Error::UnknownFileKindCode(code).into()),
+            _ => Err(FsEntryError::UnknownFileKindCode(code).into()),
         }
     }
 }

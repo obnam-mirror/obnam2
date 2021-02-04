@@ -1,8 +1,8 @@
-use crate::client::BackupClient;
 use crate::client::ClientConfig;
+use crate::client::{BackupClient, ClientError};
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
-use crate::generation::LocalGeneration;
+use crate::generation::{LocalGeneration, LocalGenerationError};
 use indicatif::{ProgressBar, ProgressStyle};
 use libc::{fchmod, futimens, timespec};
 use log::{debug, error, info};
@@ -11,11 +11,12 @@ use std::io::prelude::*;
 use std::io::Error;
 use std::os::unix::fs::symlink;
 use std::os::unix::io::AsRawFd;
+use std::path::StripPrefixError;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use tempfile::NamedTempFile;
 
-pub fn restore(config: &ClientConfig, gen_ref: &str, to: &Path) -> anyhow::Result<()> {
+pub fn restore(config: &ClientConfig, gen_ref: &str, to: &Path) -> Result<(), ObnamError> {
     // Create a named temporary file. We don't meed the open file
     // handle, so we discard that.
     let dbname = {
@@ -27,10 +28,7 @@ pub fn restore(config: &ClientConfig, gen_ref: &str, to: &Path) -> anyhow::Resul
     let client = BackupClient::new(&config.server_url)?;
 
     let genlist = client.list_generations()?;
-    let gen_id: String = match genlist.resolve(gen_ref) {
-        None => return Err(ObnamError::UnknownGeneration(gen_ref.to_string()).into()),
-        Some(id) => id,
-    };
+    let gen_id: String = genlist.resolve(gen_ref)?;
     info!("generation id is {}", gen_id);
 
     let gen = client.fetch_generation(&gen_id, &dbname)?;
@@ -68,6 +66,26 @@ struct Opt {
     to: PathBuf,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum RestoreError {
+    #[error(transparent)]
+    ClientError(#[from] ClientError),
+
+    #[error(transparent)]
+    LocalGenerationError(#[from] LocalGenerationError),
+
+    #[error(transparent)]
+    StripPrefixError(#[from] StripPrefixError),
+
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+
+    #[error(transparent)]
+    SerdeYamlError(#[from] serde_yaml::Error),
+}
+
+pub type RestoreResult<T> = Result<T, RestoreError>;
+
 fn restore_generation(
     client: &BackupClient,
     gen: &LocalGeneration,
@@ -75,7 +93,7 @@ fn restore_generation(
     entry: &FilesystemEntry,
     to: &Path,
     progress: &ProgressBar,
-) -> anyhow::Result<()> {
+) -> RestoreResult<()> {
     info!("restoring {:?}", entry);
     progress.set_message(&format!("{}", entry.pathbuf().display()));
     progress.inc(1);
@@ -89,13 +107,13 @@ fn restore_generation(
     Ok(())
 }
 
-fn restore_directory(path: &Path) -> anyhow::Result<()> {
+fn restore_directory(path: &Path) -> RestoreResult<()> {
     debug!("restoring directory {}", path.display());
     std::fs::create_dir_all(path)?;
     Ok(())
 }
 
-fn restore_directory_metadata(entry: &FilesystemEntry, to: &Path) -> anyhow::Result<()> {
+fn restore_directory_metadata(entry: &FilesystemEntry, to: &Path) -> RestoreResult<()> {
     let to = restored_path(entry, to)?;
     match entry.kind() {
         FilesystemKind::Directory => restore_metadata(&to, entry)?,
@@ -107,7 +125,7 @@ fn restore_directory_metadata(entry: &FilesystemEntry, to: &Path) -> anyhow::Res
     Ok(())
 }
 
-fn restored_path(entry: &FilesystemEntry, to: &Path) -> anyhow::Result<PathBuf> {
+fn restored_path(entry: &FilesystemEntry, to: &Path) -> RestoreResult<PathBuf> {
     let path = &entry.pathbuf();
     let path = if path.is_absolute() {
         path.strip_prefix("/")?
@@ -123,7 +141,7 @@ fn restore_regular(
     path: &Path,
     fileid: i64,
     entry: &FilesystemEntry,
-) -> anyhow::Result<()> {
+) -> RestoreResult<()> {
     debug!("restoring regular {}", path.display());
     let parent = path.parent().unwrap();
     debug!("  mkdir {}", parent.display());
@@ -140,7 +158,7 @@ fn restore_regular(
     Ok(())
 }
 
-fn restore_symlink(path: &Path, entry: &FilesystemEntry) -> anyhow::Result<()> {
+fn restore_symlink(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
     debug!("restoring symlink {}", path.display());
     let parent = path.parent().unwrap();
     debug!("  mkdir {}", parent.display());
@@ -154,7 +172,7 @@ fn restore_symlink(path: &Path, entry: &FilesystemEntry) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn restore_metadata(path: &Path, entry: &FilesystemEntry) -> anyhow::Result<()> {
+fn restore_metadata(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
     debug!("restoring metadata for {}", entry.pathbuf().display());
 
     let handle = File::open(path)?;

@@ -1,12 +1,13 @@
 use crate::backup_run::BackupRun;
 use crate::client::ClientConfig;
+use crate::error::ObnamError;
 use crate::fsiter::FsIterator;
 use crate::generation::NascentGeneration;
 use log::info;
 use std::time::SystemTime;
 use tempfile::NamedTempFile;
 
-pub fn backup(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<()> {
+pub fn backup(config: &ClientConfig, buffer_size: usize) -> Result<(), ObnamError> {
     let runtime = SystemTime::now();
 
     let run = BackupRun::new(config, buffer_size)?;
@@ -33,11 +34,11 @@ pub fn backup(config: &ClientConfig, buffer_size: usize) -> anyhow::Result<()> {
         let mut new = NascentGeneration::create(&newname)?;
 
         match genlist.resolve("latest") {
-            None => {
+            Err(_) => {
                 info!("fresh backup without a previous generation");
                 new.insert_iter(iter.map(|entry| run.backup_file_initially(entry)))?;
             }
-            Some(old) => {
+            Ok(old) => {
                 info!("incremental backup based on {}", old);
                 let old = run.client().fetch_generation(&old, &oldname)?;
                 run.progress()

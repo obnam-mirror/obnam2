@@ -17,8 +17,27 @@ pub struct Index {
     metas: HashMap<ChunkId, ChunkMeta>,
 }
 
+/// All the errors that may be returned for `Index`.
+#[derive(Debug, thiserror::Error)]
+pub enum IndexError {
+    /// Index does not have a chunk.
+    #[error("The repository index does not have chunk {0}")]
+    MissingChunk(ChunkId),
+
+    /// Index has chunk more than once.
+    #[error("The repository index duplicates chunk {0}")]
+    DuplicateChunk(ChunkId),
+
+    /// An error from SQLite.
+    #[error(transparent)]
+    SqlError(#[from] rusqlite::Error),
+}
+
+/// A result from an `Index` operation.
+pub type IndexResult<T> = Result<T, IndexError>;
+
 impl Index {
-    pub fn new<P: AsRef<Path>>(dirname: P) -> anyhow::Result<Self> {
+    pub fn new<P: AsRef<Path>>(dirname: P) -> IndexResult<Self> {
         let filename = dirname.as_ref().join("meta.db");
         let conn = if filename.exists() {
             sql::open_db(&filename)?
@@ -34,26 +53,26 @@ impl Index {
         })
     }
 
-    pub fn insert_meta(&mut self, id: ChunkId, meta: ChunkMeta) -> anyhow::Result<()> {
+    pub fn insert_meta(&mut self, id: ChunkId, meta: ChunkMeta) -> IndexResult<()> {
         let t = self.conn.transaction()?;
         sql::insert(&t, &id, &meta)?;
         t.commit()?;
         Ok(())
     }
 
-    pub fn get_meta(&self, id: &ChunkId) -> anyhow::Result<ChunkMeta> {
+    pub fn get_meta(&self, id: &ChunkId) -> IndexResult<ChunkMeta> {
         sql::lookup(&self.conn, id)
     }
 
-    pub fn remove_meta(&mut self, id: &ChunkId) -> anyhow::Result<()> {
+    pub fn remove_meta(&mut self, id: &ChunkId) -> IndexResult<()> {
         sql::remove(&self.conn, id)
     }
 
-    pub fn find_by_sha256(&self, sha256: &str) -> anyhow::Result<Vec<ChunkId>> {
+    pub fn find_by_sha256(&self, sha256: &str) -> IndexResult<Vec<ChunkId>> {
         sql::find_by_256(&self.conn, sha256)
     }
 
-    pub fn find_generations(&self) -> anyhow::Result<Vec<ChunkId>> {
+    pub fn find_generations(&self) -> IndexResult<Vec<ChunkId>> {
         sql::find_generations(&self.conn)
     }
 }
@@ -132,14 +151,14 @@ mod test {
 }
 
 mod sql {
+    use super::{IndexError, IndexResult};
     use crate::chunkid::ChunkId;
     use crate::chunkmeta::ChunkMeta;
-    use crate::error::ObnamError;
     use log::error;
     use rusqlite::{params, Connection, OpenFlags, Row, Transaction};
     use std::path::Path;
 
-    pub fn create_db(filename: &Path) -> anyhow::Result<Connection> {
+    pub fn create_db(filename: &Path) -> IndexResult<Connection> {
         let flags = OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.execute(
@@ -155,14 +174,14 @@ mod sql {
         Ok(conn)
     }
 
-    pub fn open_db(filename: &Path) -> anyhow::Result<Connection> {
+    pub fn open_db(filename: &Path) -> IndexResult<Connection> {
         let flags = OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.pragma_update(None, "journal_mode", &"WAL")?;
         Ok(conn)
     }
 
-    pub fn insert(t: &Transaction, chunkid: &ChunkId, meta: &ChunkMeta) -> anyhow::Result<()> {
+    pub fn insert(t: &Transaction, chunkid: &ChunkId, meta: &ChunkMeta) -> IndexResult<()> {
         let chunkid = format!("{}", chunkid);
         let sha256 = meta.sha256();
         let generation = if meta.is_generation() { 1 } else { 0 };
@@ -174,12 +193,12 @@ mod sql {
         Ok(())
     }
 
-    pub fn remove(conn: &Connection, chunkid: &ChunkId) -> anyhow::Result<()> {
+    pub fn remove(conn: &Connection, chunkid: &ChunkId) -> IndexResult<()> {
         conn.execute("DELETE FROM chunks WHERE id IS ?1", params![chunkid])?;
         Ok(())
     }
 
-    pub fn lookup(conn: &Connection, id: &ChunkId) -> anyhow::Result<ChunkMeta> {
+    pub fn lookup(conn: &Connection, id: &ChunkId) -> IndexResult<ChunkMeta> {
         let mut stmt = conn.prepare("SELECT * FROM chunks WHERE id IS ?1")?;
         let iter = stmt.query_map(params![id], |row| row_to_meta(row))?;
         let mut metas: Vec<ChunkMeta> = vec![];
@@ -189,20 +208,20 @@ mod sql {
                 eprintln!("lookup: meta={:?}", meta);
                 metas.push(meta);
             } else {
-                let err = ObnamError::DuplicateChunk(id.clone());
+                let err = IndexError::DuplicateChunk(id.clone());
                 error!("{}", err);
                 return Err(err.into());
             }
         }
         if metas.len() == 0 {
             eprintln!("lookup: no hits");
-            return Err(ObnamError::MissingChunk(id.clone()).into());
+            return Err(IndexError::MissingChunk(id.clone()).into());
         }
         let r = metas[0].clone();
         Ok(r)
     }
 
-    pub fn find_by_256(conn: &Connection, sha256: &str) -> anyhow::Result<Vec<ChunkId>> {
+    pub fn find_by_256(conn: &Connection, sha256: &str) -> IndexResult<Vec<ChunkId>> {
         let mut stmt = conn.prepare("SELECT id FROM chunks WHERE sha256 IS ?1")?;
         let iter = stmt.query_map(params![sha256], |row| row_to_id(row))?;
         let mut ids = vec![];
@@ -213,7 +232,7 @@ mod sql {
         Ok(ids)
     }
 
-    pub fn find_generations(conn: &Connection) -> anyhow::Result<Vec<ChunkId>> {
+    pub fn find_generations(conn: &Connection) -> IndexResult<Vec<ChunkId>> {
         let mut stmt = conn.prepare("SELECT id FROM chunks WHERE generation IS 1")?;
         let iter = stmt.query_map(params![], |row| row_to_id(row))?;
         let mut ids = vec![];
@@ -224,7 +243,7 @@ mod sql {
         Ok(ids)
     }
 
-    pub fn row_to_meta(row: &Row) -> rusqlite::Result<ChunkMeta> {
+    fn row_to_meta(row: &Row) -> rusqlite::Result<ChunkMeta> {
         let sha256: String = row.get(row.column_index("sha256")?)?;
         let generation: i32 = row.get(row.column_index("generation")?)?;
         let meta = if generation == 0 {
@@ -236,7 +255,7 @@ mod sql {
         Ok(meta)
     }
 
-    pub fn row_to_id(row: &Row) -> rusqlite::Result<ChunkId> {
+    fn row_to_id(row: &Row) -> rusqlite::Result<ChunkId> {
         let id: String = row.get(row.column_index("id")?)?;
         Ok(ChunkId::from_str(&id))
     }
