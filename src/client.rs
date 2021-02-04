@@ -11,13 +11,13 @@ use crate::genlist::GenerationList;
 use chrono::{DateTime, Local};
 use log::{debug, error, info, trace};
 use reqwest::blocking::Client;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ClientConfig {
     pub server_url: String,
     pub root: PathBuf,
