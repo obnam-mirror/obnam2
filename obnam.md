@@ -354,6 +354,71 @@ system as where the live data was originally. This onerous for people
 to do.
 
 
+## On content addressable storage
+
+[content-addressable storage]: https://en.wikipedia.org/wiki/Content-addressable_storage
+[git version control system]: https://git-scm.com/
+
+It would be possible to use the cryptographic checksum ("hash") of the
+contents of a chunk as its identifier on the server side, also known
+as [content-addressable storage][]. This would simplify de-duplication
+of chunks. However, it also has some drawbacks:
+
+* it becomes harder to handle checksum collisions
+* changing the checksum algorithm becomes harder
+
+In 2005, the author of [git version control system][] chose the
+content addressable storage model, using the SHA1 checksum algorithm.
+At the time, the git author considered SHA1 to be reasonably strong
+from a cryptographic and security point of view, for git. In other
+words, given the output of SHA1, it was difficult to deduce what the
+input was, or to find another input that would give the same output,
+known as a checksum collision. It is still difficult to deduce the
+input, but manufacturing collisions is now feasible, with some
+constraints. The git project has spent years changing the checksum
+algorithm.
+
+Collisions are problematic for security applications of checksum
+algorithms in general. Checksums are used, for example, in storing and
+verifying passwords: the cleartext password is never stored, and
+instead a checksum of it is computed and stored. To verify a later
+login attempt a new checksum is computed from the newly entered
+password from the attempt. If the checksums match, the password is
+accepted.[^passwords] This means that if an attacker can find _any_ input that
+gives the same output for the checksum algorithm used for password
+storage, they can log in as if they were a valid user, whether the
+password they have is the same as the real one.
+
+[^passwords]: In reality, storing passwords securely is much more
+    complicated than described here.
+
+For backups, and version control systems, collisions cause a different
+problem: they can prevent the correct content from being stored. If
+two files (or chunks) have the same checksum, only one will be stored.
+If the files have different content, this is a problem. A backup
+system should guard against this possibility.
+
+As an extreme and rare, but real, case consider a researcher of
+checksum algorithms. They've spent enormous effort to produce two
+distinct files that have the same checksum. They should be able make a
+backup of the files, and restore them, and not lose one. They should
+not have to know that their backup system uses the same checksum
+algorithm they are researching, and have to guard against the backup
+system getting the files confused. (Backup systems should be boring
+and just always work.)
+
+Attacks on security-sensitive cryptographic algorithms only get
+stronger by time. It is therefore necessary for Obnam to be able to
+easily change the checksum algorithm it uses, without disruption for
+user. To achieve this, Obnam does not use content-addressable storage.
+
+Obnam will (eventually, as this hasn't been implemented yet) allow
+storing multiple checksums for each chunk. It will use the strongest
+checksum available for a chunk. Over time, the checksums for chunks
+can be replaced with stronger ones. This will allow Obnam to migrate
+to a stronger algorithm when attacks against the current one become
+too scary.
+
 # File metadata
 
 Files in a file system contain data and have metadata: data about the
