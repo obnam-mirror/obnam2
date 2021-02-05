@@ -266,8 +266,8 @@ The responsibilities of the server are roughly:
 The responsibilities of the client are roughly:
 
 * split live data into chunks, upload them to server
-* store metadata of live data files in a generation file, store that
-  too as chunks on the server
+* store metadata of live data files in a generation file (an SQLite
+  database), store that too as chunks on the server
 * retrieve chunks from server when restoring
 * let user manage sharing of backups with other clients
 
