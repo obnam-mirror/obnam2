@@ -154,6 +154,146 @@ requirements and notes how they affect the architecture.
   access that.
 
 
+## Overall shape
+
+It seems fairly clear that a simple shape of the software architecture
+of Obnam2 is to have a client and server component, where one server
+can handle any number of clients. They communicate over HTTPS, using
+proven web technologies for authentication and authorization.
+
+~~~pikchr
+Live1: cylinder "live1" bold big big
+move
+Live2: cylinder "live2" bold big big
+move
+Live3: cylinder "live3" bold big big
+move
+Live4: cylinder "live4" bold big big
+move
+Live5: cylinder "live5" bold big big
+
+down
+
+arrow from Live1.s
+C1: ellipse "client1" bold big big
+arrow from Live2.s
+C2: ellipse "client2" bold big big
+arrow from Live3.s
+C3: ellipse "client3" bold big big
+arrow from Live4.s
+C4: ellipse "client4" bold big big
+arrow from Live5.s
+C5: ellipse "client5" bold big big
+
+S: ellipse "server" bold big big at 2*boxwid south of C3
+arrow from C1.s to S.n "HTTPS" bold big big aligned below
+arrow from C2.s to S.n
+arrow from C3.s to S.n
+arrow from C4.s to S.n
+arrow from C5.s to S.n
+
+arrow from S.s
+cylinder "disk" bold big big
+~~~
+
+The responsibilities of the server are roughly:
+
+* provide an HTTP API for managing chunks and their metadata: create,
+  retrieve, search, delete; note that updating a chunk is not needed
+* keep track of the client owning each chunk
+* allow clients to manage sharing of specific chunks between clients
+
+The responsibilities of the client are roughly:
+
+* split live data into chunks, upload them to server
+* store metadata of live data files in a generation file (an SQLite
+  database), store that too as chunks on the server
+* retrieve chunks from server when restoring
+* let user manage sharing of backups with other clients
+
+There are many details to add to both to the client and the server,
+but that will come later.
+
+It is possible that an identity provider needs to be added to the
+architecture later, to provide strong authentication of clients.
+However, that will not be necessary for the minimum viable product
+version of Obnam. For the MVP, authentication will happen using
+RSA-signed JSON Web Tokens. The server is configured to trust specific
+public keys. The clients have the private keys and generate the tokens
+themselves.
+
+## Logical structure of backups
+
+For each backup (generation) the client stores, on the server, exactly
+one _generation chunk_. This is a chunk that is specially marked as a
+generation, but is otherwise not special. The generation chunk content
+is a list of identifiers for chunks that form an SQLite database.
+
+The SQLite database lists all the files in the backup, as well as
+their metadata. For each file, a list of chunk identifiers are listed,
+for the content of the file. The chunks may be shared between files in
+the same backup or different backups.
+
+File content data chunks are just blobs of data with no structure.
+They have no reference to other data chunks, or to files or backups.
+This makes it easier to share them between files.
+
+Let's look at an example. In the figure below there are three backups,
+each using three chunks for file content data. One chunk, "data chunk
+3", is shared between all three backups.
+
+~~~pikchr
+GEN1: ellipse "Backup 1" big big
+move 200%
+GEN2: ellipse "Backup 2" big big
+move 200%
+GEN3: ellipse "Backup 3" big big
+
+arrow from GEN1.e right to GEN2.w
+arrow from GEN2.e right to GEN3.w
+
+arrow from GEN1.s down 100%
+DB1: box "SQLite" big big
+
+arrow from DB1.s left 20% then down 100%
+C1: file "data" big big "chunk 1" big big
+
+arrow from DB1.s right 0% then down 70% then right 100% then down 30%
+C2: file "data" big big "chunk 2" big big
+
+arrow from DB1.s right 20% then down 30% then right 200% then down 70%
+C3: file "data" big big "chunk 3" big big
+
+
+
+arrow from GEN2.s down 100%
+DB2: box "SQLite" big big
+
+arrow from DB2.s left 20% then down 100% then down 0.5*C3.height then to C3.e
+
+arrow from DB2.s right 0% then down 70% then right 100% then down 30%
+C4: file "data" big big "chunk 4" big big
+
+arrow from DB2.s right 20% then down 30% then right 200% then down 70%
+C5: file "data" big big "chunk 5" big big
+
+
+
+
+arrow from GEN3.s down 100%
+DB3: box "SQLite" big big
+
+arrow from DB3.s left 50% then down 100% then down 1.5*C3.height \
+  then left until even with C3.s then up to C3.s
+
+arrow from DB3.s right 20% then down 100%
+C6: file "data" big big "chunk 6" big big
+
+arrow from DB3.s right 60% then down 70% then right 100% then down 30%
+C7: file "data" big big "chunk 7" big big
+~~~
+
+
 ## On SFTP versus HTTPS
 
 Obnam1 supported using a standard SFTP server as a backup repository,
@@ -214,74 +354,70 @@ system as where the live data was originally. This onerous for people
 to do.
 
 
-## Overall shape
+## On content addressable storage
 
-It seems fairly clear that a simple shape of the software architecture
-of Obnam2 is to have a client and server component, where one server
-can handle any number of clients. They communicate over HTTPS, using
-proven web technologies for authentication and authorization.
+[content-addressable storage]: https://en.wikipedia.org/wiki/Content-addressable_storage
+[git version control system]: https://git-scm.com/
 
-~~~pikchr
-Live1: cylinder "live1" bold big big
-move
-Live2: cylinder "live2" bold big big
-move
-Live3: cylinder "live3" bold big big
-move
-Live4: cylinder "live4" bold big big
-move
-Live5: cylinder "live5" bold big big
+It would be possible to use the cryptographic checksum ("hash") of the
+contents of a chunk as its identifier on the server side, also known
+as [content-addressable storage][]. This would simplify de-duplication
+of chunks. However, it also has some drawbacks:
 
-down
+* it becomes harder to handle checksum collisions
+* changing the checksum algorithm becomes harder
 
-arrow from Live1.s
-C1: ellipse "client1" bold big big
-arrow from Live2.s
-C2: ellipse "client2" bold big big
-arrow from Live3.s
-C3: ellipse "client3" bold big big
-arrow from Live4.s
-C4: ellipse "client4" bold big big
-arrow from Live5.s
-C5: ellipse "client5" bold big big
+In 2005, the author of [git version control system][] chose the
+content addressable storage model, using the SHA1 checksum algorithm.
+At the time, the git author considered SHA1 to be reasonably strong
+from a cryptographic and security point of view, for git. In other
+words, given the output of SHA1, it was difficult to deduce what the
+input was, or to find another input that would give the same output,
+known as a checksum collision. It is still difficult to deduce the
+input, but manufacturing collisions is now feasible, with some
+constraints. The git project has spent years changing the checksum
+algorithm.
 
-S: ellipse "server" bold big big at 2*boxwid south of C3
-arrow from C1.s to S.n "HTTPS" bold big big aligned below
-arrow from C2.s to S.n
-arrow from C3.s to S.n
-arrow from C4.s to S.n
-arrow from C5.s to S.n
+Collisions are problematic for security applications of checksum
+algorithms in general. Checksums are used, for example, in storing and
+verifying passwords: the cleartext password is never stored, and
+instead a checksum of it is computed and stored. To verify a later
+login attempt a new checksum is computed from the newly entered
+password from the attempt. If the checksums match, the password is
+accepted.[^passwords] This means that if an attacker can find _any_ input that
+gives the same output for the checksum algorithm used for password
+storage, they can log in as if they were a valid user, whether the
+password they have is the same as the real one.
 
-arrow from S.s
-cylinder "disk" bold big big
-~~~
+[^passwords]: In reality, storing passwords securely is much more
+    complicated than described here.
 
-The responsibilities of the server are roughly:
+For backups, and version control systems, collisions cause a different
+problem: they can prevent the correct content from being stored. If
+two files (or chunks) have the same checksum, only one will be stored.
+If the files have different content, this is a problem. A backup
+system should guard against this possibility.
 
-* provide an HTTP API for managing chunks and their metadata: create,
-  retrieve, search, delete; note that updating a chunk is not needed
-* keep track of the client owning each chunk
-* allow clients to manage sharing of specific chunks between clients
+As an extreme and rare, but real, case consider a researcher of
+checksum algorithms. They've spent enormous effort to produce two
+distinct files that have the same checksum. They should be able make a
+backup of the files, and restore them, and not lose one. They should
+not have to know that their backup system uses the same checksum
+algorithm they are researching, and have to guard against the backup
+system getting the files confused. (Backup systems should be boring
+and just always work.)
 
-The responsibilities of the client are roughly:
+Attacks on security-sensitive cryptographic algorithms only get
+stronger by time. It is therefore necessary for Obnam to be able to
+easily change the checksum algorithm it uses, without disruption for
+user. To achieve this, Obnam does not use content-addressable storage.
 
-* split live data into chunks, upload them to server
-* store metadata of live data files in a file, which represents a
-  backup generation, store that too as chunks on the server
-* retrieve chunks from server when restoring
-* let user manage sharing of backups with other clients
-
-There are many details to add to both to the client and the server,
-but that will come later.
-
-It is possible that an identity provider needs to be added to the
-architecture later, to provide strong authentication of clients.
-However, that will not be necessary for the minimum viable product
-version of Obnam. For the MVP, authentication will happen using
-RSA-signed JSON Web Tokens. The server is configured to trust specific
-public keys. The clients have the private keys and generate the tokens
-themselves.
-
+Obnam will (eventually, as this hasn't been implemented yet) allow
+storing multiple checksums for each chunk. It will use the strongest
+checksum available for a chunk. Over time, the checksums for chunks
+can be replaced with stronger ones. This will allow Obnam to migrate
+to a stronger algorithm when attacks against the current one become
+too scary.
 
 # File metadata
 
