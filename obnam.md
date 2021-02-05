@@ -282,6 +282,77 @@ RSA-signed JSON Web Tokens. The server is configured to trust specific
 public keys. The clients have the private keys and generate the tokens
 themselves.
 
+## Logical structure of backups
+
+For each backup (generation) the client stores, on the server, exactly
+one _generation chunk_. This is a chunk that is specially marked as a
+generation, but is otherwise not special. The generation chunk content
+is a list of identifiers for chunks that form an SQLite database.
+
+The SQLite database lists all the files in the backup, as well as
+their metadata. For each file, a list of chunk identifiers are listed,
+for the content of the file. The chunks may be shared between files in
+the same backup or different backups.
+
+File content data chunks are just blobs of data with no structure.
+They have no reference to other data chunks, or to files or backups.
+This makes it easier to share them between files.
+
+Let's look at an example. In the figure below there are three backups,
+each using three chunks for file content data. One chunk, "data chunk
+3", is shared between all three backups.
+
+~~~pikchr
+GEN1: ellipse "Backup 1" big big
+move 200%
+GEN2: ellipse "Backup 2" big big
+move 200%
+GEN3: ellipse "Backup 3" big big
+
+arrow from GEN1.e right to GEN2.w
+arrow from GEN2.e right to GEN3.w
+
+arrow from GEN1.s down 100%
+DB1: box "SQLite" big big
+
+arrow from DB1.s left 20% then down 100%
+C1: file "data" big big "chunk 1" big big
+
+arrow from DB1.s right 0% then down 70% then right 100% then down 30%
+C2: file "data" big big "chunk 2" big big
+
+arrow from DB1.s right 20% then down 30% then right 200% then down 70%
+C3: file "data" big big "chunk 3" big big
+
+
+
+arrow from GEN2.s down 100%
+DB2: box "SQLite" big big
+
+arrow from DB2.s left 20% then down 100% then down 0.5*C3.height then to C3.e
+
+arrow from DB2.s right 0% then down 70% then right 100% then down 30%
+C4: file "data" big big "chunk 4" big big
+
+arrow from DB2.s right 20% then down 30% then right 200% then down 70%
+C5: file "data" big big "chunk 5" big big
+
+
+
+
+arrow from GEN3.s down 100%
+DB3: box "SQLite" big big
+
+arrow from DB3.s left 50% then down 100% then down 1.5*C3.height \
+  then left until even with C3.s then up to C3.s
+
+arrow from DB3.s right 20% then down 100%
+C6: file "data" big big "chunk 6" big big
+
+arrow from DB3.s right 60% then down 70% then right 100% then down 30%
+C7: file "data" big big "chunk 7" big big
+~~~
+
 
 # File metadata
 
