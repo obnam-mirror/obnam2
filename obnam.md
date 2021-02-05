@@ -419,6 +419,25 @@ can be replaced with stronger ones. This will allow Obnam to migrate
 to a stronger algorithm when attacks against the current one become
 too scary.
 
+## On pull versus push backups
+
+Obnam only does push backups. This means the client runs on the host
+where the live data is, and sends it to the server.
+
+Backups could also be pulled, in that the server reaches out tot he
+host where the live data is, retrieves the data, and stores it on the
+server. Obnam does not do this, due to the hard requirement that live
+data never leaves its host in cleartext.
+
+The reason pull backups are of interest in many use cases is because
+they allow central administration of backups, which can simplify
+things a lot in a large organization. Central backup administration
+can be achieved with Obnam in a more complicated way: the installation
+and configuration of live data hosts is done in a central fashion
+using configuration management, and if necessary, backups can be
+triggered on each host by having the server reach out and run the
+Obnam client.
+
 # File metadata
 
 Files in a file system contain data and have metadata: data about the
