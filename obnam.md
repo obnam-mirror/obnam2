@@ -154,66 +154,6 @@ requirements and notes how they affect the architecture.
   access that.
 
 
-## On SFTP versus HTTPS
-
-Obnam1 supported using a standard SFTP server as a backup repository,
-and this was a popular feature. This section argues against supporting
-SFTP in Obnam2.
-
-The performance requirement for network use means favoring protocols
-such as HTTPS, or even QUIC, rather than SFTP.
-
-SFTP works on top of SSH. SSH provides a TCP-like abstraction for
-SFTP, and thus multiple SFTP connections can run over the same SSH
-connection. However, SSH itself uses a single TCP connection. If that
-TCP connection has a dropped packet, all traffic over the SSH
-connections, including all SFTP connections, waits until TCP
-re-transmits the lost packet and re-synchronizes itself.
-
-With multiple HTTP connections, each on its own TCP connection, a
-single dropped packet will not affect other HTTP transactions. Even
-better, the new QUIC protocol doesn't use TCP.
-
-The modern Internet is to a large degree designed for massive use of
-the world wide web, which is all HTTP, and adopting QUIC. It seems
-wise for Obnam to make use of technologies that have been designed
-for, and proven to work well with concurrency and network problems.
-
-Further, having used SFTP with Obnam1, it is not always an easy
-protocol to use. Further, if there is a desire to have controlled
-sharing of parts of one client's data with another, this would require
-writing a custom SFTP service, which seems much harder to do than
-writing a custom HTTP service. From experience, a custom HTTP service
-is easy to do. A custom SFTP service would need to shoehorn the
-abstractions it needs into something that looks more or less like a
-Unix file system.
-
-The benefit of using SFTP would be that a standard SFTP service could
-be used, if partial data sharing between clients is not needed. This
-would simplify deployment and operations for many. However, it doesn't
-seem important enough to warrant the implementation effort.
-
-Supporting both HTTP and SFTP would be possible, but also much more
-work and against the desire to keep things simple.
-
-## On "btrfs send" and similar constructs
-
-The btrfs and ZFS file systems, and possibly others, have a way to
-mark specific states of the file system and efficiently generate a
-"delta file" of all the changes between the states. The delta can be
-transferred elsewhere, and applied to a copy of the file system. This
-can be quite efficient, but Obnam won't be built on top of such a
-system.
-
-On the one hand, it would force the use of specific file systems:
-Obnam would no be able to back up data on, say, an ext4 file system,
-which seems to be the most popular one by far.
-
-Worse, it also for the data to be restored to the same type of file
-system as where the live data was originally. This onerous for people
-to do.
-
-
 ## Overall shape
 
 It seems fairly clear that a simple shape of the software architecture
@@ -352,6 +292,66 @@ C6: file "data" big big "chunk 6" big big
 arrow from DB3.s right 60% then down 70% then right 100% then down 30%
 C7: file "data" big big "chunk 7" big big
 ~~~
+
+
+## On SFTP versus HTTPS
+
+Obnam1 supported using a standard SFTP server as a backup repository,
+and this was a popular feature. This section argues against supporting
+SFTP in Obnam2.
+
+The performance requirement for network use means favoring protocols
+such as HTTPS, or even QUIC, rather than SFTP.
+
+SFTP works on top of SSH. SSH provides a TCP-like abstraction for
+SFTP, and thus multiple SFTP connections can run over the same SSH
+connection. However, SSH itself uses a single TCP connection. If that
+TCP connection has a dropped packet, all traffic over the SSH
+connections, including all SFTP connections, waits until TCP
+re-transmits the lost packet and re-synchronizes itself.
+
+With multiple HTTP connections, each on its own TCP connection, a
+single dropped packet will not affect other HTTP transactions. Even
+better, the new QUIC protocol doesn't use TCP.
+
+The modern Internet is to a large degree designed for massive use of
+the world wide web, which is all HTTP, and adopting QUIC. It seems
+wise for Obnam to make use of technologies that have been designed
+for, and proven to work well with concurrency and network problems.
+
+Further, having used SFTP with Obnam1, it is not always an easy
+protocol to use. Further, if there is a desire to have controlled
+sharing of parts of one client's data with another, this would require
+writing a custom SFTP service, which seems much harder to do than
+writing a custom HTTP service. From experience, a custom HTTP service
+is easy to do. A custom SFTP service would need to shoehorn the
+abstractions it needs into something that looks more or less like a
+Unix file system.
+
+The benefit of using SFTP would be that a standard SFTP service could
+be used, if partial data sharing between clients is not needed. This
+would simplify deployment and operations for many. However, it doesn't
+seem important enough to warrant the implementation effort.
+
+Supporting both HTTP and SFTP would be possible, but also much more
+work and against the desire to keep things simple.
+
+## On "btrfs send" and similar constructs
+
+The btrfs and ZFS file systems, and possibly others, have a way to
+mark specific states of the file system and efficiently generate a
+"delta file" of all the changes between the states. The delta can be
+transferred elsewhere, and applied to a copy of the file system. This
+can be quite efficient, but Obnam won't be built on top of such a
+system.
+
+On the one hand, it would force the use of specific file systems:
+Obnam would no be able to back up data on, say, an ext4 file system,
+which seems to be the most popular one by far.
+
+Worse, it also for the data to be restored to the same type of file
+system as where the live data was originally. This onerous for people
+to do.
 
 
 # File metadata
