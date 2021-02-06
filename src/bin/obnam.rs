@@ -6,8 +6,6 @@ use obnam::cmd::{backup, get_chunk, list, list_files, restore, show_config, show
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
-const BUFFER_SIZE: usize = 1024 * 1024;
-
 fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
     let config_file = match opt.config {
@@ -15,15 +13,13 @@ fn main() -> anyhow::Result<()> {
         Some(ref path) => path.to_path_buf(),
     };
     let config = ClientConfig::read_config(&config_file)?;
-    if let Some(ref log) = config.log {
-        setup_logging(&log)?;
-    }
+    setup_logging(&config.log)?;
 
     info!("client starts");
     debug!("{:?}", opt);
 
     let result = match opt.cmd {
-        Command::Backup => backup(&config, BUFFER_SIZE),
+        Command::Backup => backup(&config),
         Command::List => list(&config),
         Command::ShowGeneration { gen_id } => show_generation(&config, &gen_id),
         Command::ListFiles { gen_id } => list_files(&config, &gen_id),
