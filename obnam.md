@@ -1001,6 +1001,25 @@ server_url: https://backup.example.com
 ~~~
 
 
+## Client requires https
+
+This scenario verifies that the client rejects a configuration with a
+server URL using `http:` instead of `https:`.
+
+
+~~~scenario
+given an installed obnam
+and file http.yaml
+when I try to run obnam --config http.yaml config
+then command fails
+then stderr contains "https:"
+~~~
+
+~~~{#http.yaml .file .yaml .numberLines}
+root: live
+server_url: http://backup.example.com
+~~~
+
 # Acceptance criteria for Obnam as a whole
 
 The scenarios in this chapter apply to Obnam as a whole: the client
