@@ -75,6 +75,10 @@ impl Index {
     pub fn find_generations(&self) -> IndexResult<Vec<ChunkId>> {
         sql::find_generations(&self.conn)
     }
+
+    pub fn all_chunks(&self) -> IndexResult<Vec<ChunkId>> {
+        sql::find_chunk_ids(&self.conn)
+    }
 }
 
 #[cfg(test)]
@@ -234,6 +238,17 @@ mod sql {
 
     pub fn find_generations(conn: &Connection) -> IndexResult<Vec<ChunkId>> {
         let mut stmt = conn.prepare("SELECT id FROM chunks WHERE generation IS 1")?;
+        let iter = stmt.query_map(params![], |row| row_to_id(row))?;
+        let mut ids = vec![];
+        for x in iter {
+            let x = x?;
+            ids.push(x);
+        }
+        Ok(ids)
+    }
+
+    pub fn find_chunk_ids(conn: &Connection) -> IndexResult<Vec<ChunkId>> {
+        let mut stmt = conn.prepare("SELECT id FROM chunks WHERE generation IS 0")?;
         let iter = stmt.query_map(params![], |row| row_to_id(row))?;
         let mut ids = vec![];
         for x in iter {

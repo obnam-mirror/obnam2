@@ -7,10 +7,12 @@ use log::info;
 use std::time::SystemTime;
 use tempfile::NamedTempFile;
 
-pub fn backup(config: &ClientConfig, buffer_size: usize) -> Result<(), ObnamError> {
+const SQLITE_CHUNK_SIZE: usize = 1024 * 1024;
+
+pub fn backup(config: &ClientConfig) -> Result<(), ObnamError> {
     let runtime = SystemTime::now();
 
-    let run = BackupRun::new(config, buffer_size)?;
+    let run = BackupRun::new(config)?;
 
     // Create a named temporary file. We don't meed the open file
     // handle, so we discard that.
@@ -52,7 +54,9 @@ pub fn backup(config: &ClientConfig, buffer_size: usize) -> Result<(), ObnamErro
 
     // Upload the SQLite file, i.e., the named temporary file, which
     // still exists, since we persisted it above.
-    let gen_id = run.client().upload_generation(&newname, buffer_size)?;
+    let gen_id = run
+        .client()
+        .upload_generation(&newname, SQLITE_CHUNK_SIZE)?;
     println!("status: OK");
     println!("duration: {}", runtime.elapsed()?.as_secs());
     println!("file-count: {}", file_count);

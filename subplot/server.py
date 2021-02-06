@@ -5,8 +5,6 @@ import random
 import re
 import requests
 import shutil
-import socket
-import time
 import urllib3
 import yaml
 
@@ -35,7 +33,9 @@ def start_chunk_server(ctx):
         "address": f"localhost:{port}",
     }
 
-    server_binary = os.path.abspath(os.path.join(srcdir, "target", "debug", "obnam-server"))
+    server_binary = os.path.abspath(
+        os.path.join(srcdir, "target", "debug", "obnam-server")
+    )
 
     filename = "config.yaml"
     yaml.safe_dump(config, stream=open(filename, "w"))
@@ -44,11 +44,7 @@ def start_chunk_server(ctx):
     ctx["server_url"] = f"https://{config['address']}"
 
     daemon_start_on_port(
-        ctx,
-        name="obnam-server",
-        path=server_binary,
-        args=filename,
-        port=port,
+        ctx, name="obnam-server", path=server_binary, args=filename, port=port
     )
 
 
@@ -136,6 +132,15 @@ def json_body_matches(ctx, wanted=None):
     logging.debug(f"  body  : {body!r} ({type(body)}")
     for key in wanted:
         assert_eq(body.get(key, "not.there"), wanted[key])
+
+
+def server_has_n_file_chunks(ctx, n=None):
+    assert_eq = globals()["assert_eq"]
+    n = int(n)
+    url = f"{ctx['server_url']}/chunks?data=true"
+    _request(ctx, requests.get, url)
+    num_chunks = len(ctx["http.json"])
+    assert_eq(n, num_chunks)
 
 
 # Make an HTTP request.

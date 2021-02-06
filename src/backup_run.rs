@@ -30,14 +30,14 @@ pub enum BackupError {
 pub type BackupResult<T> = Result<T, BackupError>;
 
 impl BackupRun {
-    pub fn new(config: &ClientConfig, buffer_size: usize) -> BackupResult<Self> {
+    pub fn new(config: &ClientConfig) -> BackupResult<Self> {
         let client = BackupClient::new(config)?;
         let policy = BackupPolicy::new();
         let progress = BackupProgress::new();
         Ok(Self {
             client,
             policy,
-            buffer_size,
+            buffer_size: config.chunk_size,
             progress,
         })
     }

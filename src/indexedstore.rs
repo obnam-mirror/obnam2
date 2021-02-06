@@ -1,8 +1,9 @@
-use crate::chunk::DataChunk;
+use crate::chunk::{DataChunk, GenerationChunk, GenerationChunkError};
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
 use crate::index::{Index, IndexError};
 use crate::store::{Store, StoreError};
+use std::collections::HashSet;
 use std::path::Path;
 
 /// A store for chunks and their metadata.
@@ -20,6 +21,9 @@ pub enum IndexedError {
     /// An error from Index.
     #[error(transparent)]
     IndexError(#[from] IndexError),
+
+    #[error(transparent)]
+    GenerationChunkError(#[from] GenerationChunkError),
 
     /// An error from Store.
     #[error(transparent)]
@@ -62,6 +66,28 @@ impl IndexedStore {
 
     pub fn find_generations(&self) -> IndexedResult<Vec<ChunkId>> {
         Ok(self.index.find_generations()?)
+    }
+
+    pub fn find_file_chunks(&self) -> IndexedResult<Vec<ChunkId>> {
+        let gen_ids = self.find_generations()?;
+
+        let mut sql_chunks: HashSet<ChunkId> = HashSet::new();
+        for id in gen_ids {
+            let gen_chunk = self.store.load(&id)?;
+            let gen = GenerationChunk::from_data_chunk(&gen_chunk)?;
+            for sqlite_chunk_id in gen.chunk_ids() {
+                sql_chunks.insert(sqlite_chunk_id.clone());
+            }
+        }
+
+        let all_chunk_ids = self.index.all_chunks()?;
+        let file_chunks = all_chunk_ids
+            .iter()
+            .filter(|id| !sql_chunks.contains(id))
+            .map(|id| id.clone())
+            .collect();
+
+        Ok(file_chunks)
     }
 
     pub fn remove(&mut self, id: &ChunkId) -> IndexedResult<()> {

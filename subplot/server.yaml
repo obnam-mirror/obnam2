@@ -43,3 +43,6 @@
 
 - then: "the body matches file {filename}"
   function: body_matches_file
+
+- then: "server has {n:int} file chunks"
+  function: server_has_n_file_chunks
