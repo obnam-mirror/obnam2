@@ -998,6 +998,7 @@ then stdout, as JSON, matches file config.json
 ~~~{#config.yaml .file .yaml .numberLines}
 root: live
 server_url: https://backup.example.com
+verify_tls_cert: true
 ~~~
 
 
@@ -1018,7 +1019,30 @@ then stderr contains "https:"
 ~~~{#http.yaml .file .yaml .numberLines}
 root: live
 server_url: http://backup.example.com
+verify_tls_cert: true
 ~~~
+
+## Client refuses a self-signed certificate
+
+This scenario verifies that the client refuses to connect to a server
+if the server's TLS certificate is self-signed. The test server set up
+by the scenario uses self-signed certificates.
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on ca-required.yaml
+and a file live/data.dat containing some random data
+when I try to run obnam --config ca-required.yaml backup
+then command fails
+then stderr contains "self signed certificate"
+~~~
+
+~~~{#ca-required.yaml .file .yaml .numberLines}
+verify_tls_cert: true
+root: live
+~~~
+
 
 # Acceptance criteria for Obnam as a whole
 
@@ -1048,6 +1072,7 @@ then files live.yaml and rest.yaml match
 ~~~
 
 ~~~{#smoke.yaml .file .yaml .numberLines}
+verify_tls_cert: false
 root: live
 ~~~
 
@@ -1062,6 +1087,7 @@ anything.
 All these scenarios use the following configuration file.
 
 ~~~{#metadata.yaml .file .yaml .numberLines}
+verify_tls_cert: false
 root: live
 ~~~
 

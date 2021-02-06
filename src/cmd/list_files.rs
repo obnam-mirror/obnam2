@@ -14,7 +14,7 @@ pub fn list_files(config: &ClientConfig, gen_ref: &str) -> Result<(), ObnamError
         dbname
     };
 
-    let client = BackupClient::new(&config.server_url)?;
+    let client = BackupClient::new(config)?;
 
     let genlist = client.list_generations()?;
     let gen_id: String = genlist.resolve(gen_ref)?;

@@ -25,7 +25,7 @@ pub fn restore(config: &ClientConfig, gen_ref: &str, to: &Path) -> Result<(), Ob
         dbname
     };
 
-    let client = BackupClient::new(&config.server_url)?;
+    let client = BackupClient::new(config)?;
 
     let genlist = client.list_generations()?;
     let gen_id: String = genlist.resolve(gen_ref)?;

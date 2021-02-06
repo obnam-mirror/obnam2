@@ -20,6 +20,7 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ClientConfig {
     pub server_url: String,
+    pub verify_tls_cert: bool,
     pub root: PathBuf,
     pub log: Option<PathBuf>,
 }
@@ -105,13 +106,14 @@ pub struct BackupClient {
 }
 
 impl BackupClient {
-    pub fn new(base_url: &str) -> ClientResult<Self> {
+    pub fn new(config: &ClientConfig) -> ClientResult<Self> {
+        info!("creating backup client with config: {:#?}", config);
         let client = Client::builder()
-            .danger_accept_invalid_certs(true)
+            .danger_accept_invalid_certs(!config.verify_tls_cert)
             .build()?;
         Ok(Self {
             client,
-            base_url: base_url.to_string(),
+            base_url: config.server_url.to_string(),
         })
     }
 
