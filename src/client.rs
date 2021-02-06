@@ -25,7 +25,7 @@ struct TentativeClientConfig {
     server_url: String,
     verify_tls_cert: Option<bool>,
     chunk_size: Option<usize>,
-    root: PathBuf,
+    roots: Vec<PathBuf>,
     log: Option<PathBuf>,
 }
 
@@ -34,7 +34,7 @@ pub struct ClientConfig {
     pub server_url: String,
     pub verify_tls_cert: bool,
     pub chunk_size: usize,
-    pub root: PathBuf,
+    pub roots: Vec<PathBuf>,
     pub log: PathBuf,
 }
 
@@ -43,7 +43,7 @@ pub enum ClientConfigError {
     #[error("server_url is empty")]
     ServerUrlIsEmpty,
 
-    #[error("backup root is unset or empty")]
+    #[error("No backup roots in config; at least one is needed")]
     NoBackupRoot,
 
     #[error("server URL doesn't use https: {0}")]
@@ -66,7 +66,7 @@ impl ClientConfig {
 
         let config = ClientConfig {
             server_url: tentative.server_url,
-            root: tentative.root,
+            roots: tentative.roots,
             verify_tls_cert: tentative.verify_tls_cert.or(Some(false)).unwrap(),
             chunk_size: tentative.chunk_size.or(Some(DEFAULT_CHUNK_SIZE)).unwrap(),
             log: tentative.log.or(Some(PathBuf::from(DEVNULL))).unwrap(),
@@ -83,7 +83,7 @@ impl ClientConfig {
         if !self.server_url.starts_with("https://") {
             return Err(ClientConfigError::NotHttps(self.server_url.to_string()));
         }
-        if self.root.to_string_lossy().is_empty() {
+        if self.roots.is_empty() {
             return Err(ClientConfigError::NoBackupRoot);
         }
         Ok(())
