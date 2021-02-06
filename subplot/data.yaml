@@ -1,6 +1,4 @@
-- given: >
-    a file (?P<filename>\\S+) containing "(?P<data>.*)"
-  regex: true
+- given: a file {filename} containing "{data:text}"
   function: create_file_with_given_data
 
 - given: "a file {filename} containing some random data"

@@ -771,6 +771,10 @@ The server has the following API for managing chunks:
 * `GET /chunks?sha256=xyzzy` &ndash; find chunks on the server whose
   metadata indicates their contents has a given SHA256 checksum
 * `GET /chunks?generation=true` &ndash; find generation chunks
+* `GET /chunks?data=True` &ndash; find chunks with file data
+  - this is meant for testing only
+  - it excludes generation chunks, and chunks used to store the
+    generation's SQLite file
 
 HTTP status codes are used to indicate if a request succeeded or not,
 using the customary meanings.
@@ -858,6 +862,7 @@ when I POST data.dat to /chunks, with chunk-meta: {"sha256":"abc"}
 then HTTP status code is 201
 and content-type is application/json
 and the JSON body has a field chunk_id, henceforth ID
+and server has 1 file chunks
 ~~~
 
 We must be able to retrieve it.
@@ -1144,6 +1149,28 @@ when I invoke obnam --config metadata.yaml restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
 then files live.yaml and rest.yaml match
 ~~~
+
+## Set chunk size
+
+This scenario verifies that the user can set the chunk size in the
+configuration file. The chunk size only affects the chunks of live
+data.
+
+~~~scenario
+given an installed obnam
+given a running chunk server
+given a client config based on tiny-chunk-size.yaml
+given a file live/data.dat containing "abc"
+when I run obnam --config tiny-chunk-size.yaml backup
+then server has 3 file chunks
+~~~
+
+~~~{#tiny-chunk-size.yaml .file .yaml .numberLines}
+verify_tls_cert: false
+root: live
+chunk_size: 1
+~~~
+
 
 ## Backup or not for the right reason
 

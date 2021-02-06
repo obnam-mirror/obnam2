@@ -5,14 +5,17 @@ import random
 import yaml
 
 
+def create_file_with_given_data(ctx, filename=None, data=None):
+    logging.debug(f"creating file {filename} with {data!r}")
+    dirname = os.path.dirname(filename) or "."
+    os.makedirs(dirname, exist_ok=True)
+    open(filename, "wb").write(data.encode("UTF-8"))
+
+
 def create_file_with_random_data(ctx, filename=None):
     N = 128
-    data = "".join(chr(random.randint(0, 255)) for i in range(N)).encode("UTF-8")
-    dirname = os.path.dirname(filename) or "."
-    logging.debug(f"create_file_with_random_data: dirname={dirname}")
-    os.makedirs(dirname, exist_ok=True)
-    with open(filename, "wb") as f:
-        f.write(data)
+    data = "".join(chr(random.randint(0, 255)) for i in range(N))
+    create_file_with_given_data(ctx, filename=filename, data=data)
 
 
 def create_nonutf8_filename(ctx, dirname=None):
