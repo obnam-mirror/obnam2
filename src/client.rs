@@ -26,6 +26,9 @@ pub struct ClientConfig {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ClientConfigError {
+    #[error("server URL doesn't use https: {0}")]
+    NotHttps(String),
+
     #[error(transparent)]
     IoError(#[from] std::io::Error),
 
@@ -39,8 +42,16 @@ impl ClientConfig {
     pub fn read_config(filename: &Path) -> ClientConfigResult<Self> {
         trace!("read_config: filename={:?}", filename);
         let config = std::fs::read_to_string(filename)?;
-        let config = serde_yaml::from_str(&config)?;
+        let config: ClientConfig = serde_yaml::from_str(&config)?;
+        config.check()?;
         Ok(config)
+    }
+
+    fn check(&self) -> Result<(), ClientConfigError> {
+        if !self.server_url.starts_with("https://") {
+            return Err(ClientConfigError::NotHttps(self.server_url.to_string()));
+        }
+        Ok(())
     }
 }
 
