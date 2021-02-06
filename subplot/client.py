@@ -20,6 +20,7 @@ def configure_client(ctx, filename=None):
     config = yaml.safe_load(config)
     config["server_url"] = ctx["server_url"]
 
+    logging.debug(f"client config {filename}: {config}")
     with open(filename, "w") as f:
         yaml.safe_dump(config, stream=f)
 

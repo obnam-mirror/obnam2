@@ -14,7 +14,7 @@ pub fn show_generation(config: &ClientConfig, gen_ref: &str) -> Result<(), Obnam
         dbname
     };
 
-    let client = BackupClient::new(&config.server_url)?;
+    let client = BackupClient::new(config)?;
 
     let genlist = client.list_generations()?;
     let gen_id: String = genlist.resolve(gen_ref)?;
