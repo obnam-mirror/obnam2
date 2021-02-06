@@ -17,16 +17,35 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
+const DEFAULT_CHUNK_SIZE: usize = 1024 * 1024;
+const DEVNULL: &str = "/dev/null";
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct TentativeClientConfig {
+    server_url: String,
+    verify_tls_cert: Option<bool>,
+    chunk_size: Option<usize>,
+    root: PathBuf,
+    log: Option<PathBuf>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ClientConfig {
     pub server_url: String,
     pub verify_tls_cert: bool,
+    pub chunk_size: usize,
     pub root: PathBuf,
-    pub log: Option<PathBuf>,
+    pub log: PathBuf,
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum ClientConfigError {
+    #[error("server_url is empty")]
+    ServerUrlIsEmpty,
+
+    #[error("backup root is unset or empty")]
+    NoBackupRoot,
+
     #[error("server URL doesn't use https: {0}")]
     NotHttps(String),
 
@@ -43,14 +62,29 @@ impl ClientConfig {
     pub fn read_config(filename: &Path) -> ClientConfigResult<Self> {
         trace!("read_config: filename={:?}", filename);
         let config = std::fs::read_to_string(filename)?;
-        let config: ClientConfig = serde_yaml::from_str(&config)?;
+        let tentative: TentativeClientConfig = serde_yaml::from_str(&config)?;
+
+        let config = ClientConfig {
+            server_url: tentative.server_url,
+            root: tentative.root,
+            verify_tls_cert: tentative.verify_tls_cert.or(Some(false)).unwrap(),
+            chunk_size: tentative.chunk_size.or(Some(DEFAULT_CHUNK_SIZE)).unwrap(),
+            log: tentative.log.or(Some(PathBuf::from(DEVNULL))).unwrap(),
+        };
+
         config.check()?;
         Ok(config)
     }
 
     fn check(&self) -> Result<(), ClientConfigError> {
+        if self.server_url.is_empty() {
+            return Err(ClientConfigError::ServerUrlIsEmpty);
+        }
         if !self.server_url.starts_with("https://") {
             return Err(ClientConfigError::NotHttps(self.server_url.to_string()));
+        }
+        if self.root.to_string_lossy().is_empty() {
+            return Err(ClientConfigError::NoBackupRoot);
         }
         Ok(())
     }
