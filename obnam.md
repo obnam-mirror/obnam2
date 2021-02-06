@@ -1001,7 +1001,7 @@ then stdout, as JSON, matches file config.json
 ~~~
 
 ~~~{#config.yaml .file .yaml .numberLines}
-root: live
+roots: [live]
 server_url: https://backup.example.com
 verify_tls_cert: true
 ~~~
@@ -1022,7 +1022,7 @@ then stderr contains "https:"
 ~~~
 
 ~~~{#http.yaml .file .yaml .numberLines}
-root: live
+roots: [live]
 server_url: http://backup.example.com
 verify_tls_cert: true
 ~~~
@@ -1045,7 +1045,7 @@ then stderr contains "self signed certificate"
 
 ~~~{#ca-required.yaml .file .yaml .numberLines}
 verify_tls_cert: true
-root: live
+roots: [live]
 ~~~
 
 
@@ -1078,7 +1078,7 @@ then files live.yaml and rest.yaml match
 
 ~~~{#smoke.yaml .file .yaml .numberLines}
 verify_tls_cert: false
-root: live
+roots: [live]
 ~~~
 
 
@@ -1093,7 +1093,7 @@ All these scenarios use the following configuration file.
 
 ~~~{#metadata.yaml .file .yaml .numberLines}
 verify_tls_cert: false
-root: live
+roots: [live]
 ~~~
 
 ### Modification time
@@ -1167,7 +1167,7 @@ then server has 3 file chunks
 
 ~~~{#tiny-chunk-size.yaml .file .yaml .numberLines}
 verify_tls_cert: false
-root: live
+roots: [live]
 chunk_size: 1
 ~~~
 
@@ -1291,6 +1291,36 @@ when I invoke obnam --config metadata.yaml restore latest rest
 given a manifest of the directory live restored in rest in rest.yaml
 then files second.yaml and rest.yaml match
 ~~~
+
+## Back up multiple directories
+
+This scenario verifies that Obnam can back up more than one directory
+at a time.
+
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on roots.yaml
+and a file live/one/data.dat containing some random data
+and a file live/two/data.dat containing some random data
+and a manifest of the directory live/one in one.yaml
+and a manifest of the directory live/two in two.yaml
+when I run obnam --config roots.yaml backup
+then backup generation is GEN
+when I invoke obnam --config roots.yaml restore <GEN> rest
+given a manifest of the directory live/one restored in rest in rest-one.yaml
+given a manifest of the directory live/two restored in rest in rest-two.yaml
+then files one.yaml and rest-one.yaml match
+then files two.yaml and rest-two.yaml match
+~~~
+
+~~~{#roots.yaml .file .yaml .numberLines}
+roots:
+- live/one
+- live/two
+~~~
+
 
 # Acceptance criteria for backup encryption
 

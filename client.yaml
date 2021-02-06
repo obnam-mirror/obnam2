@@ -1,4 +1,5 @@
 server_url: https://localhost:8888
 verify_tls_cert: false
-root: /home/liw/tmp/Foton
+roots:
+  - /home/liw/tmp/Foton
 log: obnam.log
