@@ -24,3 +24,9 @@
 
 - then: "stdout, as JSON, matches file {filename}"
   function: match_stdout_to_json_file
+
+- then: "file {filename} is restored to {restored}"
+  function: file_is_restored
+
+- then: "file {filename} is not restored to {restored}"
+  function: file_is_not_restored

@@ -1,3 +1,4 @@
+use crate::backup_reason::Reason;
 use crate::client::ClientConfig;
 use crate::client::{BackupClient, ClientError};
 use crate::error::ObnamError;
@@ -35,7 +36,10 @@ pub fn restore(config: &ClientConfig, gen_ref: &str, to: &Path) -> Result<(), Ob
     info!("restoring {} files", gen.file_count()?);
     let progress = create_progress_bar(gen.file_count()?, true);
     for file in gen.files()? {
-        restore_generation(&client, &gen, file.fileno(), file.entry(), &to, &progress)?;
+        match file.reason() {
+            Reason::FileError => (),
+            _ => restore_generation(&client, &gen, file.fileno(), file.entry(), &to, &progress)?,
+        }
     }
     for file in gen.files()? {
         if file.entry().is_dir() {

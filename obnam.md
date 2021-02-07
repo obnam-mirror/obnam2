@@ -1269,6 +1269,28 @@ given a manifest of the directory live restored in rest in rest.yaml
 then files live.yaml and rest.yaml match
 ~~~
 
+## Unreadable file
+
+This scenario verifies that Obnam will back up all files of live data,
+even if one of them is unreadable. By inference, we assume this means
+other errors on individual files also won't end the backup
+prematurely.
+
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on smoke.yaml
+and a file live/data.dat containing some random data
+and a file live/bad.dat containing some random data
+and file live/bad.dat has mode 000
+when I run obnam --config smoke.yaml backup
+then backup generation is GEN
+when I invoke obnam --config smoke.yaml restore <GEN> rest
+then file live/data.dat is restored to rest
+then file live/bad.dat is not restored to rest
+~~~
+
 ## Restore latest generation
 
 This scenario verifies that the latest backup generation can be

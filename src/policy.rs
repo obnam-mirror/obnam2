@@ -42,7 +42,7 @@ impl BackupPolicy {
                     "needs_backup: lookup in old generation returned error, ignored: {:?}: {}",
                     new_name, err
                 );
-                Reason::Error
+                Reason::GenerationLookupError
             }
         };
         debug!(
