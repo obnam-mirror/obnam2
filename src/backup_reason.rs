@@ -9,6 +9,7 @@ pub enum Reason {
     Changed,
     Unchanged,
     Error,
+    Unknown,
 }
 
 impl Reason {
@@ -18,7 +19,8 @@ impl Reason {
             "new" => Reason::IsNew,
             "changed" => Reason::Changed,
             "unchanged" => Reason::Unchanged,
-            _ => Reason::Error,
+            "error" => Reason::Error,
+            _ => Reason::Unknown,
         }
     }
 }
@@ -40,6 +42,7 @@ impl fmt::Display for Reason {
             Reason::Changed => "changed",
             Reason::Unchanged => "unchanged",
             Reason::Error => "error",
+            Reason::Unknown => "unknown",
         };
         write!(f, "{}", reason)
     }

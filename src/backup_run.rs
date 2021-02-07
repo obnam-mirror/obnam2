@@ -85,7 +85,7 @@ impl BackupRun {
                 self.progress.found_live_file(path);
                 let reason = self.policy.needs_backup(&old, &entry);
                 match reason {
-                    Reason::IsNew | Reason::Changed | Reason::Error => {
+                    Reason::IsNew | Reason::Changed | Reason::Error | Reason::Unknown => {
                         let ids = self
                             .client
                             .upload_filesystem_entry(&entry, self.buffer_size)?;
