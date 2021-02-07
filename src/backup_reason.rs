@@ -9,6 +9,7 @@ pub enum Reason {
     Changed,
     Unchanged,
     GenerationLookupError,
+    FileError,
     Unknown,
 }
 
@@ -20,6 +21,7 @@ impl Reason {
             "changed" => Reason::Changed,
             "unchanged" => Reason::Unchanged,
             "genlookuperror" => Reason::GenerationLookupError,
+            "fileerror" => Reason::FileError,
             _ => Reason::Unknown,
         }
     }
@@ -42,6 +44,7 @@ impl fmt::Display for Reason {
             Reason::Changed => "changed",
             Reason::Unchanged => "unchanged",
             Reason::GenerationLookupError => "genlookuperror",
+            Reason::FileError => "fileerror",
             Reason::Unknown => "unknown",
         };
         write!(f, "{}", reason)

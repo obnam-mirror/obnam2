@@ -7,6 +7,7 @@ use crate::fsiter::{FsIterError, FsIterResult};
 use crate::generation::{LocalGeneration, LocalGenerationError};
 use crate::policy::BackupPolicy;
 use log::{info, warn};
+use std::path::Path;
 
 pub struct BackupRun {
     client: BackupClient,
@@ -60,10 +61,7 @@ impl BackupRun {
                 let path = &entry.pathbuf();
                 info!("backup: {}", path.display());
                 self.progress.found_live_file(path);
-                let ids = self
-                    .client
-                    .upload_filesystem_entry(&entry, self.buffer_size)?;
-                Ok((entry.clone(), ids, Reason::IsNew))
+                backup_file(&self.client, &entry, &path, self.buffer_size, Reason::IsNew)
             }
         }
     }
@@ -89,12 +87,9 @@ impl BackupRun {
                     | Reason::Changed
                     | Reason::GenerationLookupError
                     | Reason::Unknown => {
-                        let ids = self
-                            .client
-                            .upload_filesystem_entry(&entry, self.buffer_size)?;
-                        Ok((entry.clone(), ids, reason))
+                        backup_file(&self.client, &entry, &path, self.buffer_size, reason)
                     }
-                    Reason::Unchanged | Reason::Skipped => {
+                    Reason::Unchanged | Reason::Skipped | Reason::FileError => {
                         let fileno = old.get_fileno(&entry.pathbuf())?;
                         let ids = if let Some(fileno) = fileno {
                             old.chunkids(fileno)?
@@ -106,5 +101,22 @@ impl BackupRun {
                 }
             }
         }
+    }
+}
+
+fn backup_file(
+    client: &BackupClient,
+    entry: &FilesystemEntry,
+    path: &Path,
+    chunk_size: usize,
+    reason: Reason,
+) -> BackupResult<(FilesystemEntry, Vec<ChunkId>, Reason)> {
+    let ids = client.upload_filesystem_entry(&entry, chunk_size);
+    match ids {
+        Err(err) => {
+            warn!("error backing up {}, skipping it: {}", path.display(), err);
+            Ok((entry.clone(), vec![], Reason::FileError))
+        }
+        Ok(ids) => Ok((entry.clone(), ids, reason)),
     }
 }
