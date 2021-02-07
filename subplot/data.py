@@ -54,6 +54,20 @@ def _create_manifest_of_directory(ctx, dirname=None, manifest=None):
     open(manifest, "w").write(stdout)
 
 
+def file_is_restored(ctx, filename=None, restored=None):
+    filename = os.path.join(restored, "./" + filename)
+    exists = os.path.exists(filename)
+    logging.debug(f"restored? {filename} {exists}")
+    assert exists
+
+
+def file_is_not_restored(ctx, filename=None, restored=None):
+    filename = os.path.join(restored, "./" + filename)
+    exists = os.path.exists(filename)
+    logging.debug(f"restored? {filename} {exists}")
+    assert not exists
+
+
 def files_match(ctx, first=None, second=None):
     assert_eq = globals()["assert_eq"]
 
