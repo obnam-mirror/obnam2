@@ -1,9 +1,9 @@
 [Unit]
 Description=Obnam server
+ConditionPathExists=/etc/obnam/server.yaml
 
 [Service]
 Type=simple
-ConditionPathExists=/etc/obnam/server.yaml
 ExecStart=/bin/obnam-server /etc/obnam/server.yaml
 
 [Install]
