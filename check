@@ -12,6 +12,7 @@ then
 	verbose | -v | --verbose)
 	    quiet=
 	    hideok=
+	    shift
 	    ;;
     esac
 fi
