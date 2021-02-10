@@ -67,7 +67,10 @@ impl ChunkMeta {
 
     /// Is this a generation chunk?
     pub fn is_generation(&self) -> bool {
-        matches!(self.generation, Some(true))
+        match self.generation {
+            Some(true) => true,
+            _ => false,
+        }
     }
 
     /// When did this generation end?
