@@ -95,6 +95,40 @@ outcomes.
 
 [Subplot]: https://subplot.liw.fi/
 
+# Threat model
+
+This chapter discusses the various threats against backups. Or it
+will. For now it's very much work in progress. This version of the
+chapter is only meant to get threat modeling started by having the
+simplest possible model that is in any way useful.
+
+## Backed up data is readable by server operator
+
+This threat is about the operator of the backup server being able to
+read the data backed up by any user of the server. We have to assume
+that the operator can read any file and can also eavesdrop all network
+traffic. The operator can even read all physical and virtual memory on
+the server.
+
+The mitigation strategy is to encrypt the data before it is sent to
+the server. If the server never receives cleartext data, the operator
+can't read it.
+
+Backups have four kinds of data:
+
+* actual contents of live data files
+* metadata about live data files, as stored on the client file system,
+  such as the name, ownership, or size of each file
+* metadata about the contents of live data, such as its cryptographic
+  checksum
+* metadata about the backup itself
+
+For now, we are concerned about the first two kinds. The rest will be
+addressed later.
+
+The mitigation technique against this threat is to encrypt the live
+data and its metadata before uploading it to the server.
+
 # Software architecture
 
 ## Effects of requirements
