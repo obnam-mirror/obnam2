@@ -55,6 +55,9 @@ impl BackupProgress {
 
     pub fn found_live_file(&self, filename: &Path) {
         self.progress.inc(1);
+        if self.progress.length() < self.progress.position() {
+            self.progress.set_length(self.progress.position());
+        }
         self.progress
             .set_message(&format!("{}", filename.display()));
     }
