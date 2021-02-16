@@ -4,11 +4,12 @@ use obnam::chunk::DataChunk;
 use obnam::chunkid::ChunkId;
 use obnam::chunkmeta::ChunkMeta;
 use obnam::indexedstore::IndexedStore;
-use serde::{Deserialize, Serialize};
+use obnam::server::{Config, ConfigError};
+use serde::Serialize;
 use std::collections::HashMap;
 use std::default::Default;
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use structopt::StructOpt;
 use tokio::sync::Mutex;
@@ -80,51 +81,6 @@ async fn main() -> anyhow::Result<()> {
         .run(addresses[0])
         .await;
     Ok(())
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct Config {
-    pub chunks: PathBuf,
-    pub address: String,
-    pub tls_key: PathBuf,
-    pub tls_cert: PathBuf,
-}
-
-#[derive(Debug, thiserror::Error)]
-enum ConfigError {
-    #[error("Directory for chunks {0} does not exist")]
-    ChunksDirNotFound(PathBuf),
-
-    #[error("TLS certificate {0} does not exist")]
-    TlsCertNotFound(PathBuf),
-
-    #[error("TLS key {0} does not exist")]
-    TlsKeyNotFound(PathBuf),
-
-    #[error("server address can't be resolved")]
-    BadServerAddress,
-}
-
-impl Config {
-    pub fn read_config(filename: &Path) -> anyhow::Result<Config> {
-        let config = std::fs::read_to_string(filename)?;
-        let config: Config = serde_yaml::from_str(&config)?;
-        config.check()?;
-        Ok(config)
-    }
-
-    pub fn check(&self) -> anyhow::Result<()> {
-        if !self.chunks.exists() {
-            return Err(ConfigError::ChunksDirNotFound(self.chunks.clone()).into());
-        }
-        if !self.tls_cert.exists() {
-            return Err(ConfigError::TlsCertNotFound(self.tls_cert.clone()).into());
-        }
-        if !self.tls_key.exists() {
-            return Err(ConfigError::TlsKeyNotFound(self.tls_key.clone()).into());
-        }
-        Ok(())
-    }
 }
 
 pub async fn create_chunk(

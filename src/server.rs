@@ -4,6 +4,52 @@ use crate::chunkmeta::ChunkMeta;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::default::Default;
+use std::path::{Path, PathBuf};
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Config {
+    pub chunks: PathBuf,
+    pub address: String,
+    pub tls_key: PathBuf,
+    pub tls_cert: PathBuf,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigError {
+    #[error("Directory for chunks {0} does not exist")]
+    ChunksDirNotFound(PathBuf),
+
+    #[error("TLS certificate {0} does not exist")]
+    TlsCertNotFound(PathBuf),
+
+    #[error("TLS key {0} does not exist")]
+    TlsKeyNotFound(PathBuf),
+
+    #[error("server address can't be resolved")]
+    BadServerAddress,
+}
+
+impl Config {
+    pub fn read_config(filename: &Path) -> anyhow::Result<Config> {
+        let config = std::fs::read_to_string(filename)?;
+        let config: Config = serde_yaml::from_str(&config)?;
+        config.check()?;
+        Ok(config)
+    }
+
+    pub fn check(&self) -> anyhow::Result<()> {
+        if !self.chunks.exists() {
+            return Err(ConfigError::ChunksDirNotFound(self.chunks.clone()).into());
+        }
+        if !self.tls_cert.exists() {
+            return Err(ConfigError::TlsCertNotFound(self.tls_cert.clone()).into());
+        }
+        if !self.tls_key.exists() {
+            return Err(ConfigError::TlsKeyNotFound(self.tls_key.clone()).into());
+        }
+        Ok(())
+    }
+}
 
 /// Result of creating a chunk.
 #[derive(Debug, Serialize)]
