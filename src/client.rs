@@ -8,6 +8,7 @@ use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::{FinishedGeneration, LocalGeneration, LocalGenerationError};
 use crate::genlist::GenerationList;
 
+use bytesize::MIB;
 use chrono::{DateTime, Local};
 use log::{debug, error, info, trace};
 use reqwest::blocking::Client;
@@ -17,7 +18,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
-const DEFAULT_CHUNK_SIZE: usize = 1024 * 1024;
+const DEFAULT_CHUNK_SIZE: usize = MIB as usize;
 const DEVNULL: &str = "/dev/null";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
