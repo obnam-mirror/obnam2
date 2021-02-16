@@ -15,7 +15,7 @@ impl BackupProgress {
         let parts = vec![
             "initial backup",
             "elapsed: {elapsed}",
-            "files: {pos}/{len}",
+            "files: {pos}",
             "current: {wide_msg}",
             "{spinner}",
         ];
