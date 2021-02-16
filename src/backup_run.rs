@@ -34,7 +34,7 @@ impl BackupRun {
     pub fn new(config: &ClientConfig) -> BackupResult<Self> {
         let client = BackupClient::new(config)?;
         let policy = BackupPolicy::new();
-        let progress = BackupProgress::new();
+        let progress = BackupProgress::initial();
         Ok(Self {
             client,
             policy,

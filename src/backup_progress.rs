@@ -6,7 +6,26 @@ pub struct BackupProgress {
 }
 
 impl BackupProgress {
-    pub fn new() -> Self {
+    pub fn initial() -> Self {
+        let progress = if true {
+            ProgressBar::new(0)
+        } else {
+            ProgressBar::hidden()
+        };
+        let parts = vec![
+            "{wide_bar}",
+            "elapsed: {elapsed}",
+            "files: {pos}/{len}",
+            "current: {wide_msg}",
+            "{spinner}",
+        ];
+        progress.set_style(ProgressStyle::default_bar().template(&parts.join("\n")));
+        progress.enable_steady_tick(100);
+
+        Self { progress }
+    }
+
+    pub fn incremental() -> Self {
         let progress = if true {
             ProgressBar::new(0)
         } else {
