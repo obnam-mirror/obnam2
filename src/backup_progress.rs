@@ -13,7 +13,6 @@ impl BackupProgress {
             ProgressBar::hidden()
         };
         let parts = vec![
-            "{wide_bar}",
             "elapsed: {elapsed}",
             "files: {pos}/{len}",
             "current: {wide_msg}",
