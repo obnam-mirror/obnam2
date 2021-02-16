@@ -4,12 +4,13 @@ use crate::client::{BackupClient, ClientConfig};
 use crate::error::ObnamError;
 use crate::fsiter::FsIterator;
 use crate::generation::NascentGeneration;
+use bytesize::MIB;
 use log::info;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use tempfile::NamedTempFile;
 
-const SQLITE_CHUNK_SIZE: usize = 1024 * 1024;
+const SQLITE_CHUNK_SIZE: usize = MIB as usize;
 
 pub fn backup(config: &ClientConfig) -> Result<(), ObnamError> {
     let runtime = SystemTime::now();
