@@ -9,8 +9,14 @@ use crate::policy::BackupPolicy;
 use log::{info, warn};
 use std::path::Path;
 
-pub struct BackupRun {
-    client: BackupClient,
+pub struct InitialBackup<'a> {
+    client: &'a BackupClient,
+    buffer_size: usize,
+    progress: BackupProgress,
+}
+
+pub struct IncrementalBackup<'a> {
+    client: &'a BackupClient,
     policy: BackupPolicy,
     buffer_size: usize,
     progress: BackupProgress,
@@ -30,28 +36,21 @@ pub enum BackupError {
 
 pub type BackupResult<T> = Result<T, BackupError>;
 
-impl BackupRun {
-    pub fn new(config: &ClientConfig) -> BackupResult<Self> {
-        let client = BackupClient::new(config)?;
-        let policy = BackupPolicy::new();
-        let progress = BackupProgress::new();
+impl<'a> InitialBackup<'a> {
+    pub fn new(config: &ClientConfig, client: &'a BackupClient) -> BackupResult<Self> {
+        let progress = BackupProgress::initial();
         Ok(Self {
             client,
-            policy,
             buffer_size: config.chunk_size,
             progress,
         })
-    }
-
-    pub fn client(&self) -> &BackupClient {
-        &self.client
     }
 
     pub fn progress(&self) -> &BackupProgress {
         &self.progress
     }
 
-    pub fn backup_file_initially(
+    pub fn backup(
         &self,
         entry: FsIterResult<FilesystemEntry>,
     ) -> BackupResult<(FilesystemEntry, Vec<ChunkId>, Reason)> {
@@ -65,8 +64,29 @@ impl BackupRun {
             }
         }
     }
+}
 
-    pub fn backup_file_incrementally(
+impl<'a> IncrementalBackup<'a> {
+    pub fn new(config: &ClientConfig, client: &'a BackupClient) -> BackupResult<Self> {
+        let policy = BackupPolicy::new();
+        let progress = BackupProgress::incremental();
+        Ok(Self {
+            client,
+            policy,
+            buffer_size: config.chunk_size,
+            progress,
+        })
+    }
+
+    pub fn client(&self) -> &BackupClient {
+        self.client
+    }
+
+    pub fn progress(&self) -> &BackupProgress {
+        &self.progress
+    }
+
+    pub fn backup(
         &self,
         entry: FsIterResult<FilesystemEntry>,
         old: &LocalGeneration,
