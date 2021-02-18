@@ -4,13 +4,11 @@
 
 set -eu
 
-quiet=-q
 hideok=chronic
 if [ "$#" -gt 0 ]
 then
     case "$1" in
 	verbose | -v | --verbose)
-	    quiet=
 	    hideok=
 	    shift
 	    ;;
@@ -22,10 +20,10 @@ got_cargo_cmd()
     cargo --list | grep " $1 " > /dev/null
 }
 
-cargo build --all-targets $quiet
-got_cargo_cmd clippy && cargo clippy $quiet
-got_cargo_cmd fmt && cargo fmt -- --check
-$hideok cargo test $quiet
+$hideok cargo build --all-targets
+got_cargo_cmd clippy && $hideok cargo clippy
+got_cargo_cmd fmt && $hideok cargo fmt -- --check
+$hideok cargo test
 
 sp-docgen obnam.md -o obnam.html
 sp-docgen obnam.md -o obnam.pdf
