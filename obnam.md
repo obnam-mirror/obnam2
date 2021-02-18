@@ -1283,6 +1283,24 @@ when I invoke obnam --config smoke.yaml get-chunk <GEN>
 then command fails
 ~~~
 
+## Irregular files
+
+This scenario verifies that Obnam backs up and restores files that
+aren't regular files or directories.
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on smoke.yaml
+and a file live/data.dat containing some random data
+and a Unix socket live/socket
+and a manifest of the directory live in live.yaml
+when I run obnam --config smoke.yaml backup
+when I invoke obnam --config smoke.yaml restore latest rest
+given a manifest of the directory live restored in rest in rest.yaml
+then files live.yaml and rest.yaml match
+~~~
+
 ## Tricky filenames
 
 Obnam needs to handle all filenames the underlying operating and file

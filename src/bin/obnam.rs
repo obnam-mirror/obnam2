@@ -29,7 +29,7 @@ fn main() -> anyhow::Result<()> {
     };
 
     if let Err(ref e) = result {
-        error!("{}", e);
+        error!("command failed: {}", e);
         eprintln!("ERROR: {}", e);
         result?
     }

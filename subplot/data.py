@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import random
+import socket
 import yaml
 
 
@@ -16,6 +17,11 @@ def create_file_with_random_data(ctx, filename=None):
     N = 128
     data = "".join(chr(random.randint(0, 255)) for i in range(N))
     create_file_with_given_data(ctx, filename=filename, data=data)
+
+
+def create_unix_socket(ctx, filename=None):
+    fd = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    fd.bind(filename)
 
 
 def create_nonutf8_filename(ctx, dirname=None):
