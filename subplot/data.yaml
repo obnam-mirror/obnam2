@@ -4,6 +4,12 @@
 - given: "a file {filename} containing some random data"
   function: create_file_with_random_data
 
+- given: "a Unix socket {filename}"
+  function: create_unix_socket
+
+- given: "a named pipe {filename}"
+  function: create_fifo
+
 - given: "a file in {dirname} with a non-UTF8 filename"
   function: create_nonutf8_filename
 

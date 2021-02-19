@@ -1,9 +1,11 @@
+use log::{debug, error};
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::fs::read_link;
 use std::fs::{FileType, Metadata};
 use std::os::linux::fs::MetadataExt;
 use std::os::unix::ffi::OsStringExt;
+use std::os::unix::fs::FileTypeExt;
 use std::path::{Path, PathBuf};
 
 /// A file system entry.
@@ -52,6 +54,19 @@ pub type FsEntryResult<T> = Result<T, FsEntryError>;
 impl FilesystemEntry {
     pub fn from_metadata(path: &Path, meta: &Metadata) -> FsEntryResult<Self> {
         let kind = FilesystemKind::from_file_type(meta.file_type());
+        let symlink_target = if kind == FilesystemKind::Symlink {
+            debug!("reading symlink target for {:?}", path);
+            let target = match read_link(path) {
+                Ok(x) => x,
+                Err(err) => {
+                    error!("read_link failed: {}", err);
+                    return Err(err.into());
+                }
+            };
+            Some(target)
+        } else {
+            None
+        };
         Ok(Self {
             path: path.to_path_buf().into_os_string().into_vec(),
             kind: FilesystemKind::from_file_type(meta.file_type()),
@@ -61,11 +76,7 @@ impl FilesystemEntry {
             mtime_ns: meta.st_mtime_nsec(),
             atime: meta.st_atime(),
             atime_ns: meta.st_atime_nsec(),
-            symlink_target: if kind == FilesystemKind::Symlink {
-                Some(read_link(path)?)
-            } else {
-                None
-            },
+            symlink_target,
         })
     }
 
@@ -117,6 +128,8 @@ pub enum FilesystemKind {
     Regular,
     Directory,
     Symlink,
+    Socket,
+    Fifo,
 }
 
 impl FilesystemKind {
@@ -127,6 +140,10 @@ impl FilesystemKind {
             FilesystemKind::Directory
         } else if file_type.is_symlink() {
             FilesystemKind::Symlink
+        } else if file_type.is_socket() {
+            FilesystemKind::Socket
+        } else if file_type.is_fifo() {
+            FilesystemKind::Fifo
         } else {
             panic!("unknown file type {:?}", file_type);
         }
@@ -137,6 +154,8 @@ impl FilesystemKind {
             FilesystemKind::Regular => 0,
             FilesystemKind::Directory => 1,
             FilesystemKind::Symlink => 2,
+            FilesystemKind::Socket => 3,
+            FilesystemKind::Fifo => 4,
         }
     }
 
@@ -145,6 +164,8 @@ impl FilesystemKind {
             0 => Ok(FilesystemKind::Regular),
             1 => Ok(FilesystemKind::Directory),
             2 => Ok(FilesystemKind::Symlink),
+            3 => Ok(FilesystemKind::Socket),
+            4 => Ok(FilesystemKind::Fifo),
             _ => Err(FsEntryError::UnknownFileKindCode(code).into()),
         }
     }
@@ -164,6 +185,9 @@ mod test {
     fn file_kind_regular_round_trips() {
         one_file_kind_round_trip(FilesystemKind::Regular);
         one_file_kind_round_trip(FilesystemKind::Directory);
+        one_file_kind_round_trip(FilesystemKind::Symlink);
+        one_file_kind_round_trip(FilesystemKind::Socket);
+        one_file_kind_round_trip(FilesystemKind::Fifo);
     }
 
     fn one_file_kind_round_trip(kind: FilesystemKind) {

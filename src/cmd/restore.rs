@@ -5,13 +5,14 @@ use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::{LocalGeneration, LocalGenerationError};
 use indicatif::{ProgressBar, ProgressStyle};
-use libc::{fchmod, futimens, timespec};
+use libc::{chmod, mkfifo, timespec, utimensat, AT_FDCWD};
 use log::{debug, error, info};
-use std::fs::File;
+use std::ffi::CString;
 use std::io::prelude::*;
 use std::io::Error;
+use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::symlink;
-use std::os::unix::io::AsRawFd;
+use std::os::unix::net::UnixListener;
 use std::path::StripPrefixError;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
@@ -72,6 +73,9 @@ struct Opt {
 
 #[derive(Debug, thiserror::Error)]
 pub enum RestoreError {
+    #[error("Could not create named pipe (FIFO) {0}")]
+    NamedPipeCreationError(PathBuf),
+
     #[error(transparent)]
     ClientError(#[from] ClientError),
 
@@ -86,6 +90,9 @@ pub enum RestoreError {
 
     #[error(transparent)]
     SerdeYamlError(#[from] serde_yaml::Error),
+
+    #[error(transparent)]
+    NulError(#[from] std::ffi::NulError),
 }
 
 pub type RestoreResult<T> = Result<T, RestoreError>;
@@ -107,6 +114,8 @@ fn restore_generation(
         FilesystemKind::Regular => restore_regular(client, &gen, &to, fileid, &entry)?,
         FilesystemKind::Directory => restore_directory(&to)?,
         FilesystemKind::Symlink => restore_symlink(&to, &entry)?,
+        FilesystemKind::Socket => restore_socket(&to, &entry)?,
+        FilesystemKind::Fifo => restore_fifo(&to, &entry)?,
     }
     Ok(())
 }
@@ -176,10 +185,29 @@ fn restore_symlink(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
     Ok(())
 }
 
+fn restore_socket(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
+    debug!("creating Unix domain socket {:?}", path);
+    UnixListener::bind(path)?;
+    restore_metadata(path, entry)?;
+    Ok(())
+}
+
+fn restore_fifo(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
+    debug!("creating fifo {:?}", path);
+    let filename = path_to_cstring(path);
+    match unsafe { mkfifo(filename.as_ptr(), 0) } {
+        -1 => {
+            return Err(RestoreError::NamedPipeCreationError(path.to_path_buf()));
+        }
+        _ => restore_metadata(path, entry)?,
+    }
+    Ok(())
+}
+
 fn restore_metadata(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
     debug!("restoring metadata for {}", entry.pathbuf().display());
 
-    let handle = File::open(path)?;
+    debug!("restoring metadata for {:?}", path);
 
     let atime = timespec {
         tv_sec: entry.atime(),
@@ -192,26 +220,33 @@ fn restore_metadata(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
     let times = [atime, mtime];
     let times: *const timespec = &times[0];
 
+    let path = path_to_cstring(path);
+
     // We have to use unsafe here to be able call the libc functions
     // below.
     unsafe {
-        let fd = handle.as_raw_fd(); // FIXME: needs to NOT follow symlinks
-
-        debug!("fchmod");
-        if fchmod(fd, entry.mode()) == -1 {
+        debug!("chmod {:?}", path);
+        if chmod(path.as_ptr(), entry.mode()) == -1 {
             let error = Error::last_os_error();
-            error!("fchmod failed on {}", path.display());
+            error!("chmod failed on {:?}", path);
             return Err(error.into());
         }
 
-        debug!("futimens");
-        if futimens(fd, times) == -1 {
+        debug!("utimens {:?}", path);
+        if utimensat(AT_FDCWD, path.as_ptr(), times, 0) == -1 {
             let error = Error::last_os_error();
-            error!("futimens failed on {}", path.display());
+            error!("utimensat failed on {:?}", path);
             return Err(error.into());
         }
     }
     Ok(())
+}
+
+fn path_to_cstring(path: &Path) -> CString {
+    let path = path.as_os_str();
+    let path = path.as_bytes();
+    let path = CString::new(path).unwrap();
+    path
 }
 
 fn create_progress_bar(file_count: i64, verbose: bool) -> ProgressBar {

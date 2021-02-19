@@ -55,7 +55,11 @@ impl<'a> InitialBackup<'a> {
         entry: FsIterResult<FilesystemEntry>,
     ) -> BackupResult<(FilesystemEntry, Vec<ChunkId>, Reason)> {
         match entry {
-            Err(err) => Err(err.into()),
+            Err(err) => {
+                warn!("backup: there was a problem: {:?}", err);
+                self.progress.found_problem();
+                Err(err.into())
+            }
             Ok(entry) => {
                 let path = &entry.pathbuf();
                 info!("backup: {}", path.display());
