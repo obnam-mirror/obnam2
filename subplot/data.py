@@ -24,6 +24,10 @@ def create_unix_socket(ctx, filename=None):
     fd.bind(filename)
 
 
+def create_fifo(ctx, filename=None):
+    os.mkfifo(filename)
+
+
 def create_nonutf8_filename(ctx, dirname=None):
     filename = "\x88"
     os.mkdir(dirname)

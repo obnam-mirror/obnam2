@@ -36,6 +36,7 @@ fn format_entry(e: &FilesystemEntry, reason: Reason) -> String {
         FilesystemKind::Directory => "d",
         FilesystemKind::Symlink => "l",
         FilesystemKind::Socket => "s",
+        FilesystemKind::Fifo => "p",
     };
     format!("{} {} ({})", kind, e.pathbuf().display(), reason)
 }

@@ -5,7 +5,7 @@ use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::{LocalGeneration, LocalGenerationError};
 use indicatif::{ProgressBar, ProgressStyle};
-use libc::{chmod, timespec, utimensat, AT_FDCWD};
+use libc::{chmod, mkfifo, timespec, utimensat, AT_FDCWD};
 use log::{debug, error, info};
 use std::ffi::CString;
 use std::io::prelude::*;
@@ -73,6 +73,9 @@ struct Opt {
 
 #[derive(Debug, thiserror::Error)]
 pub enum RestoreError {
+    #[error("Could not create named pipe (FIFO) {0}")]
+    NamedPipeCreationError(PathBuf),
+
     #[error(transparent)]
     ClientError(#[from] ClientError),
 
@@ -112,6 +115,7 @@ fn restore_generation(
         FilesystemKind::Directory => restore_directory(&to)?,
         FilesystemKind::Symlink => restore_symlink(&to, &entry)?,
         FilesystemKind::Socket => restore_socket(&to, &entry)?,
+        FilesystemKind::Fifo => restore_fifo(&to, &entry)?,
     }
     Ok(())
 }
@@ -185,6 +189,18 @@ fn restore_socket(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
     debug!("creating Unix domain socket {:?}", path);
     UnixListener::bind(path)?;
     restore_metadata(path, entry)?;
+    Ok(())
+}
+
+fn restore_fifo(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
+    debug!("creating fifo {:?}", path);
+    let filename = path_to_cstring(path);
+    match unsafe { mkfifo(filename.as_ptr(), 0) } {
+        -1 => {
+            return Err(RestoreError::NamedPipeCreationError(path.to_path_buf()));
+        }
+        _ => restore_metadata(path, entry)?,
+    }
     Ok(())
 }
 

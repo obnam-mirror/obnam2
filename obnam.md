@@ -1286,7 +1286,10 @@ then command fails
 ## Irregular files
 
 This scenario verifies that Obnam backs up and restores files that
-aren't regular files or directories.
+aren't regular files, directories, or symbolic links. Specifically,
+Unix domain sockets and named pipes (FIFOs). However, block and
+character device nodes are not tested, as that would require running
+the test suite with `root` permissions and that would be awkward.
 
 ~~~scenario
 given an installed obnam
@@ -1294,6 +1297,7 @@ and a running chunk server
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
 and a Unix socket live/socket
+and a named pipe live/pipe
 and a manifest of the directory live in live.yaml
 when I run obnam --config smoke.yaml backup
 when I invoke obnam --config smoke.yaml restore latest rest

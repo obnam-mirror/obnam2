@@ -164,6 +164,7 @@ impl BackupClient {
             FilesystemKind::Directory => vec![],
             FilesystemKind::Symlink => vec![],
             FilesystemKind::Socket => vec![],
+            FilesystemKind::Fifo => vec![],
         };
         info!("upload OK for {:?}", path);
         Ok(ids)

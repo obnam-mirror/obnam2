@@ -129,6 +129,7 @@ pub enum FilesystemKind {
     Directory,
     Symlink,
     Socket,
+    Fifo,
 }
 
 impl FilesystemKind {
@@ -141,6 +142,8 @@ impl FilesystemKind {
             FilesystemKind::Symlink
         } else if file_type.is_socket() {
             FilesystemKind::Socket
+        } else if file_type.is_fifo() {
+            FilesystemKind::Fifo
         } else {
             panic!("unknown file type {:?}", file_type);
         }
@@ -152,6 +155,7 @@ impl FilesystemKind {
             FilesystemKind::Directory => 1,
             FilesystemKind::Symlink => 2,
             FilesystemKind::Socket => 3,
+            FilesystemKind::Fifo => 4,
         }
     }
 
@@ -161,6 +165,7 @@ impl FilesystemKind {
             1 => Ok(FilesystemKind::Directory),
             2 => Ok(FilesystemKind::Symlink),
             3 => Ok(FilesystemKind::Socket),
+            4 => Ok(FilesystemKind::Fifo),
             _ => Err(FsEntryError::UnknownFileKindCode(code).into()),
         }
     }
@@ -182,6 +187,7 @@ mod test {
         one_file_kind_round_trip(FilesystemKind::Directory);
         one_file_kind_round_trip(FilesystemKind::Symlink);
         one_file_kind_round_trip(FilesystemKind::Socket);
+        one_file_kind_round_trip(FilesystemKind::Fifo);
     }
 
     fn one_file_kind_round_trip(kind: FilesystemKind) {
