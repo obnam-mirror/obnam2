@@ -45,6 +45,32 @@ impl BackupProgress {
         Self { progress }
     }
 
+    pub fn upload_generation() -> Self {
+        let progress = ProgressBar::new(0);
+        let parts = vec![
+            "uploading new generation metadata",
+            "elapsed: {elapsed}",
+            "{spinner}",
+        ];
+        progress.set_style(ProgressStyle::default_bar().template(&parts.join("\n")));
+        progress.enable_steady_tick(100);
+
+        Self { progress }
+    }
+
+    pub fn download_generation(gen_id: &str) -> Self {
+        let progress = ProgressBar::new(0);
+        let parts = vec!["{msg}", "elapsed: {elapsed}", "{spinner}"];
+        progress.set_style(ProgressStyle::default_bar().template(&parts.join("\n")));
+        progress.enable_steady_tick(100);
+        progress.set_message(&format!(
+            "downloading previous generation metadata: {}",
+            gen_id
+        ));
+
+        Self { progress }
+    }
+
     pub fn files_in_previous_generation(&self, count: u64) {
         self.progress.set_length(count);
     }

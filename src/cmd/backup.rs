@@ -1,3 +1,4 @@
+use crate::backup_progress::BackupProgress;
 use crate::backup_run::{IncrementalBackup, InitialBackup};
 use crate::chunkid::ChunkId;
 use crate::client::{BackupClient, ClientConfig};
@@ -37,20 +38,20 @@ pub fn backup(config: &ClientConfig) -> Result<(), ObnamError> {
         Err(_) => {
             let run = InitialBackup::new(config, &client)?;
             let count = initial_backup(&config.roots, &newname, &run)?;
-            run.progress().finish();
             count
         }
         Ok(old) => {
-            let run = IncrementalBackup::new(config, &client)?;
-            let count = incremental_backup(&old, &config.roots, &newname, &oldname, &run)?;
-            run.progress().finish();
+            let mut run = IncrementalBackup::new(config, &client)?;
+            let count = incremental_backup(&old, &config.roots, &newname, &oldname, &mut run)?;
             count
         }
     };
 
     // Upload the SQLite file, i.e., the named temporary file, which
     // still exists, since we persisted it above.
+    let progress = BackupProgress::upload_generation();
     let gen_id = client.upload_generation(&newname, SQLITE_CHUNK_SIZE)?;
+    progress.finish();
 
     // Delete the temporary file.q
     std::fs::remove_file(&newname)?;
@@ -89,16 +90,15 @@ fn incremental_backup(
     roots: &[PathBuf],
     newname: &Path,
     oldname: &Path,
-    run: &IncrementalBackup,
+    run: &mut IncrementalBackup,
 ) -> Result<i64, ObnamError> {
     info!("incremental backup based on {}", old);
 
-    let old = run.client().fetch_generation(&old, &oldname)?;
+    let old = run.fetch_previous_generation(old, oldname)?;
+    run.start_backup(&old)?;
     let mut new = NascentGeneration::create(&newname)?;
     for root in roots {
         let iter = FsIterator::new(root);
-        run.progress()
-            .files_in_previous_generation(old.file_count()? as u64);
         new.insert_iter(iter.map(|entry| run.backup(entry, &old)))?;
     }
     Ok(new.file_count())

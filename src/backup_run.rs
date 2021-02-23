@@ -2,6 +2,7 @@ use crate::backup_progress::BackupProgress;
 use crate::backup_reason::Reason;
 use crate::chunkid::ChunkId;
 use crate::client::{BackupClient, ClientConfig, ClientError};
+use crate::error::ObnamError;
 use crate::fsentry::FilesystemEntry;
 use crate::fsiter::{FsIterError, FsIterResult};
 use crate::generation::{LocalGeneration, LocalGenerationError};
@@ -19,7 +20,7 @@ pub struct IncrementalBackup<'a> {
     client: &'a BackupClient,
     policy: BackupPolicy,
     buffer_size: usize,
-    progress: BackupProgress,
+    progress: Option<BackupProgress>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -46,8 +47,8 @@ impl<'a> InitialBackup<'a> {
         })
     }
 
-    pub fn progress(&self) -> &BackupProgress {
-        &self.progress
+    pub fn drop(&self) {
+        &self.progress.finish();
     }
 
     pub fn backup(
@@ -73,21 +74,40 @@ impl<'a> InitialBackup<'a> {
 impl<'a> IncrementalBackup<'a> {
     pub fn new(config: &ClientConfig, client: &'a BackupClient) -> BackupResult<Self> {
         let policy = BackupPolicy::new();
-        let progress = BackupProgress::incremental();
         Ok(Self {
             client,
             policy,
             buffer_size: config.chunk_size,
-            progress,
+            progress: None,
         })
+    }
+
+    pub fn start_backup(&mut self, old: &LocalGeneration) -> Result<(), ObnamError> {
+        let progress = BackupProgress::incremental();
+        progress.files_in_previous_generation(old.file_count()? as u64);
+        self.progress = Some(progress);
+        Ok(())
     }
 
     pub fn client(&self) -> &BackupClient {
         self.client
     }
 
-    pub fn progress(&self) -> &BackupProgress {
-        &self.progress
+    pub fn drop(&self) {
+        if let Some(progress) = &self.progress {
+            progress.finish();
+        }
+    }
+
+    pub fn fetch_previous_generation(
+        &self,
+        genid: &str,
+        oldname: &Path,
+    ) -> Result<LocalGeneration, ObnamError> {
+        let progress = BackupProgress::download_generation(genid);
+        let old = self.client().fetch_generation(genid, &oldname)?;
+        progress.finish();
+        Ok(old)
     }
 
     pub fn backup(
@@ -98,13 +118,13 @@ impl<'a> IncrementalBackup<'a> {
         match entry {
             Err(err) => {
                 warn!("backup: {}", err);
-                self.progress.found_problem();
+                self.found_problem();
                 Err(BackupError::FsIterError(err))
             }
             Ok(entry) => {
                 let path = &entry.pathbuf();
                 info!("backup: {}", path.display());
-                self.progress.found_live_file(path);
+                self.found_live_file(path);
                 let reason = self.policy.needs_backup(&old, &entry);
                 match reason {
                     Reason::IsNew
@@ -124,6 +144,18 @@ impl<'a> IncrementalBackup<'a> {
                     }
                 }
             }
+        }
+    }
+
+    fn found_live_file(&self, path: &Path) {
+        if let Some(progress) = &self.progress {
+            progress.found_live_file(path);
+        }
+    }
+
+    fn found_problem(&self) {
+        if let Some(progress) = &self.progress {
+            progress.found_problem();
         }
     }
 }
