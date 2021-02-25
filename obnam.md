@@ -876,6 +876,75 @@ restores all the files in the SQLite database.
 
 
 
+## Encryption and authenticity of chunks
+
+*This is a plan that will be implemented soon. When it has been, this
+section needs to be updated to to use present tense.*
+
+Obnam encrypts data it stores on the server, and checks that the data
+it retrieves from the server is what it stored. This is all done in
+the client: the server should never see any data isn't encrypted, and
+the client can't trust the server to validate anything.
+
+Obnam will be using _Authenticated Encryption with Associated Data_ or
+[AEAD][]. AEAD both encrypts data, and validates it before decrypting.
+AEAD uses two encryption keys, one algorithm for symmetric encryption,
+and one algorithm for a message authentication codes or [MAC][]. AEAD
+encrypts the plaintext with a symmetric encryption algorithm using the
+first key, giving a ciphertext. It then computes a MAC of the
+ciphertext using the second key. Both the ciphertext and MAC are
+stored on the server.
+
+For decryption, the a MAC is computed against the retrieved
+ciphertext, and compared to the retrieved MAC. If the MACs differ,
+that's an error and no decryption is done. If they do match, the
+ciphertext is decrypted.
+
+Obnam will require the user to provide a passphrase, and will derive
+the two keys from the single passphrase, using [PBKDF2][], rather than
+having the user provide two passphrases. The derived keys will be
+stored in file that only the owner can read. (This is simple, and good
+enough for now, but needs to improved later.)
+
+When this is all implemented, there will be a setup step before the
+first backup:
+
+~~~sh
+$ obnam init
+Passphrase for encryption:
+Re-enter to make sure: 
+$ obnam backup
+~~~
+
+The `init` step asks for a passphrase, uses PBKDF2 (with the [pbkdf2
+crate][]) to derive the two keys, and writes a JSON file with the keys
+into `~/.config/obnam/keys.json`, making that file be readable only by
+the user running Obnam. Other operations get the keys from that file.
+
+The `init` step will not be optional. There will only be encrypted
+backups.
+
+Obnam will use the [aes-gcm crate][] for AEAD, since it has been
+audited. If that choice turns out to be less than optimal, it can be
+reconsider later.
+
+The chunk sent to the server will be encoded as follows:
+
+* chunk format: a 32-bit unsigned integer, 0x0001
+* length of the MAC: a 32-bit unsigned integer
+* the MAC
+* length of ciphertext: a 32-bit unsigned integer
+* the ciphertext
+
+The format version prefix allows for a modicum of future-proofing.
+
+[AEAD]: https://en.wikipedia.org/wiki/Authenticated_encryption#Authenticated_encryption_with_associated_data_(AEAD)
+[MAC]: https://en.wikipedia.org/wiki/Message_authentication_code
+[aes-gcm crate]: https://crates.io/crates/aes-gcm
+[PBKDF2]: https://en.wikipedia.org/wiki/PBKDF2
+[pbkdf2 crate]: https://crates.io/crates/pbkdf2
+
+
 # Acceptance criteria for the chunk server
 
 These scenarios verify that the chunk server works on its own. The
