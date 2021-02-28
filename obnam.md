@@ -903,7 +903,7 @@ ciphertext is decrypted.
 Obnam will require the user to provide a passphrase, and will derive
 the two keys from the single passphrase, using [PBKDF2][], rather than
 having the user provide two passphrases. The derived keys will be
-stored in file that only the owner can read. (This is simple, and good
+stored in a file that only the owner can read. (This is simple, and good
 enough for now, but needs to improved later.)
 
 When this is all implemented, there will be a setup step before the
@@ -920,29 +920,41 @@ The `init` step asks for a passphrase, uses PBKDF2 (with the [pbkdf2
 crate][]) to derive the two keys, and writes a JSON file with the keys
 into `~/.config/obnam/keys.json`, making that file be readable only by
 the user running Obnam. Other operations get the keys from that file.
+For now, we will use the default parameters of the pbkdf2 crate, to
+keep things simple. (This will need to be made more flexible later: if
+nothing else, Obnam should not be vulnerable to the defaults
+changing.)
 
 The `init` step will not be optional. There will only be encrypted
 backups.
 
 Obnam will use the [aes-gcm crate][] for AEAD, since it has been
 audited. If that choice turns out to be less than optimal, it can be
-reconsider later.
+reconsider later. The `encrypt` function doesn't return the MAC and
+ciphertext separately, so we don't store them separately. However,
+each chunk needs its own [nonce][], which we will generate. We'll use
+a 96-bit (or 12-byte) nonce. We'll use the [rand crate][] to generate
+random bytes.
 
 The chunk sent to the server will be encoded as follows:
 
 * chunk format: a 32-bit unsigned integer, 0x0001
-* length of the MAC: a 32-bit unsigned integer
-* the MAC
-* length of ciphertext: a 32-bit unsigned integer
+* a 12-byte nonce unique to the chunk
 * the ciphertext
 
-The format version prefix allows for a modicum of future-proofing.
+The format version prefix dictates the content and structure of the
+chunk. This document defines version 1 of the format. The Obnam client
+will refuse to operate on backup generations which use chunk formats
+it cannot understand.
+
 
 [AEAD]: https://en.wikipedia.org/wiki/Authenticated_encryption#Authenticated_encryption_with_associated_data_(AEAD)
 [MAC]: https://en.wikipedia.org/wiki/Message_authentication_code
 [aes-gcm crate]: https://crates.io/crates/aes-gcm
 [PBKDF2]: https://en.wikipedia.org/wiki/PBKDF2
 [pbkdf2 crate]: https://crates.io/crates/pbkdf2
+[nonce]: https://en.wikipedia.org/wiki/Cryptographic_nonce
+[rand crate]: https://crates.io/crates/rand
 
 
 # Acceptance criteria for the chunk server
