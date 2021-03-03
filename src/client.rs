@@ -21,7 +21,8 @@ use std::path::{Path, PathBuf};
 const DEFAULT_CHUNK_SIZE: usize = MIB as usize;
 const DEVNULL: &str = "/dev/null";
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 struct TentativeClientConfig {
     server_url: String,
     verify_tls_cert: Option<bool>,
@@ -30,7 +31,7 @@ struct TentativeClientConfig {
     log: Option<PathBuf>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub struct ClientConfig {
     pub server_url: String,
     pub verify_tls_cert: bool,
