@@ -37,6 +37,14 @@ pub struct FilesystemEntry {
 
     // The target of a symbolic link, if any.
     symlink_target: Option<PathBuf>,
+
+    // User and group owning the file. We store them as both the
+    // numeric id and the textual name corresponding to the numeric id
+    // at the time of the backup.
+    uid: u32,
+    gid: u32,
+    user: String,
+    group: String,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -67,6 +75,10 @@ impl FilesystemEntry {
         } else {
             None
         };
+
+        let uid = meta.st_uid();
+        let gid = meta.st_gid();
+
         Ok(Self {
             path: path.to_path_buf().into_os_string().into_vec(),
             kind: FilesystemKind::from_file_type(meta.file_type()),
@@ -77,6 +89,10 @@ impl FilesystemEntry {
             atime: meta.st_atime(),
             atime_ns: meta.st_atime_nsec(),
             symlink_target,
+            uid,
+            gid,
+            user: get_username(uid),
+            group: get_groupname(gid),
         })
     }
 
@@ -119,6 +135,20 @@ impl FilesystemEntry {
 
     pub fn symlink_target(&self) -> Option<PathBuf> {
         self.symlink_target.clone()
+    }
+}
+
+fn get_username(uid: u32) -> String {
+    match users::get_user_by_uid(uid) {
+        None => "".to_string(),
+        Some(user) => user.name().to_os_string().to_string_lossy().into_owned(),
+    }
+}
+
+fn get_groupname(gid: u32) -> String {
+    match users::get_group_by_gid(gid) {
+        None => "".to_string(),
+        Some(group) => group.name().to_os_string().to_string_lossy().into_owned(),
     }
 }
 
