@@ -1,15 +1,16 @@
+use anyhow::Context;
 use bytes::Bytes;
 use log::{debug, error, info};
 use obnam::chunk::DataChunk;
 use obnam::chunkid::ChunkId;
 use obnam::chunkmeta::ChunkMeta;
 use obnam::indexedstore::IndexedStore;
-use obnam::server::{Config, ConfigError};
+use obnam::server::{ServerConfig, ServerConfigError};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::default::Default;
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use structopt::StructOpt;
 use tokio::sync::Mutex;
@@ -28,13 +29,13 @@ async fn main() -> anyhow::Result<()> {
     pretty_env_logger::init();
 
     let opt = Opt::from_args();
-    let config = Config::read_config(&opt.config).unwrap();
+    let config = load_config(&opt.config)?;
 
     let addresses: Vec<SocketAddr> = config.address.to_socket_addrs()?.collect();
     if addresses.is_empty() {
         error!("specified address is empty set: {:?}", addresses);
         eprintln!("ERROR: server address is empty: {:?}", addresses);
-        return Err(ConfigError::BadServerAddress.into());
+        return Err(ServerConfigError::BadServerAddress.into());
     }
 
     let store = IndexedStore::new(&config.chunks)?;
@@ -81,6 +82,16 @@ async fn main() -> anyhow::Result<()> {
         .run(addresses[0])
         .await;
     Ok(())
+}
+
+fn load_config(filename: &Path) -> Result<ServerConfig, anyhow::Error> {
+    let config = ServerConfig::read_config(&filename).with_context(|| {
+        format!(
+            "Couldn't read default configuration file {}",
+            filename.display()
+        )
+    })?;
+    Ok(config)
 }
 
 pub async fn create_chunk(

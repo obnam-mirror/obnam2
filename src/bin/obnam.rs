@@ -1,3 +1,4 @@
+use anyhow::Context;
 use log::{debug, error, info, LevelFilter};
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Logger, Root};
@@ -8,12 +9,9 @@ use structopt::StructOpt;
 
 fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
-    let config_file = match opt.config {
-        None => default_config(),
-        Some(ref path) => path.to_path_buf(),
-    };
-    let config = ClientConfig::read_config(&config_file)?;
+    let config = load_config(&opt)?;
     setup_logging(&config.log)?;
+    debug!("configuration: {:#?}", config);
 
     info!("client starts");
     debug!("{:?}", opt);
@@ -36,6 +34,23 @@ fn main() -> anyhow::Result<()> {
 
     info!("client ends successfully");
     Ok(())
+}
+
+fn load_config(opt: &Opt) -> Result<ClientConfig, anyhow::Error> {
+    let config = match opt.config {
+        None => {
+            let filename = default_config();
+            ClientConfig::read_config(&filename).with_context(|| {
+                format!(
+                    "Couldn't read default configuration file {}",
+                    filename.display()
+                )
+            })?
+        }
+        Some(ref filename) => ClientConfig::read_config(&filename)
+            .with_context(|| format!("Couldn't read configuration file {}", filename.display()))?,
+    };
+    Ok(config)
 }
 
 fn default_config() -> PathBuf {
