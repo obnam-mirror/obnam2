@@ -6,19 +6,13 @@ use indicatif::HumanBytes;
 use tempfile::NamedTempFile;
 
 pub fn show_generation(config: &ClientConfig, gen_ref: &str) -> Result<(), ObnamError> {
-    // Create a named temporary file. We don't meed the open file
-    // handle, so we discard that.
-    let dbname = {
-        let temp = NamedTempFile::new()?;
-        let (_, dbname) = temp.keep()?;
-        dbname
-    };
+    let temp = NamedTempFile::new()?;
 
     let client = BackupClient::new(config)?;
 
     let genlist = client.list_generations()?;
     let gen_id: String = genlist.resolve(gen_ref)?;
-    let gen = client.fetch_generation(&gen_id, &dbname)?;
+    let gen = client.fetch_generation(&gen_id, temp.path())?;
     let files = gen.files()?;
 
     let total_bytes = files.iter().fold(0, |acc, file| {
@@ -34,9 +28,6 @@ pub fn show_generation(config: &ClientConfig, gen_ref: &str) -> Result<(), Obnam
     println!("file-count: {}", gen.file_count()?);
     println!("file-bytes: {}", HumanBytes(total_bytes));
     println!("file-bytes-raw: {}", total_bytes);
-
-    // Delete the temporary file.
-    std::fs::remove_file(&dbname)?;
 
     Ok(())
 }

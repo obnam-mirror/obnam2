@@ -19,13 +19,7 @@ use structopt::StructOpt;
 use tempfile::NamedTempFile;
 
 pub fn restore(config: &ClientConfig, gen_ref: &str, to: &Path) -> Result<(), ObnamError> {
-    // Create a named temporary file. We don't meed the open file
-    // handle, so we discard that.
-    let dbname = {
-        let temp = NamedTempFile::new()?;
-        let (_, dbname) = temp.keep()?;
-        dbname
-    };
+    let temp = NamedTempFile::new()?;
 
     let client = BackupClient::new(config)?;
 
@@ -33,7 +27,7 @@ pub fn restore(config: &ClientConfig, gen_ref: &str, to: &Path) -> Result<(), Ob
     let gen_id: String = genlist.resolve(gen_ref)?;
     info!("generation id is {}", gen_id);
 
-    let gen = client.fetch_generation(&gen_id, &dbname)?;
+    let gen = client.fetch_generation(&gen_id, temp.path())?;
     info!("restoring {} files", gen.file_count()?);
     let progress = create_progress_bar(gen.file_count()?, true);
     for file in gen.files()? {
@@ -48,9 +42,6 @@ pub fn restore(config: &ClientConfig, gen_ref: &str, to: &Path) -> Result<(), Ob
         }
     }
     progress.finish();
-
-    // Delete the temporary file.
-    std::fs::remove_file(&dbname)?;
 
     Ok(())
 }

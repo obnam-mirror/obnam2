@@ -6,26 +6,17 @@ use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use tempfile::NamedTempFile;
 
 pub fn list_files(config: &ClientConfig, gen_ref: &str) -> Result<(), ObnamError> {
-    // Create a named temporary file. We don't meed the open file
-    // handle, so we discard that.
-    let dbname = {
-        let temp = NamedTempFile::new()?;
-        let (_, dbname) = temp.keep()?;
-        dbname
-    };
+    let temp = NamedTempFile::new()?;
 
     let client = BackupClient::new(config)?;
 
     let genlist = client.list_generations()?;
     let gen_id: String = genlist.resolve(gen_ref)?;
 
-    let gen = client.fetch_generation(&gen_id, &dbname)?;
+    let gen = client.fetch_generation(&gen_id, temp.path())?;
     for file in gen.files()? {
         println!("{}", format_entry(&file.entry(), file.reason()));
     }
-
-    // Delete the temporary file.
-    std::fs::remove_file(&dbname)?;
 
     Ok(())
 }
