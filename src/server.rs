@@ -7,7 +7,7 @@ use std::default::Default;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct Config {
+pub struct ServerConfig {
     pub chunks: PathBuf,
     pub address: String,
     pub tls_key: PathBuf,
@@ -15,7 +15,7 @@ pub struct Config {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum ConfigError {
+pub enum ServerConfigError {
     #[error("Directory for chunks {0} does not exist")]
     ChunksDirNotFound(PathBuf),
 
@@ -29,23 +29,23 @@ pub enum ConfigError {
     BadServerAddress,
 }
 
-impl Config {
-    pub fn read_config(filename: &Path) -> anyhow::Result<Config> {
+impl ServerConfig {
+    pub fn read_config(filename: &Path) -> anyhow::Result<Self> {
         let config = std::fs::read_to_string(filename)?;
-        let config: Config = serde_yaml::from_str(&config)?;
+        let config: Self = serde_yaml::from_str(&config)?;
         config.check()?;
         Ok(config)
     }
 
     pub fn check(&self) -> anyhow::Result<()> {
         if !self.chunks.exists() {
-            return Err(ConfigError::ChunksDirNotFound(self.chunks.clone()).into());
+            return Err(ServerConfigError::ChunksDirNotFound(self.chunks.clone()).into());
         }
         if !self.tls_cert.exists() {
-            return Err(ConfigError::TlsCertNotFound(self.tls_cert.clone()).into());
+            return Err(ServerConfigError::TlsCertNotFound(self.tls_cert.clone()).into());
         }
         if !self.tls_key.exists() {
-            return Err(ConfigError::TlsKeyNotFound(self.tls_key.clone()).into());
+            return Err(ServerConfigError::TlsKeyNotFound(self.tls_key.clone()).into());
         }
         Ok(())
     }

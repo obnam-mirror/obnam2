@@ -5,7 +5,7 @@ use obnam::chunk::DataChunk;
 use obnam::chunkid::ChunkId;
 use obnam::chunkmeta::ChunkMeta;
 use obnam::indexedstore::IndexedStore;
-use obnam::server::{Config, ConfigError};
+use obnam::server::{ServerConfig, ServerConfigError};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::default::Default;
@@ -35,7 +35,7 @@ async fn main() -> anyhow::Result<()> {
     if addresses.is_empty() {
         error!("specified address is empty set: {:?}", addresses);
         eprintln!("ERROR: server address is empty: {:?}", addresses);
-        return Err(ConfigError::BadServerAddress.into());
+        return Err(ServerConfigError::BadServerAddress.into());
     }
 
     let store = IndexedStore::new(&config.chunks)?;
@@ -84,8 +84,8 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn load_config(filename: &Path) -> Result<Config, anyhow::Error> {
-    let config = Config::read_config(&filename).with_context(|| {
+fn load_config(filename: &Path) -> Result<ServerConfig, anyhow::Error> {
+    let config = ServerConfig::read_config(&filename).with_context(|| {
         format!(
             "Couldn't read default configuration file {}",
             filename.display()
