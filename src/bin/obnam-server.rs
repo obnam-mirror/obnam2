@@ -1,3 +1,4 @@
+use anyhow::Context;
 use bytes::Bytes;
 use log::{debug, error, info};
 use obnam::chunk::DataChunk;
@@ -9,7 +10,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::default::Default;
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use structopt::StructOpt;
 use tokio::sync::Mutex;
@@ -28,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
     pretty_env_logger::init();
 
     let opt = Opt::from_args();
-    let config = Config::read_config(&opt.config).unwrap();
+    let config = load_config(&opt.config)?;
 
     let addresses: Vec<SocketAddr> = config.address.to_socket_addrs()?.collect();
     if addresses.is_empty() {
@@ -81,6 +82,16 @@ async fn main() -> anyhow::Result<()> {
         .run(addresses[0])
         .await;
     Ok(())
+}
+
+fn load_config(filename: &Path) -> Result<Config, anyhow::Error> {
+    let config = Config::read_config(&filename).with_context(|| {
+        format!(
+            "Couldn't read default configuration file {}",
+            filename.display()
+        )
+    })?;
+    Ok(config)
 }
 
 pub async fn create_chunk(
