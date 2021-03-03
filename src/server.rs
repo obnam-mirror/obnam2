@@ -7,6 +7,7 @@ use std::default::Default;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct ServerConfig {
     pub chunks: PathBuf,
     pub address: String,

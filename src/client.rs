@@ -22,6 +22,7 @@ const DEFAULT_CHUNK_SIZE: usize = MIB as usize;
 const DEVNULL: &str = "/dev/null";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 struct TentativeClientConfig {
     server_url: String,
     verify_tls_cert: Option<bool>,
