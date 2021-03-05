@@ -34,3 +34,6 @@ users = "0.11"
 uuid = { version = "0.8", features = ["v4"] }
 walkdir = "2"
 warp = { version = "0.2", features = ["tls"] }
+
+[profile.release]
+debug = true
