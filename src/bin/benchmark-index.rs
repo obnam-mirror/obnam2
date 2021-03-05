@@ -1,35 +1,87 @@
 use obnam::benchmark::ChunkGenerator;
-use obnam::chunkmeta::ChunkMeta;
 use obnam::index::Index;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
     name = "benchmark-index",
-    about = "Benhcmark the store index in memory"
+    about = "Benhcmark the chunk store index without HTTP"
 )]
-struct Opt {
-    // We don't use this, but we accept it for command line
-    // compatibility with other benchmark programs.
-    #[structopt(parse(from_os_str))]
-    chunks: PathBuf,
+enum Opt {
+    Create {
+        #[structopt(parse(from_os_str))]
+        chunks: PathBuf,
 
-    #[structopt()]
-    num: u32,
+        #[structopt()]
+        num: u32,
+    },
+
+    Lookup {
+        #[structopt(parse(from_os_str))]
+        chunks: PathBuf,
+
+        #[structopt()]
+        warmup_count: u32,
+
+        #[structopt()]
+        hot_count: u32,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
     pretty_env_logger::init();
 
     let opt = Opt::from_args();
-    let gen = ChunkGenerator::new(opt.num);
 
-    let mut index = Index::new(".")?;
-    for (id, checksum, _, _) in gen {
-        let meta = ChunkMeta::new(&checksum);
+    match opt {
+        Opt::Create { chunks, num } => create(&chunks, num)?,
+        Opt::Lookup {
+            chunks,
+            warmup_count,
+            hot_count,
+        } => {
+            let mut index = Index::new(chunks)?;
+            warmup(&mut index, warmup_count)?;
+            hot(&mut index, hot_count)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn create(chunks: &Path, num: u32) -> anyhow::Result<()> {
+    let mut index = Index::new(chunks)?;
+    let gen = ChunkGenerator::new(num);
+
+    for (id, _, meta, _) in gen {
         index.insert_meta(id, meta)?;
     }
 
     Ok(())
+}
+
+fn warmup(index: &mut Index, num: u32) -> anyhow::Result<()> {
+    println!("warming up cache");
+    lookup(index, num)
+}
+
+fn hot(index: &mut Index, num: u32) -> anyhow::Result<()> {
+    println!("using hot cache");
+    lookup(index, num)
+}
+
+fn lookup(index: &mut Index, num: u32) -> anyhow::Result<()> {
+    let mut done = 0;
+
+    loop {
+        let gen = ChunkGenerator::new(num);
+        for (_, _, meta, _) in gen {
+            index.find_by_sha256(&meta.sha256())?;
+            done += 1;
+            if done >= num {
+                return Ok(());
+            }
+        }
+    }
 }
