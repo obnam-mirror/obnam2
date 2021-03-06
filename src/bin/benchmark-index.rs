@@ -1,6 +1,7 @@
 use obnam::benchmark::ChunkGenerator;
 use obnam::index::Index;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -42,8 +43,13 @@ fn main() -> anyhow::Result<()> {
             hot_count,
         } => {
             let mut index = Index::new(chunks)?;
+            let time = SystemTime::now();
             warmup(&mut index, warmup_count)?;
+            let warmup_time = time.elapsed()?;
             hot(&mut index, hot_count)?;
+            let hot_time = time.elapsed()? - warmup_time;
+            println!("warmup {}", warmup_time.as_millis());
+            println!("hot    {}", hot_time.as_millis());
         }
     }
 
