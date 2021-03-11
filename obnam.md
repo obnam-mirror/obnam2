@@ -930,7 +930,7 @@ backups.
 
 Obnam will use the [aes-gcm crate][] for AEAD, since it has been
 audited. If that choice turns out to be less than optimal, it can be
-reconsider later. The `encrypt` function doesn't return the MAC and
+reconsidered later. The `encrypt` function doesn't return the MAC and
 ciphertext separately, so we don't store them separately. However,
 each chunk needs its own [nonce][], which we will generate. We'll use
 a 96-bit (or 12-byte) nonce. We'll use the [rand crate][] to generate
