@@ -895,7 +895,7 @@ first key, giving a ciphertext. It then computes a MAC of the
 ciphertext using the second key. Both the ciphertext and MAC are
 stored on the server.
 
-For decryption, the a MAC is computed against the retrieved
+For decryption, a MAC is computed against the retrieved
 ciphertext, and compared to the retrieved MAC. If the MACs differ,
 that's an error and no decryption is done. If they do match, the
 ciphertext is decrypted.
