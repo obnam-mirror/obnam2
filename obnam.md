@@ -938,7 +938,8 @@ random bytes.
 
 The chunk sent to the server will be encoded as follows:
 
-* chunk format: a 32-bit unsigned integer, 0x0001
+* chunk format: a 32-bit unsigned integer, 0x0001, store in
+  little-endian form.
 * a 12-byte nonce unique to the chunk
 * the ciphertext
 
