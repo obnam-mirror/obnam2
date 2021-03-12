@@ -45,7 +45,7 @@ impl Iterator for FsIterator {
 
 fn new_entry(e: &DirEntry) -> FsIterResult<FilesystemEntry> {
     let path = e.path();
-    let meta = std::fs::metadata(path);
+    let meta = std::fs::symlink_metadata(path);
     debug!("metadata for {:?}: {:?}", path, meta);
     let meta = match meta {
         Ok(meta) => meta,
