@@ -5,11 +5,10 @@ use crate::generation::{LocalGenerationError, NascentError};
 use crate::genlist::GenerationListError;
 use std::time::SystemTimeError;
 use tempfile::PersistError;
-use thiserror::Error;
 
 /// Define all the kinds of errors that functions corresponding to
 /// subcommands of the main program can return.
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum ObnamError {
     #[error(transparent)]
     GenerationListError(#[from] GenerationListError),
