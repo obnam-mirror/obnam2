@@ -1189,7 +1189,7 @@ when I run obnam --config  smoke.yaml list
 then generation list contains <GEN>
 when I invoke obnam --config smoke.yaml restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
-then files live.yaml and rest.yaml match
+then manifests live.yaml and rest.yaml match
 ~~~
 
 ~~~{#smoke.yaml .file .yaml .numberLines}
@@ -1226,7 +1226,7 @@ when I run obnam --config metadata.yaml backup
 then backup generation is GEN
 when I invoke obnam --config metadata.yaml restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
-then files live.yaml and rest.yaml match
+then manifests live.yaml and rest.yaml match
 ~~~
 
 ### Mode bits
@@ -1245,7 +1245,7 @@ when I run obnam --config metadata.yaml backup
 then backup generation is GEN
 when I invoke obnam --config metadata.yaml restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
-then files live.yaml and rest.yaml match
+then manifests live.yaml and rest.yaml match
 ~~~
 
 ### Symbolic links
@@ -1385,7 +1385,7 @@ and a manifest of the directory live in live.yaml
 when I run obnam --config smoke.yaml backup
 when I invoke obnam --config smoke.yaml restore latest rest
 given a manifest of the directory live restored in rest in rest.yaml
-then files live.yaml and rest.yaml match
+then manifests live.yaml and rest.yaml match
 ~~~
 
 ## Tricky filenames
@@ -1405,7 +1405,7 @@ when I run obnam --config metadata.yaml backup
 then backup generation is GEN
 when I invoke obnam --config metadata.yaml restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
-then files live.yaml and rest.yaml match
+then manifests live.yaml and rest.yaml match
 ~~~
 
 ## Unreadable file
@@ -1450,7 +1450,7 @@ when I run obnam --config metadata.yaml backup
 
 when I invoke obnam --config metadata.yaml restore latest rest
 given a manifest of the directory live restored in rest in rest.yaml
-then files second.yaml and rest.yaml match
+then manifests second.yaml and rest.yaml match
 ~~~
 
 ## Back up multiple directories
@@ -1472,8 +1472,8 @@ then backup generation is GEN
 when I invoke obnam --config roots.yaml restore <GEN> rest
 given a manifest of the directory live/one restored in rest in rest-one.yaml
 given a manifest of the directory live/two restored in rest in rest-two.yaml
-then files one.yaml and rest-one.yaml match
-then files two.yaml and rest-two.yaml match
+then manifests one.yaml and rest-one.yaml match
+then manifests two.yaml and rest-two.yaml match
 ~~~
 
 ~~~{#roots.yaml .file .yaml .numberLines}
