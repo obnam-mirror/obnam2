@@ -2,6 +2,7 @@ use crate::backup_reason::Reason;
 use crate::backup_run::{BackupError, BackupResult};
 use crate::chunkid::ChunkId;
 use crate::fsentry::FilesystemEntry;
+use log::debug;
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 
@@ -64,15 +65,23 @@ impl NascentGeneration {
     pub fn insert_iter<'a>(
         &mut self,
         entries: impl Iterator<Item = BackupResult<(FilesystemEntry, Vec<ChunkId>, Reason)>>,
-    ) -> NascentResult<()> {
+    ) -> NascentResult<Vec<BackupError>> {
         let t = self.conn.transaction()?;
+        let mut warnings = vec![];
         for r in entries {
-            let (e, ids, reason) = r?;
-            self.fileno += 1;
-            sql::insert_one(&t, e, self.fileno, &ids[..], reason)?;
+            match r {
+                Err(err) => {
+                    debug!("ignoring backup error {}", err);
+                    warnings.push(err);
+                }
+                Ok((e, ids, reason)) => {
+                    self.fileno += 1;
+                    sql::insert_one(&t, e, self.fileno, &ids[..], reason)?;
+                }
+            }
         }
         t.commit()?;
-        Ok(())
+        Ok(warnings)
     }
 }
 

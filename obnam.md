@@ -1430,6 +1430,25 @@ then file live/data.dat is restored to rest
 then file live/bad.dat is not restored to rest
 ~~~
 
+## Unreadable directory
+
+This scenario verifies that Obnam will skip a file in a directory it
+can't read. Obnam should warn about that, but not give an error.
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on smoke.yaml
+and a file live/unreadable/data.dat containing some random data
+and file live/unreadable has mode 000
+when I run obnam --config smoke.yaml backup
+then stdout contains "live/unreadable"
+then backup generation is GEN
+when I invoke obnam --config smoke.yaml restore <GEN> rest
+then file live/unreadable is restored to rest
+then file live/unreadable/data.dat is not restored to rest
+~~~
+
 ## Restore latest generation
 
 This scenario verifies that the latest backup generation can be
