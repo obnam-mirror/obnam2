@@ -113,3 +113,34 @@ def match_stdout_to_json_file(ctx, filename=None):
         if stdout[key] != obj[key]:
             logging.error(f"stdout value for key is not what was exptected")
             assert_eq(stdout[key], obj[key])
+
+
+def manifests_match(ctx, expected=None, actual=None):
+    assert_eq = globals()["assert_eq"]
+    assert_dict_eq = globals()["assert_dict_eq"]
+
+    logging.debug(f"comparing manifests {expected} and {actual}")
+
+    expected_objs = list(yaml.safe_load_all(open(expected)))
+    actual_objs = list(yaml.safe_load_all(open(actual)))
+
+    logging.debug(f"there are {len(expected_objs)} and {len(actual_objs)} objects")
+
+    i = 0
+    while expected_objs and actual_objs:
+        e = expected_objs.pop(0)
+        a = actual_objs.pop(0)
+
+        logging.debug(f"comparing manifest objects at index {i}:")
+        logging.debug(f"  expected: {e}")
+        logging.debug(f"  actual  : {a}")
+        assert_dict_eq(e, a)
+
+        i += 1
+
+    logging.debug(f"remaining expected objecvts: {expected_objs}")
+    logging.debug(f"remaining actual objecvts  : {actual_objs}")
+    assert_eq(expected_objs, [])
+    assert_eq(actual_objs, [])
+
+    logging.debug(f"manifests {expected} and {actual} match")

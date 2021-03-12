@@ -1258,12 +1258,13 @@ and a running chunk server
 and a client config based on metadata.yaml
 and a file live/data.dat containing some random data
 and symbolink link live/link that points at data.dat
+and symbolink link live/broken that points at does-not-exist
 and a manifest of the directory live in live.yaml
 when I run obnam --config metadata.yaml backup
 then backup generation is GEN
 when I invoke obnam --config metadata.yaml restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
-then files live.yaml and rest.yaml match
+then manifests live.yaml and rest.yaml match
 ~~~
 
 ## Set chunk size
