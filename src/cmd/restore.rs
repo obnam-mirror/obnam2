@@ -168,11 +168,9 @@ fn restore_symlink(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
     debug!("  mkdir {}", parent.display());
     if !parent.exists() {
         std::fs::create_dir_all(parent)?;
-        {
-            symlink(path, entry.symlink_target().unwrap())?;
-        }
     }
-    debug!("restored regular {}", path.display());
+    symlink(entry.symlink_target().unwrap(), path)?;
+    debug!("restored symlink {}", path.display());
     Ok(())
 }
 
