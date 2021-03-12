@@ -30,6 +30,15 @@
           - dehydrated-apache2
       when: domain is defined
 
+    - name: "install cron job to update TLS certificates"
+      cron:
+        name: "dehydrated"
+        cron_file: "dehydrated"
+        user: root
+        minute: "0"
+        hour: "0"
+        job: "systemctl stop obnam; systemctl start apache2; dehydrated -c; systemctl stop apache2; systemctl start obnam"
+
     - name: create Obnam configuration directory
       file:
         path: /etc/obnam
@@ -101,7 +110,6 @@
     tls_key_path: "/var/lib/dehydrated/certs/{{ domain }}/privkey.pem"
     tls_cert_path: "/var/lib/dehydrated/certs/{{ domain }}/cert.pem"
 
-
     apt_signing_key: |
       -----BEGIN PGP PUBLIC KEY BLOCK-----
 
@@ -132,4 +140,3 @@
       GSJSdir7NkZidgwoCPA7BTqsb5LN
       =dXB0
       -----END PGP PUBLIC KEY BLOCK-----
-
