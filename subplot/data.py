@@ -39,7 +39,7 @@ def chmod_file(ctx, filename=None, mode=None):
 
 
 def create_symlink(ctx, linkname=None, target=None):
-    os.symlink(linkname, target)
+    os.symlink(target, linkname)
 
 
 def create_manifest_of_live(ctx, dirname=None, manifest=None):
