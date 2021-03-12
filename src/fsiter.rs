@@ -1,6 +1,6 @@
 use crate::fsentry::{FilesystemEntry, FsEntryError};
-use log::{debug, error};
-use std::path::Path;
+use log::{debug, warn};
+use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, IntoIter, WalkDir};
 
 /// Iterator over file system entries in a directory tree.
@@ -13,8 +13,8 @@ pub enum FsIterError {
     #[error(transparent)]
     WalkError(#[from] walkdir::Error),
 
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
+    #[error("I/O error on {0}: {1}")]
+    IoError(PathBuf, #[source] std::io::Error),
 
     #[error(transparent)]
     FsEntryError(#[from] FsEntryError),
@@ -50,8 +50,8 @@ fn new_entry(e: &DirEntry) -> FsIterResult<FilesystemEntry> {
     let meta = match meta {
         Ok(meta) => meta,
         Err(err) => {
-            error!("failed to get metadata: {}", err);
-            return Err(err.into());
+            warn!("failed to get metadata for {}: {}", path.display(), err);
+            return Err(FsIterError::IoError(path.to_path_buf(), err));
         }
     };
     let entry = FilesystemEntry::from_metadata(path, &meta)?;

@@ -73,7 +73,11 @@ def file_is_restored(ctx, filename=None, restored=None):
 
 def file_is_not_restored(ctx, filename=None, restored=None):
     filename = os.path.join(restored, "./" + filename)
-    exists = os.path.exists(filename)
+    logging.info(r"verifying that {filename} does not exist")
+    try:
+        exists = os.path.exists(filename)
+    except PermissionError:
+        exists = False
     logging.debug(f"restored? {filename} {exists}")
     assert not exists
 

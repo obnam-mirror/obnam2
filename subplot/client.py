@@ -11,6 +11,11 @@ def install_obnam(ctx):
     runcmd_prepend_to_path(ctx, dirname=os.path.join(srcdir, "target", "debug"))
 
 
+def uninstall_obnam(ctx):
+    runcmd_run = globals()["runcmd_run"]
+    runcmd_run(ctx, ["chmod", "-R", "u+rwX", "."])
+
+
 def configure_client(ctx, filename=None):
     get_file = globals()["get_file"]
 
