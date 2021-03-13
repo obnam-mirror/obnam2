@@ -105,6 +105,7 @@
     - name: start Obnam server
       systemd:
         name: obnam
+        enabled: true
         state: restarted
   vars:
     tls_key_path: "/var/lib/dehydrated/certs/{{ domain }}/privkey.pem"
