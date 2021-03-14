@@ -1,3 +1,9 @@
+obnam (0.3.0-1) UNRELEASED; urgency=medium
+
+  * New release.
+
+ -- Lars Wirzenius <liw@liw.fi>  Sun, 14 Mar 2021 11:15:25 +0200
+
 obnam (0.2.2-1) unstable; urgency=low
 
   * Initial packaging. This is not intended to be uploaded to Debian, so
