@@ -1,10 +1,94 @@
-# NEWS for Obnam2, the backup software
+# Release notes for Obnam2, the backup software
 
 This file summarizes changes between releases of the second generation
 of Obnam, the backup software. The software is technically called
 "obnam2" to distinguish it from the first generation of Obnam, which
 ended in 2017 with version number 1.22.
 
+
+## Obnam2 version 0.3.0, released 2021-03-14
+
+### Breaking changes
+
+* The format of the data stored on the backup repository has changed.
+  The new version can't restore old backups: old generations are now
+  useless. You'll have to start over. Sorry.
+
+### New or changed features
+
+* New `obnam config` sub-command writes out the actual configuration
+  that the program users, as read from the configuration file.
+
+* The client configuration now has default values for all
+  configuration fields that can reasonably have them. For example, it
+  is no longer necessary to explicitly set a chunk size.
+
+* Only known fields are now allowed in configuration files. Unknown
+  fields cause an error.
+
+* It is now possible to back up multiple, distinct directories with
+  one client configuration. The `root` configuration is now `roots`,
+  and is a list of directories.
+
+* Problems in backing up a file no longer terminate the backup run.
+  Instead, the problem is reported at the end of the backup run, as a
+  warning.
+
+* The client now requires an HTTPS URL for the server. Plain HTTP is
+  now rejected. The TLS certificate for the server is verified by
+  default, but that can be turned off.
+
+* The client progress reporting is now a little clearer.
+
+* Unix domain sockets and named pipes (FIFO files) are now backed up
+  and restored.
+
+* The names of the user and group owning a file are backed up, but not
+  restored.
+
+* On the Obnam server, the Ansible playbook now installs a cron job to
+  renew the Let's Encrypt TLS certificate.
+
+### Bugs fixed
+
+* Temporary files created during backup runs are now automatically
+  deleted, even if the Obnam client crashes.
+
+* Symbolic links are now backed up and restored correctly. Previously
+  Obnam followed the link when backing up and created the link
+  wrongly.
+
+* The Ansible playbook to provision an Obnam server now enables the
+  systemd unit so that the Obnam server process starts automatically
+  after a reboot.
+
+### Changes to documentation
+
+* A tutorial has been added.
+
+The Obnam subplot (`obnam.md`), which describes the requirements,
+acceptance criteria, and architecture of the software, has some
+improvements:
+  
+* a discussion of why Obnam doesn't use content-addressable storage
+
+* a description of the logical structure of backups as stored on the
+  backup server
+
+* a rudimentary first sketch of a threat model: the operator of the
+  backup server reads the backed up data
+
+* an initial plan for adding support for encryption to backups; this
+  is known to be simplistic and inadequate, but the goal is to get
+  started, and then iterate to get something acceptable, even if that
+  takes months
+
+### Thank you
+
+Several people have helped with this release, with changes or
+feedback. I want to especially mention the following, with apologies
+to anyone I have inadvertently forgotten: Alexander Batischev, Ossi
+Herrala, Daniel Silverstone, Neal Walfield.
 
 ## Obnam2 version 0.2.2, released 2021-01-29
 
