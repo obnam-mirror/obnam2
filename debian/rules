@@ -12,5 +12,4 @@ override_dh_auto_install:
 	find debian/obnam/bin -type f ! -name 'obnam*' -delete
 
 override_dh_auto_test:
-	echo not running ./check in Debian package build
-	echo tests need too much infra in test environment
+	./check

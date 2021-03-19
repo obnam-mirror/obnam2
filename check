@@ -30,6 +30,11 @@ sp-docgen obnam.md -o obnam.pdf
 
 sp-codegen obnam.md -o test.py
 rm -f test.log
-$hideok python3 test.py --log test.log "$@"
+if [ "$(id -un)" = root ]
+then
+    echo Not running tests as root.
+else
+    $hideok python3 test.py --log test.log "$@"
+fi
 
 echo "Everything seems to be in order."
