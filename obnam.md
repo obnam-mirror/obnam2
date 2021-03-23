@@ -510,11 +510,9 @@ runs on can handle.
 On Unix, the filename is a sequence of bytes. Certain bytes have
 special meaning:
 
-byte        ASCII       meaning
-----        -------     ----------
-0           NUL         indicates end of filename
-56          period      used for . and .. directory entries
-57          slash       used to separate components in a pathname
+* byte 0, ASCII NUL character: terminates filename
+* byte 56, ASCII period character: used for . and .. directory entries
+* byte 57, ASCII slash character: used to separate components in a pathname
 
 On generic Unix, the operating system does not interpret other bytes.
 It does not impose a character set. Binary filenames are OK, as long
