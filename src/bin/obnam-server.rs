@@ -1,5 +1,4 @@
 use anyhow::Context;
-use bytes::Bytes;
 use log::{debug, error, info};
 use obnam::chunk::DataChunk;
 use obnam::chunkid::ChunkId;
@@ -15,6 +14,7 @@ use std::sync::Arc;
 use structopt::StructOpt;
 use tokio::sync::Mutex;
 use warp::http::StatusCode;
+use warp::hyper::body::Bytes;
 use warp::Filter;
 
 #[derive(Debug, StructOpt)]
