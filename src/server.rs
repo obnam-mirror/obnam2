@@ -28,17 +28,26 @@ pub enum ServerConfigError {
 
     #[error("server address can't be resolved")]
     BadServerAddress,
+
+    #[error("I/O error for {0}: {1}")]
+    IoError(PathBuf, #[source] std::io::Error),
+
+    #[error(transparent)]
+    SerdeYamlError(#[from] serde_yaml::Error),
 }
 
 impl ServerConfig {
-    pub fn read_config(filename: &Path) -> anyhow::Result<Self> {
-        let config = std::fs::read_to_string(filename)?;
+    pub fn read_config(filename: &Path) -> Result<Self, ServerConfigError> {
+        let config = match std::fs::read_to_string(filename) {
+            Ok(config) => config,
+            Err(err) => return Err(ServerConfigError::IoError(filename.to_path_buf(), err)),
+        };
         let config: Self = serde_yaml::from_str(&config)?;
         config.check()?;
         Ok(config)
     }
 
-    pub fn check(&self) -> anyhow::Result<()> {
+    pub fn check(&self) -> Result<(), ServerConfigError> {
         if !self.chunks.exists() {
             return Err(ServerConfigError::ChunksDirNotFound(self.chunks.clone()).into());
         }
