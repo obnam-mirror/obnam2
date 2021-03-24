@@ -70,6 +70,29 @@ and file hello.txt matches regex "hello, .*"
 and file hello.txt matches regex /hello, .*/
 ~~~
 
+# Directories
+
+There are also a large number of directory based steps and some directory
+based behaviour available in creating files which are available in the files
+library.
+
+```scenario
+given a directory first
+then directory first exists
+and directory first is empty
+and directory second does not exist
+when I remove directory first
+then directory first does not exist
+when I create directory second
+then directory second exists
+and directory second is empty
+given file second/third/hello.txt from hello.txt
+then directory second is not empty
+and directory second/third exists
+and directory second/third is not empty
+when I remove directory second
+then directory second does not exist
+```
 
 ---
 title: Acceptance criteria for the files Subplot library

@@ -45,6 +45,27 @@ then exit code is not 0
 and command fails
 ~~~
 
+# Check we can prepend to $PATH
+
+This scenario verifies that we can add a directory to the beginning of
+the PATH environment variable, so that we can have `runcmd` invoke a
+binary from our build tree rather than from system directories. This
+is especially useful for testing new versions of software that's
+already installed on the system.
+
+~~~scenario
+given executable script ls from ls.sh
+when I prepend . to PATH
+when I run ls
+then command is successful
+then stdout contains "custom ls, not system ls"
+~~~
+
+~~~{#ls.sh .file .sh .numberLines}
+#!/bin/sh
+echo "custom ls, not system ls"
+~~~
+
 # Check output has what we want
 
 These scenarios verify that stdout or stderr do have something we want
@@ -165,6 +186,9 @@ author: The Subplot project
 template: python
 bindings:
 - runcmd.yaml
+- runcmd_test.yaml
 functions:
 - runcmd.py
+- runcmd_test.py
+- files.py
 ...
