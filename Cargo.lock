@@ -1040,7 +1040,6 @@ name = "obnam"
 version = "0.3.1"
 dependencies = [
  "anyhow",
- "bytes 0.5.6",
  "bytesize",
  "chrono",
  "dirs",
