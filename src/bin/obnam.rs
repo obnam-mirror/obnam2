@@ -1,4 +1,5 @@
 use anyhow::Context;
+use directories_next::ProjectDirs;
 use log::{debug, error, info, LevelFilter};
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Logger, Root};
@@ -6,6 +7,10 @@ use obnam::client::ClientConfig;
 use obnam::cmd::{backup, get_chunk, list, list_files, restore, show_config, show_generation};
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
+
+const QUALIFIER: &str = "";
+const ORG: &str = "";
+const APPLICATION: &str = "obnam";
 
 fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
@@ -53,12 +58,10 @@ fn load_config(opt: &Opt) -> Result<ClientConfig, anyhow::Error> {
 }
 
 fn default_config() -> PathBuf {
-    if let Some(path) = dirs::config_dir() {
-        path.join("obnam").join("obnam.yaml")
-    } else if let Some(path) = dirs::home_dir() {
-        path.join(".config").join("obnam").join("obnam.yaml")
+    if let Some(dirs) = ProjectDirs::from(QUALIFIER, ORG, APPLICATION) {
+        dirs.config_dir().join("obnam.yaml")
     } else {
-        panic!("can't find config dir or home dir");
+        panic!("can't figure out the configuration directory");
     }
 }
 
