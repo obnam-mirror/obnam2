@@ -245,7 +245,7 @@ impl BackupClient {
             debug!("upload_chunk: id={}", chunk_id);
             chunk_id.parse().unwrap()
         } else {
-            return Err(ClientError::NoCreatedChunkId.into());
+            return Err(ClientError::NoCreatedChunkId);
         };
         info!("uploaded_chunk {} meta {:?}", chunk_id, meta);
         Ok(chunk_id)
@@ -264,7 +264,7 @@ impl BackupClient {
             debug!("upload_chunk: id={}", chunk_id);
             chunk_id.parse().unwrap()
         } else {
-            return Err(ClientError::NoCreatedChunkId.into());
+            return Err(ClientError::NoCreatedChunkId);
         };
         info!("uploaded_generation chunk {}", chunk_id);
         Ok(chunk_id)
@@ -313,7 +313,7 @@ impl BackupClient {
         if res.status() != 200 {
             let err = ClientError::ChunkNotFound(chunk_id.to_string());
             error!("fetching chunk {} failed: {}", chunk_id, err);
-            return Err(err.into());
+            return Err(err);
         }
 
         let headers = res.headers();
@@ -321,7 +321,7 @@ impl BackupClient {
         if meta.is_none() {
             let err = ClientError::NoChunkMeta(chunk_id.clone());
             error!("fetching chunk {} failed: {}", chunk_id, err);
-            return Err(err.into());
+            return Err(err);
         }
         let meta = meta.unwrap().to_str()?;
         debug!("fetching chunk {}: meta={:?}", chunk_id, meta);
@@ -335,7 +335,7 @@ impl BackupClient {
             let err =
                 ClientError::WrongChecksum(chunk_id.clone(), actual, meta.sha256().to_string());
             error!("fetching chunk {} failed: {}", chunk_id, err);
-            return Err(err.into());
+            return Err(err);
         }
 
         let chunk: DataChunk = DataChunk::new(body);

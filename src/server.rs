@@ -49,13 +49,13 @@ impl ServerConfig {
 
     pub fn check(&self) -> Result<(), ServerConfigError> {
         if !self.chunks.exists() {
-            return Err(ServerConfigError::ChunksDirNotFound(self.chunks.clone()).into());
+            return Err(ServerConfigError::ChunksDirNotFound(self.chunks.clone()));
         }
         if !self.tls_cert.exists() {
-            return Err(ServerConfigError::TlsCertNotFound(self.tls_cert.clone()).into());
+            return Err(ServerConfigError::TlsCertNotFound(self.tls_cert.clone()));
         }
         if !self.tls_key.exists() {
-            return Err(ServerConfigError::TlsKeyNotFound(self.tls_key.clone()).into());
+            return Err(ServerConfigError::TlsKeyNotFound(self.tls_key.clone()));
         }
         Ok(())
     }

@@ -344,7 +344,7 @@ mod sql {
                 if iter.next() == None {
                     Ok(Some((fileno, entry, reason)))
                 } else {
-                    Err(LocalGenerationError::TooManyFiles(filename.to_path_buf()).into())
+                    Err(LocalGenerationError::TooManyFiles(filename.to_path_buf()))
                 }
             }
         }

@@ -214,12 +214,12 @@ mod sql {
             } else {
                 let err = IndexError::DuplicateChunk(id.clone());
                 error!("{}", err);
-                return Err(err.into());
+                return Err(err);
             }
         }
         if metas.len() == 0 {
             eprintln!("lookup: no hits");
-            return Err(IndexError::MissingChunk(id.clone()).into());
+            return Err(IndexError::MissingChunk(id.clone()));
         }
         let r = metas[0].clone();
         Ok(r)
