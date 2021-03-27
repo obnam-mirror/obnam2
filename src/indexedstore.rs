@@ -84,7 +84,7 @@ impl IndexedStore {
         let file_chunks = all_chunk_ids
             .iter()
             .filter(|id| !sql_chunks.contains(id))
-            .map(|id| id.clone())
+            .cloned()
             .collect();
 
         Ok(file_chunks)

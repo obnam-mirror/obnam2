@@ -33,7 +33,7 @@ impl GenerationList {
             let hits: Vec<FinishedGeneration> = self
                 .iter()
                 .filter(|gen| gen.id() == genref)
-                .map(|gen| gen.clone())
+                .cloned()
                 .collect();
             if hits.len() == 1 {
                 Some(hits[0].clone())
