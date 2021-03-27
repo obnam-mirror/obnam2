@@ -79,7 +79,7 @@ impl<'a> InitialBackup<'a> {
 
 impl<'a> IncrementalBackup<'a> {
     pub fn new(config: &ClientConfig, client: &'a BackupClient) -> BackupResult<Self> {
-        let policy = BackupPolicy::new();
+        let policy = BackupPolicy::default();
         Ok(Self {
             client,
             policy,
