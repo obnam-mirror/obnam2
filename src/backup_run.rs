@@ -140,7 +140,7 @@ impl<'a> IncrementalBackup<'a> {
                         } else {
                             vec![]
                         };
-                        Ok((entry.clone(), ids, reason))
+                        Ok((entry, ids, reason))
                     }
                 }
             }
