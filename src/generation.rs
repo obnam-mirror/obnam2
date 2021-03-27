@@ -162,7 +162,7 @@ pub struct BackedUpFile {
 
 impl BackedUpFile {
     pub fn new(fileno: FileId, entry: FilesystemEntry, reason: &str) -> Self {
-        let reason = Reason::from_str(reason);
+        let reason = Reason::from(reason);
         Self {
             fileno,
             entry,
