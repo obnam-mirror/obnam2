@@ -62,7 +62,7 @@ impl NascentGeneration {
         Ok(())
     }
 
-    pub fn insert_iter<'a>(
+    pub fn insert_iter(
         &mut self,
         entries: impl Iterator<Item = BackupResult<(FilesystemEntry, Vec<ChunkId>, Reason)>>,
     ) -> NascentResult<Vec<BackupError>> {
