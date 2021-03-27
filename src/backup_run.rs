@@ -65,7 +65,13 @@ impl<'a> InitialBackup<'a> {
                 let path = &entry.pathbuf();
                 info!("backup: {}", path.display());
                 self.progress.found_live_file(path);
-                backup_file(&self.client, &entry, &path, self.buffer_size, Reason::IsNew)
+                Ok(backup_file(
+                    &self.client,
+                    &entry,
+                    &path,
+                    self.buffer_size,
+                    Reason::IsNew,
+                ))
             }
         }
     }
@@ -130,9 +136,13 @@ impl<'a> IncrementalBackup<'a> {
                     Reason::IsNew
                     | Reason::Changed
                     | Reason::GenerationLookupError
-                    | Reason::Unknown => {
-                        backup_file(&self.client, &entry, &path, self.buffer_size, reason)
-                    }
+                    | Reason::Unknown => Ok(backup_file(
+                        &self.client,
+                        &entry,
+                        &path,
+                        self.buffer_size,
+                        reason,
+                    )),
                     Reason::Unchanged | Reason::Skipped | Reason::FileError => {
                         let fileno = old.get_fileno(&entry.pathbuf())?;
                         let ids = if let Some(fileno) = fileno {
@@ -166,13 +176,13 @@ fn backup_file(
     path: &Path,
     chunk_size: usize,
     reason: Reason,
-) -> BackupResult<(FilesystemEntry, Vec<ChunkId>, Reason)> {
+) -> (FilesystemEntry, Vec<ChunkId>, Reason) {
     let ids = client.upload_filesystem_entry(&entry, chunk_size);
     match ids {
         Err(err) => {
             warn!("error backing up {}, skipping it: {}", path.display(), err);
-            Ok((entry.clone(), vec![], Reason::FileError))
+            (entry.clone(), vec![], Reason::FileError)
         }
-        Ok(ids) => Ok((entry.clone(), ids, reason)),
+        Ok(ids) => (entry.clone(), ids, reason),
     }
 }
