@@ -234,8 +234,7 @@ fn restore_metadata(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
 fn path_to_cstring(path: &Path) -> CString {
     let path = path.as_os_str();
     let path = path.as_bytes();
-    let path = CString::new(path).unwrap();
-    path
+    CString::new(path).unwrap()
 }
 
 fn create_progress_bar(file_count: i64, verbose: bool) -> ProgressBar {
