@@ -17,13 +17,11 @@ struct Opt {
     num: u32,
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() {
     pretty_env_logger::init();
 
     let opt = Opt::from_args();
     let gen = ChunkGenerator::new(opt.num);
 
     for (_, _, _, _) in gen {}
-
-    Ok(())
 }

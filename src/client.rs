@@ -71,7 +71,10 @@ impl ClientConfig {
             roots: tentative.roots,
             verify_tls_cert: tentative.verify_tls_cert.or(Some(false)).unwrap(),
             chunk_size: tentative.chunk_size.or(Some(DEFAULT_CHUNK_SIZE)).unwrap(),
-            log: tentative.log.or(Some(PathBuf::from(DEVNULL))).unwrap(),
+            log: tentative
+                .log
+                .or_else(|| Some(PathBuf::from(DEVNULL)))
+                .unwrap(),
         };
 
         config.check()?;
@@ -242,7 +245,7 @@ impl BackupClient {
             debug!("upload_chunk: id={}", chunk_id);
             chunk_id.parse().unwrap()
         } else {
-            return Err(ClientError::NoCreatedChunkId.into());
+            return Err(ClientError::NoCreatedChunkId);
         };
         info!("uploaded_chunk {} meta {:?}", chunk_id, meta);
         Ok(chunk_id)
@@ -261,7 +264,7 @@ impl BackupClient {
             debug!("upload_chunk: id={}", chunk_id);
             chunk_id.parse().unwrap()
         } else {
-            return Err(ClientError::NoCreatedChunkId.into());
+            return Err(ClientError::NoCreatedChunkId);
         };
         info!("uploaded_generation chunk {}", chunk_id);
         Ok(chunk_id)
@@ -310,7 +313,7 @@ impl BackupClient {
         if res.status() != 200 {
             let err = ClientError::ChunkNotFound(chunk_id.to_string());
             error!("fetching chunk {} failed: {}", chunk_id, err);
-            return Err(err.into());
+            return Err(err);
         }
 
         let headers = res.headers();
@@ -318,7 +321,7 @@ impl BackupClient {
         if meta.is_none() {
             let err = ClientError::NoChunkMeta(chunk_id.clone());
             error!("fetching chunk {} failed: {}", chunk_id, err);
-            return Err(err.into());
+            return Err(err);
         }
         let meta = meta.unwrap().to_str()?;
         debug!("fetching chunk {}: meta={:?}", chunk_id, meta);
@@ -332,7 +335,7 @@ impl BackupClient {
             let err =
                 ClientError::WrongChecksum(chunk_id.clone(), actual, meta.sha256().to_string());
             error!("fetching chunk {} failed: {}", chunk_id, err);
-            return Err(err.into());
+            return Err(err);
         }
 
         let chunk: DataChunk = DataChunk::new(body);
@@ -341,7 +344,7 @@ impl BackupClient {
     }
 
     fn fetch_generation_chunk(&self, gen_id: &str) -> ClientResult<GenerationChunk> {
-        let chunk_id = ChunkId::from_str(gen_id);
+        let chunk_id = ChunkId::recreate(gen_id);
         let chunk = self.fetch_chunk(&chunk_id)?;
         let gen = GenerationChunk::from_data_chunk(&chunk)?;
         Ok(gen)

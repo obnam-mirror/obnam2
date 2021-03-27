@@ -13,7 +13,7 @@ pub enum GenerationListError {
 
 impl GenerationList {
     pub fn new(gens: Vec<FinishedGeneration>) -> Self {
-        let mut list = gens.clone();
+        let mut list = gens;
         list.sort_by_cached_key(|gen| gen.ended().to_string());
         Self { list }
     }
@@ -33,7 +33,7 @@ impl GenerationList {
             let hits: Vec<FinishedGeneration> = self
                 .iter()
                 .filter(|gen| gen.id() == genref)
-                .map(|gen| gen.clone())
+                .cloned()
                 .collect();
             if hits.len() == 1 {
                 Some(hits[0].clone())

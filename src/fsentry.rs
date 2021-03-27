@@ -196,7 +196,7 @@ impl FilesystemKind {
             2 => Ok(FilesystemKind::Symlink),
             3 => Ok(FilesystemKind::Socket),
             4 => Ok(FilesystemKind::Fifo),
-            _ => Err(FsEntryError::UnknownFileKindCode(code).into()),
+            _ => Err(FsEntryError::UnknownFileKindCode(code)),
         }
     }
 }

@@ -62,7 +62,7 @@ impl NascentGeneration {
         Ok(())
     }
 
-    pub fn insert_iter<'a>(
+    pub fn insert_iter(
         &mut self,
         entries: impl Iterator<Item = BackupResult<(FilesystemEntry, Vec<ChunkId>, Reason)>>,
     ) -> NascentResult<Vec<BackupError>> {
@@ -162,7 +162,7 @@ pub struct BackedUpFile {
 
 impl BackedUpFile {
     pub fn new(fileno: FileId, entry: FilesystemEntry, reason: &str) -> Self {
-        let reason = Reason::from_str(reason);
+        let reason = Reason::from(reason);
         Self {
             fileno,
             entry,
@@ -344,7 +344,7 @@ mod sql {
                 if iter.next() == None {
                     Ok(Some((fileno, entry, reason)))
                 } else {
-                    Err(LocalGenerationError::TooManyFiles(filename.to_path_buf()).into())
+                    Err(LocalGenerationError::TooManyFiles(filename.to_path_buf()))
                 }
             }
         }

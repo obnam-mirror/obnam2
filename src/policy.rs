@@ -9,7 +9,7 @@ pub struct BackupPolicy {
 }
 
 impl BackupPolicy {
-    pub fn new() -> Self {
+    pub fn default() -> Self {
         Self {
             new: true,
             old_if_changed: true,

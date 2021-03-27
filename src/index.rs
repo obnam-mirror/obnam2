@@ -138,7 +138,7 @@ mod test {
         let meta = ChunkMeta::new_generation("abc", "timestamp");
         let dir = tempdir().unwrap();
         let mut idx = new_index(dir.path());
-        idx.insert_meta(id.clone(), meta.clone()).unwrap();
+        idx.insert_meta(id.clone(), meta).unwrap();
         assert_eq!(idx.find_generations().unwrap(), vec![id]);
     }
 
@@ -148,7 +148,7 @@ mod test {
         let meta = ChunkMeta::new_generation("abc", "timestamp");
         let dir = tempdir().unwrap();
         let mut idx = new_index(dir.path());
-        idx.insert_meta(id.clone(), meta.clone()).unwrap();
+        idx.insert_meta(id.clone(), meta).unwrap();
         idx.remove_meta(&id).unwrap();
         assert_eq!(idx.find_generations().unwrap(), vec![]);
     }
@@ -214,12 +214,12 @@ mod sql {
             } else {
                 let err = IndexError::DuplicateChunk(id.clone());
                 error!("{}", err);
-                return Err(err.into());
+                return Err(err);
             }
         }
-        if metas.len() == 0 {
+        if metas.is_empty() {
             eprintln!("lookup: no hits");
-            return Err(IndexError::MissingChunk(id.clone()).into());
+            return Err(IndexError::MissingChunk(id.clone()));
         }
         let r = metas[0].clone();
         Ok(r)
@@ -272,6 +272,6 @@ mod sql {
 
     fn row_to_id(row: &Row) -> rusqlite::Result<ChunkId> {
         let id: String = row.get(row.column_index("id")?)?;
-        Ok(ChunkId::from_str(&id))
+        Ok(ChunkId::recreate(&id))
     }
 }

@@ -17,11 +17,11 @@ fi
 
 got_cargo_cmd()
 {
-    cargo --list | grep " $1 " > /dev/null
+    cargo "$1" --help > /dev/null
 }
 
+got_cargo_cmd clippy && cargo clippy -q --all-targets
 $hideok cargo build --all-targets
-got_cargo_cmd clippy && $hideok cargo clippy
 got_cargo_cmd fmt && $hideok cargo fmt -- --check
 $hideok cargo test
 

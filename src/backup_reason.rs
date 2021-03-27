@@ -14,7 +14,7 @@ pub enum Reason {
 }
 
 impl Reason {
-    pub fn from_str(text: &str) -> Reason {
+    pub fn from(text: &str) -> Reason {
         match text {
             "skipped" => Reason::Skipped,
             "new" => Reason::IsNew,
