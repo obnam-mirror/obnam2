@@ -138,7 +138,7 @@ mod test {
         let meta = ChunkMeta::new_generation("abc", "timestamp");
         let dir = tempdir().unwrap();
         let mut idx = new_index(dir.path());
-        idx.insert_meta(id.clone(), meta.clone()).unwrap();
+        idx.insert_meta(id.clone(), meta).unwrap();
         assert_eq!(idx.find_generations().unwrap(), vec![id]);
     }
 
@@ -148,7 +148,7 @@ mod test {
         let meta = ChunkMeta::new_generation("abc", "timestamp");
         let dir = tempdir().unwrap();
         let mut idx = new_index(dir.path());
-        idx.insert_meta(id.clone(), meta.clone()).unwrap();
+        idx.insert_meta(id.clone(), meta).unwrap();
         idx.remove_meta(&id).unwrap();
         assert_eq!(idx.find_generations().unwrap(), vec![]);
     }
