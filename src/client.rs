@@ -71,7 +71,10 @@ impl ClientConfig {
             roots: tentative.roots,
             verify_tls_cert: tentative.verify_tls_cert.or(Some(false)).unwrap(),
             chunk_size: tentative.chunk_size.or(Some(DEFAULT_CHUNK_SIZE)).unwrap(),
-            log: tentative.log.or(Some(PathBuf::from(DEVNULL))).unwrap(),
+            log: tentative
+                .log
+                .or_else(|| Some(PathBuf::from(DEVNULL)))
+                .unwrap(),
         };
 
         config.check()?;
