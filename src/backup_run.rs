@@ -48,7 +48,7 @@ impl<'a> InitialBackup<'a> {
     }
 
     pub fn drop(&self) {
-        &self.progress.finish();
+        self.progress.finish();
     }
 
     pub fn backup(
