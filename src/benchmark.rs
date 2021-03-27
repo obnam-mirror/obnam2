@@ -21,7 +21,7 @@ impl Iterator for ChunkGenerator {
         if self.next >= self.goal {
             None
         } else {
-            let id = ChunkId::from_str(&format!("{}", self.next));
+            let id = ChunkId::recreate(&format!("{}", self.next));
             let checksum = id.sha256();
             let meta = ChunkMeta::new(&checksum);
             let chunk = DataChunk::new(vec![]);

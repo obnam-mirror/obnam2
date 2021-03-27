@@ -37,7 +37,8 @@ impl ChunkId {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    /// Re-construct an identifier from a previous values.
+    pub fn recreate(s: &str) -> Self {
         ChunkId { id: s.to_string() }
     }
 
@@ -85,7 +86,7 @@ impl FromStr for ChunkId {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(ChunkId::from_str(s))
+        Ok(ChunkId::recreate(s))
     }
 }
 
@@ -117,6 +118,6 @@ mod test {
     fn survives_round_trip() {
         let id = ChunkId::new();
         let id_str = id.to_string();
-        assert_eq!(id, ChunkId::from_str(&id_str))
+        assert_eq!(id, ChunkId::recreate(&id_str))
     }
 }

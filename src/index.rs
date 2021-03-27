@@ -272,6 +272,6 @@ mod sql {
 
     fn row_to_id(row: &Row) -> rusqlite::Result<ChunkId> {
         let id: String = row.get(row.column_index("id")?)?;
-        Ok(ChunkId::from_str(&id))
+        Ok(ChunkId::recreate(&id))
     }
 }

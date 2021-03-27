@@ -341,7 +341,7 @@ impl BackupClient {
     }
 
     fn fetch_generation_chunk(&self, gen_id: &str) -> ClientResult<GenerationChunk> {
-        let chunk_id = ChunkId::from_str(gen_id);
+        let chunk_id = ChunkId::recreate(gen_id);
         let chunk = self.fetch_chunk(&chunk_id)?;
         let gen = GenerationChunk::from_data_chunk(&chunk)?;
         Ok(gen)
