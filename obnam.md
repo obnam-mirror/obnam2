@@ -1381,7 +1381,7 @@ and a Unix socket live/socket
 and a named pipe live/pipe
 and a manifest of the directory live in live.yaml
 when I run obnam --config smoke.yaml backup
-when I invoke obnam --config smoke.yaml restore latest rest
+when I run obnam --config smoke.yaml restore latest rest
 given a manifest of the directory live restored in rest in rest.yaml
 then manifests live.yaml and rest.yaml match
 ~~~
@@ -1484,7 +1484,7 @@ given a file live/more.dat containing some random data
 and a manifest of the directory live in second.yaml
 when I run obnam --config metadata.yaml backup
 
-when I invoke obnam --config metadata.yaml restore latest rest
+when I run obnam --config metadata.yaml restore latest rest
 given a manifest of the directory live restored in rest in rest.yaml
 then manifests second.yaml and rest.yaml match
 ~~~

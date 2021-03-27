@@ -5,14 +5,8 @@
 - given: "a client config based on {filename}"
   function: configure_client
 
-- when: "I invoke obnam --config {filename} config"
-  function: run_obnam_config
-
 - when: "I invoke obnam --config {filename} restore <{genid}> {todir}"
   function: run_obnam_restore
-
-- when: "I invoke obnam --config {filename} restore latest {todir}"
-  function: run_obnam_restore_latest
 
 - when: "I invoke obnam --config {filename} get-chunk <{gen_id}>"
   function: run_obnam_get_chunk
