@@ -217,7 +217,7 @@ mod sql {
                 return Err(err);
             }
         }
-        if metas.len() == 0 {
+        if metas.is_empty() {
             eprintln!("lookup: no hits");
             return Err(IndexError::MissingChunk(id.clone()));
         }
