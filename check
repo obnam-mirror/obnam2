@@ -21,7 +21,7 @@ got_cargo_cmd()
 }
 
 $hideok cargo build --all-targets
-got_cargo_cmd clippy && $hideok cargo clippy
+got_cargo_cmd clippy && cargo clippy -q --all-targets
 got_cargo_cmd fmt && $hideok cargo fmt -- --check
 $hideok cargo test
 
