@@ -1,10 +1,12 @@
 import logging
 import os
 import re
+import shutil
 import time
 
 
 def files_create_from_embedded(ctx, filename=None):
+    files_make_directory(ctx, path=os.path.dirname(filename) or ".")
     files_create_from_embedded_with_other_name(
         ctx, filename_on_disk=filename, embedded_filename=filename
     )
@@ -14,13 +16,27 @@ def files_create_from_embedded_with_other_name(
     ctx, filename_on_disk=None, embedded_filename=None
 ):
     get_file = globals()["get_file"]
+
+    files_make_directory(ctx, path=os.path.dirname(filename_on_disk) or ".")
     with open(filename_on_disk, "wb") as f:
         f.write(get_file(embedded_filename))
 
 
 def files_create_from_text(ctx, filename=None, text=None):
+    files_make_directory(ctx, path=os.path.dirname(filename) or ".")
     with open(filename, "w") as f:
         f.write(text)
+
+
+def files_make_directory(ctx, path=None):
+    path = "./" + path
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
+def files_remove_directory(ctx, path=None):
+    path = "./" + path
+    shutil.rmtree(path)
 
 
 def files_file_exists(ctx, filename=None):
@@ -31,6 +47,26 @@ def files_file_exists(ctx, filename=None):
 def files_file_does_not_exist(ctx, filename=None):
     assert_eq = globals()["assert_eq"]
     assert_eq(os.path.exists(filename), False)
+
+
+def files_directory_exists(ctx, path=None):
+    assert_eq = globals()["assert_eq"]
+    assert_eq(os.path.isdir(path), True)
+
+
+def files_directory_does_not_exist(ctx, path=None):
+    assert_eq = globals()["assert_eq"]
+    assert_eq(os.path.isdir(path), False)
+
+
+def files_directory_is_empty(ctx, path=None):
+    assert_eq = globals()["assert_eq"]
+    assert_eq(os.listdir(path), [])
+
+
+def files_directory_is_not_empty(ctx, path=None):
+    assert_ne = globals()["assert_ne"]
+    assert_ne(os.listdir(path), False)
 
 
 def files_only_these_exist(ctx, filenames=None):

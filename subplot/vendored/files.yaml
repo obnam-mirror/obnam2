@@ -60,3 +60,24 @@
 
 - then: file {filename} has a very old modification time
   function: files_mtime_is_ancient
+
+- given: a directory {path}
+  function: files_make_directory
+
+- when: I create directory {path}
+  function: files_make_directory
+
+- when: I remove directory {path}
+  function: files_remove_directory
+
+- then: directory {path} exists
+  function: files_directory_exists
+
+- then: directory {path} does not exist
+  function: files_directory_does_not_exist
+
+- then: directory {path} is empty
+  function: files_directory_is_empty
+
+- then: directory {path} is not empty
+  function: files_directory_is_not_empty
