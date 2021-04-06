@@ -99,6 +99,7 @@ fn incremental_backup(
         }
         new.file_count()
     };
+    run.drop();
 
     let progress = BackupProgress::upload_generation();
     let gen_id = client.upload_generation(newtemp.path(), SQLITE_CHUNK_SIZE)?;
