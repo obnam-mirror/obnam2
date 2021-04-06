@@ -193,23 +193,23 @@ impl LocalGeneration {
     }
 
     pub fn file_count(&self) -> LocalGenerationResult<i64> {
-        Ok(sql::file_count(&self.conn)?)
+        sql::file_count(&self.conn)
     }
 
     pub fn files(&self) -> LocalGenerationResult<Vec<BackedUpFile>> {
-        Ok(sql::files(&self.conn)?)
+        sql::files(&self.conn)
     }
 
     pub fn chunkids(&self, fileno: FileId) -> LocalGenerationResult<Vec<ChunkId>> {
-        Ok(sql::chunkids(&self.conn, fileno)?)
+        sql::chunkids(&self.conn, fileno)
     }
 
     pub fn get_file(&self, filename: &Path) -> LocalGenerationResult<Option<FilesystemEntry>> {
-        Ok(sql::get_file(&self.conn, filename)?)
+        sql::get_file(&self.conn, filename)
     }
 
     pub fn get_fileno(&self, filename: &Path) -> LocalGenerationResult<Option<FileId>> {
-        Ok(sql::get_fileno(&self.conn, filename)?)
+        sql::get_fileno(&self.conn, filename)
     }
 }
 
@@ -303,7 +303,7 @@ mod sql {
 
     pub fn chunkids(conn: &Connection, fileno: FileId) -> LocalGenerationResult<Vec<ChunkId>> {
         let mut stmt = conn.prepare("SELECT chunkid FROM chunks WHERE fileno = ?1")?;
-        let iter = stmt.query_map(params![fileno], |row| Ok(row.get(0)?))?;
+        let iter = stmt.query_map(params![fileno], |row| row.get(0))?;
         let mut ids: Vec<ChunkId> = vec![];
         for x in iter {
             let fileno: String = x?;
