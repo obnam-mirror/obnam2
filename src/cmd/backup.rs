@@ -7,6 +7,7 @@ use crate::fsiter::FsIterator;
 use crate::generation::NascentGeneration;
 use bytesize::MIB;
 use log::info;
+use std::path::Path;
 use std::time::SystemTime;
 use tempfile::NamedTempFile;
 
@@ -49,13 +50,11 @@ fn initial_backup(
     config: &ClientConfig,
     client: &BackupClient,
 ) -> Result<(ChunkId, i64, Vec<BackupError>), ObnamError> {
-    let run = InitialBackup::new(config, &client)?;
+    info!("fresh backup without a previous generation");
     let newtemp = NamedTempFile::new()?;
+    let run = InitialBackup::new(config, &client)?;
     let mut all_warnings = vec![];
     let count = {
-        println!("create nascent");
-        info!("fresh backup without a previous generation");
-
         let mut new = NascentGeneration::create(newtemp.path())?;
         for root in &config.roots {
             let iter = FsIterator::new(root);
@@ -68,10 +67,7 @@ fn initial_backup(
     };
     run.drop();
 
-    let progress = BackupProgress::upload_generation();
-    let gen_id = client.upload_generation(newtemp.path(), SQLITE_CHUNK_SIZE)?;
-    progress.finish();
-
+    let gen_id = upload_nascent_generation(client, newtemp.path())?;
     Ok((gen_id, count, all_warnings))
 }
 
@@ -80,13 +76,12 @@ fn incremental_backup(
     config: &ClientConfig,
     client: &BackupClient,
 ) -> Result<(ChunkId, i64, Vec<BackupError>), ObnamError> {
-    let mut run = IncrementalBackup::new(config, &client)?;
+    info!("incremental backup based on {}", old_ref);
     let newtemp = NamedTempFile::new()?;
+    let mut run = IncrementalBackup::new(config, &client)?;
     let mut all_warnings = vec![];
     let count = {
-        info!("incremental backup based on {}", old_ref);
         let oldtemp = NamedTempFile::new()?;
-
         let old = run.fetch_previous_generation(old_ref, oldtemp.path())?;
         run.start_backup(&old)?;
         let mut new = NascentGeneration::create(newtemp.path())?;
@@ -99,10 +94,18 @@ fn incremental_backup(
         }
         new.file_count()
     };
+    run.drop();
 
-    let progress = BackupProgress::upload_generation();
-    let gen_id = client.upload_generation(newtemp.path(), SQLITE_CHUNK_SIZE)?;
-    progress.finish();
-
+    let gen_id = upload_nascent_generation(client, newtemp.path())?;
     Ok((gen_id, count, all_warnings))
+}
+
+fn upload_nascent_generation(
+    client: &BackupClient,
+    filename: &Path,
+) -> Result<ChunkId, ObnamError> {
+    let progress = BackupProgress::upload_generation();
+    let gen_id = client.upload_generation(filename, SQLITE_CHUNK_SIZE)?;
+    progress.finish();
+    Ok(gen_id)
 }
