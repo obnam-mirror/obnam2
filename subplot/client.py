@@ -26,38 +26,27 @@ def configure_client(ctx, filename=None):
     config["server_url"] = ctx["server_url"]
 
     logging.debug(f"client config {filename}: {config}")
+    dirname = os.path.expanduser("~/.config/obnam")
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    filename = os.path.join(dirname, "obnam.yaml")
+    logging.debug(f"configure_client: filename={filename}")
     with open(filename, "w") as f:
         yaml.safe_dump(config, stream=f)
 
 
-def run_obnam_restore(ctx, filename=None, genid=None, todir=None):
-    genid = ctx["vars"][genid]
-    run_obnam_restore_with_genref(ctx, filename=filename, genref=genid, todir=todir)
-
-
-def run_obnam_restore_with_genref(ctx, filename=None, genref=None, todir=None):
+def run_obnam_restore(ctx, genid=None, todir=None):
     runcmd_run = globals()["runcmd_run"]
 
-    runcmd_run(
-        ctx,
-        [
-            "env",
-            "RUST_LOG=obnam",
-            "obnam",
-            "--config",
-            filename,
-            "restore",
-            genref,
-            todir,
-        ],
-    )
+    genref = ctx["vars"][genid]
+    runcmd_run(ctx, ["env", "RUST_LOG=obnam", "obnam", "restore", genref, todir])
 
 
-def run_obnam_get_chunk(ctx, filename=None, gen_id=None, todir=None):
+def run_obnam_get_chunk(ctx, gen_id=None, todir=None):
     runcmd_run = globals()["runcmd_run"]
     gen_id = ctx["vars"][gen_id]
     logging.debug(f"run_obnam_get_chunk: gen_id={gen_id}")
-    runcmd_run(ctx, ["obnam", "--config", filename, "get-chunk", gen_id])
+    runcmd_run(ctx, ["obnam", "get-chunk", gen_id])
 
 
 def capture_generation_id(ctx, varname=None):
