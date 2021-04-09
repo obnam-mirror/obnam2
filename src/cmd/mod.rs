@@ -1,3 +1,6 @@
+mod init;
+pub use init::init;
+
 mod backup;
 pub use backup::backup;
 

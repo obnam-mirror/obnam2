@@ -1,10 +1,11 @@
-use anyhow::Context;
 use directories_next::ProjectDirs;
 use log::{debug, error, info, LevelFilter};
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Logger, Root};
 use obnam::client::ClientConfig;
-use obnam::cmd::{backup, get_chunk, list, list_files, restore, show_config, show_generation};
+use obnam::cmd::{
+    backup, get_chunk, init, list, list_files, restore, show_config, show_generation,
+};
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
@@ -14,21 +15,33 @@ const APPLICATION: &str = "obnam";
 
 fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
-    let config = load_config(&opt)?;
-    setup_logging(&config.log)?;
-    debug!("configuration: {:#?}", config);
+    let config = load_config_without_passwords(&opt)?;
+    setup_logging(&config.config().log)?;
 
     info!("client starts");
     debug!("{:?}", opt);
+    debug!("configuration: {:#?}", config);
 
-    let result = match opt.cmd {
-        Command::Backup => backup(&config),
-        Command::List => list(&config),
-        Command::ShowGeneration { gen_id } => show_generation(&config, &gen_id),
-        Command::ListFiles { gen_id } => list_files(&config, &gen_id),
-        Command::Restore { gen_id, to } => restore(&config, &gen_id, &to),
-        Command::GetChunk { chunk_id } => get_chunk(&config, &chunk_id),
-        Command::Config => show_config(&config),
+    let cfgname = config_filename(&opt);
+    let result = if let Command::Init {
+        insecure_passphrase,
+    } = opt.cmd
+    {
+        init(config.config(), &cfgname, insecure_passphrase)
+    } else {
+        let config = load_config_with_passwords(&opt)?;
+        match opt.cmd {
+            Command::Init {
+                insecure_passphrase: _,
+            } => panic!("this cannot happen"),
+            Command::Backup => backup(&config),
+            Command::List => list(&config),
+            Command::ShowGeneration { gen_id } => show_generation(&config, &gen_id),
+            Command::ListFiles { gen_id } => list_files(&config, &gen_id),
+            Command::Restore { gen_id, to } => restore(&config, &gen_id, &to),
+            Command::GetChunk { chunk_id } => get_chunk(&config, &chunk_id),
+            Command::Config => show_config(&config),
+        }
     };
 
     if let Err(ref e) = result {
@@ -40,21 +53,19 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn load_config(opt: &Opt) -> Result<ClientConfig, anyhow::Error> {
-    let config = match opt.config {
-        None => {
-            let filename = default_config();
-            ClientConfig::read_config(&filename).with_context(|| {
-                format!(
-                    "Couldn't read default configuration file {}",
-                    filename.display()
-                )
-            })?
-        }
-        Some(ref filename) => ClientConfig::read_config(&filename)
-            .with_context(|| format!("Couldn't read configuration file {}", filename.display()))?,
-    };
-    Ok(config)
+fn load_config_with_passwords(opt: &Opt) -> Result<ClientConfig, anyhow::Error> {
+    Ok(ClientConfig::read_with_passwords(&config_filename(opt))?)
+}
+
+fn load_config_without_passwords(opt: &Opt) -> Result<ClientConfig, anyhow::Error> {
+    Ok(ClientConfig::read_without_passwords(&config_filename(opt))?)
+}
+
+fn config_filename(opt: &Opt) -> PathBuf {
+    match opt.config {
+        None => default_config(),
+        Some(ref filename) => filename.to_path_buf(),
+    }
 }
 
 fn default_config() -> PathBuf {
@@ -77,6 +88,10 @@ struct Opt {
 
 #[derive(Debug, StructOpt)]
 enum Command {
+    Init {
+        #[structopt(long)]
+        insecure_passphrase: Option<String>,
+    },
     Backup,
     List,
     ListFiles {

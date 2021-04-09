@@ -1118,6 +1118,7 @@ then stdout, as JSON, matches file config.json
 roots: [live]
 server_url: https://backup.example.com
 verify_tls_cert: true
+encrypt: false
 ~~~
 
 
@@ -1152,7 +1153,7 @@ given an installed obnam
 and a running chunk server
 and a client config based on ca-required.yaml
 and a file live/data.dat containing some random data
-when I try to run obnam --config ca-required.yaml backup
+when I try to run obnam backup
 then command fails
 then stderr contains "self signed certificate"
 ~~~
@@ -1181,11 +1182,11 @@ and a running chunk server
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
-when I run obnam --config smoke.yaml backup
+when I run obnam backup
 then backup generation is GEN
-when I run obnam --config  smoke.yaml list
+when I run obnam list
 then generation list contains <GEN>
-when I invoke obnam --config smoke.yaml restore <GEN> rest
+when I invoke obnam restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
 then manifests live.yaml and rest.yaml match
 ~~~
@@ -1220,9 +1221,9 @@ and a running chunk server
 and a client config based on metadata.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
-when I run obnam --config metadata.yaml backup
+when I run obnam backup
 then backup generation is GEN
-when I invoke obnam --config metadata.yaml restore <GEN> rest
+when I invoke obnam restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
 then manifests live.yaml and rest.yaml match
 ~~~
@@ -1239,9 +1240,9 @@ and a client config based on metadata.yaml
 and a file live/data.dat containing some random data
 and file live/data.dat has mode 464
 and a manifest of the directory live in live.yaml
-when I run obnam --config metadata.yaml backup
+when I run obnam backup
 then backup generation is GEN
-when I invoke obnam --config metadata.yaml restore <GEN> rest
+when I invoke obnam restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
 then manifests live.yaml and rest.yaml match
 ~~~
@@ -1258,9 +1259,9 @@ and a file live/data.dat containing some random data
 and symbolink link live/link that points at data.dat
 and symbolink link live/broken that points at does-not-exist
 and a manifest of the directory live in live.yaml
-when I run obnam --config metadata.yaml backup
+when I run obnam backup
 then backup generation is GEN
-when I invoke obnam --config metadata.yaml restore <GEN> rest
+when I invoke obnam restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
 then manifests live.yaml and rest.yaml match
 ~~~
@@ -1276,7 +1277,7 @@ given an installed obnam
 given a running chunk server
 given a client config based on tiny-chunk-size.yaml
 given a file live/data.dat containing "abc"
-when I run obnam --config tiny-chunk-size.yaml backup
+when I run obnam backup
 then server has 3 file chunks
 ~~~
 
@@ -1304,8 +1305,8 @@ and a running chunk server
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
-when I run obnam --config smoke.yaml backup
-when I run obnam --config  smoke.yaml list-files
+when I run obnam backup
+when I run obnam list-files
 then file live/data.dat was backed up because it was new
 ~~~
 
@@ -1320,9 +1321,9 @@ and a running chunk server
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
-when I run obnam --config smoke.yaml backup
-when I run obnam --config smoke.yaml backup
-when I run obnam --config  smoke.yaml list-files
+when I run obnam backup
+when I run obnam backup
+when I run obnam list-files
 then file live/data.dat was not backed up because it was unchanged
 ~~~
 
@@ -1337,10 +1338,10 @@ and a running chunk server
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
-when I run obnam --config smoke.yaml backup
+when I run obnam backup
 given a file live/data.dat containing some random data
-when I run obnam --config smoke.yaml backup
-when I run obnam --config  smoke.yaml list-files
+when I run obnam backup
+when I run obnam list-files
 then file live/data.dat was backed up because it was changed
 ~~~
 
@@ -1355,12 +1356,12 @@ given an installed obnam
 and a running chunk server
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
-when I run obnam --config smoke.yaml backup
+when I run obnam backup
 then backup generation is GEN
-when I invoke obnam --config smoke.yaml get-chunk <GEN>
+when I invoke obnam get-chunk <GEN>
 then exit code is 0
 when chunk <GEN> on chunk server is replaced by an empty file
-when I invoke obnam --config smoke.yaml get-chunk <GEN>
+when I invoke obnam get-chunk <GEN>
 then command fails
 ~~~
 
@@ -1380,8 +1381,8 @@ and a file live/data.dat containing some random data
 and a Unix socket live/socket
 and a named pipe live/pipe
 and a manifest of the directory live in live.yaml
-when I run obnam --config smoke.yaml backup
-when I run obnam --config smoke.yaml restore latest rest
+when I run obnam backup
+when I run obnam restore latest rest
 given a manifest of the directory live restored in rest in rest.yaml
 then manifests live.yaml and rest.yaml match
 ~~~
@@ -1399,9 +1400,9 @@ and a running chunk server
 and a client config based on metadata.yaml
 and a file in live with a non-UTF8 filename
 and a manifest of the directory live in live.yaml
-when I run obnam --config metadata.yaml backup
+when I run obnam backup
 then backup generation is GEN
-when I invoke obnam --config metadata.yaml restore <GEN> rest
+when I invoke obnam restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
 then manifests live.yaml and rest.yaml match
 ~~~
@@ -1421,9 +1422,9 @@ and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
 and a file live/bad.dat containing some random data
 and file live/bad.dat has mode 000
-when I run obnam --config smoke.yaml backup
+when I run obnam backup
 then backup generation is GEN
-when I invoke obnam --config smoke.yaml restore <GEN> rest
+when I invoke obnam restore <GEN> rest
 then file live/data.dat is restored to rest
 then file live/bad.dat is not restored to rest
 ~~~
@@ -1439,10 +1440,10 @@ and a running chunk server
 and a client config based on smoke.yaml
 and a file live/unreadable/data.dat containing some random data
 and file live/unreadable has mode 000
-when I run obnam --config smoke.yaml backup
+when I run obnam backup
 then stdout contains "live/unreadable"
 then backup generation is GEN
-when I invoke obnam --config smoke.yaml restore <GEN> rest
+when I invoke obnam restore <GEN> rest
 then file live/unreadable is restored to rest
 then file live/unreadable/data.dat is not restored to rest
 ~~~
@@ -1458,10 +1459,10 @@ and a running chunk server
 and a client config based on smoke.yaml
 and a file live/dir/data.dat containing some random data
 and file live/dir has mode 600
-when I run obnam --config smoke.yaml backup
+when I run obnam backup
 then stdout contains "live/dir"
 then backup generation is GEN
-when I invoke obnam --config smoke.yaml restore <GEN> rest
+when I invoke obnam restore <GEN> rest
 then file live/dir is restored to rest
 then file live/dir/data.dat is not restored to rest
 ~~~
@@ -1478,13 +1479,13 @@ and a running chunk server
 and a client config based on metadata.yaml
 
 given a file live/data.dat containing some random data
-when I run obnam --config metadata.yaml backup
+when I run obnam backup
 
 given a file live/more.dat containing some random data
 and a manifest of the directory live in second.yaml
-when I run obnam --config metadata.yaml backup
+when I run obnam backup
 
-when I run obnam --config metadata.yaml restore latest rest
+when I run obnam restore latest rest
 given a manifest of the directory live restored in rest in rest.yaml
 then manifests second.yaml and rest.yaml match
 ~~~
@@ -1503,9 +1504,9 @@ and a file live/one/data.dat containing some random data
 and a file live/two/data.dat containing some random data
 and a manifest of the directory live/one in one.yaml
 and a manifest of the directory live/two in two.yaml
-when I run obnam --config roots.yaml backup
+when I run obnam backup
 then backup generation is GEN
-when I invoke obnam --config roots.yaml restore <GEN> rest
+when I invoke obnam restore <GEN> rest
 given a manifest of the directory live/one restored in rest in rest-one.yaml
 given a manifest of the directory live/two restored in rest in rest-two.yaml
 then manifests one.yaml and rest-one.yaml match
@@ -1531,10 +1532,39 @@ Verify that trying to backup without having set a passphrase fails
 with an error message that clearly identifies the lack of a
 passphrase.
 
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on encryption.yaml
+and a file live/data.dat containing some random data
+and a manifest of the directory live in live.yaml
+when I try to run obnam backup
+then command fails
+then stderr contains "obnam init"
+~~~
+
+~~~{#encryption.yaml .file .yaml .numberLines}
+verify_tls_cert: false
+roots: [live]
+encrypt: true
+~~~
+
 ## A passphrase can be set
 
 Set a passphrase. Verify that it's stored in a file that is only
 readable by it owner. Verify that a backup can be made.
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on encryption.yaml
+and a file live/data.dat containing some random data
+and a manifest of the directory live in live.yaml
+when I run obnam init --insecure-passphrase=hunter2
+then file .config/obnam/passwords.yaml exists
+then file .config/obnam/passwords.yaml is only readable by owner
+then file .config/obnam/passwords.yaml does not contain "hunter2"
+~~~
 
 ## A passphrase stored insecurely is rejected
 
