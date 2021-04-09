@@ -53,6 +53,19 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn setup_logging(filename: &Path) -> anyhow::Result<()> {
+    let logfile = FileAppender::builder().build(filename)?;
+
+    let config = Config::builder()
+        .appender(Appender::builder().build("obnam", Box::new(logfile)))
+        .logger(Logger::builder().build("obnam", LevelFilter::Debug))
+        .build(Root::builder().appender("obnam").build(LevelFilter::Debug))?;
+
+    log4rs::init_config(config)?;
+
+    Ok(())
+}
+
 fn load_config_with_passwords(opt: &Opt) -> Result<ClientConfig, anyhow::Error> {
     Ok(ClientConfig::read_with_passwords(&config_filename(opt))?)
 }
@@ -114,17 +127,4 @@ enum Command {
         chunk_id: String,
     },
     Config,
-}
-
-fn setup_logging(filename: &Path) -> anyhow::Result<()> {
-    let logfile = FileAppender::builder().build(filename)?;
-
-    let config = Config::builder()
-        .appender(Appender::builder().build("obnam", Box::new(logfile)))
-        .logger(Logger::builder().build("obnam", LevelFilter::Debug))
-        .build(Root::builder().appender("obnam").build(LevelFilter::Debug))?;
-
-    log4rs::init_config(config)?;
-
-    Ok(())
 }
