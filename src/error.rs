@@ -3,6 +3,8 @@ use crate::client::{ClientConfigError, ClientError};
 use crate::cmd::restore::RestoreError;
 use crate::generation::{LocalGenerationError, NascentError};
 use crate::genlist::GenerationListError;
+use crate::passwords::PasswordError;
+use std::path::PathBuf;
 use std::time::SystemTimeError;
 use tempfile::PersistError;
 
@@ -12,6 +14,9 @@ use tempfile::PersistError;
 pub enum ObnamError {
     #[error(transparent)]
     GenerationListError(#[from] GenerationListError),
+
+    #[error("couldn't save passwords to {0}: {1}")]
+    PasswordSave(PathBuf, PasswordError),
 
     #[error(transparent)]
     ClientError(#[from] ClientError),

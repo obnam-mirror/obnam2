@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import socket
+import stat
 import yaml
 
 
@@ -148,3 +149,17 @@ def manifests_match(ctx, expected=None, actual=None):
     assert_eq(actual_objs, [])
 
     logging.debug(f"manifests {expected} and {actual} match")
+
+
+def file_is_readable_by_owner(ctx, filename=None):
+    assert_eq = globals()["assert_eq"]
+
+    st = os.lstat(filename)
+    mode = stat.S_IMODE(st.st_mode)
+    logging.debug("file mode: %o", mode)
+    assert_eq(mode, 0o400)
+
+
+def file_does_not_contain(ctx, filename=None, pattern=None):
+    data = open(filename).read()
+    assert pattern not in data

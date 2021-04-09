@@ -39,3 +39,9 @@
 
 - then: "manifests {expected} and {actual} match"
   function: manifests_match
+
+- then: "file {filename} is only readable by owner"
+  function: file_is_readable_by_owner
+
+- then: "file {filename} does not contain \"{pattern:text}\""
+  function: file_does_not_contain

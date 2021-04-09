@@ -16,6 +16,7 @@ pub mod generation;
 pub mod genlist;
 pub mod index;
 pub mod indexedstore;
+pub mod passwords;
 pub mod policy;
 pub mod server;
 pub mod store;

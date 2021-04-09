@@ -53,6 +53,7 @@ fn initial_backup(
     info!("fresh backup without a previous generation");
     let newtemp = NamedTempFile::new()?;
     let run = InitialBackup::new(config, &client)?;
+    let config = config.config();
     let mut all_warnings = vec![];
     let count = {
         let mut new = NascentGeneration::create(newtemp.path())?;
@@ -79,6 +80,7 @@ fn incremental_backup(
     info!("incremental backup based on {}", old_ref);
     let newtemp = NamedTempFile::new()?;
     let mut run = IncrementalBackup::new(config, &client)?;
+    let config = config.config();
     let mut all_warnings = vec![];
     let count = {
         let oldtemp = NamedTempFile::new()?;

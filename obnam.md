@@ -1118,6 +1118,7 @@ then stdout, as JSON, matches file config.json
 roots: [live]
 server_url: https://backup.example.com
 verify_tls_cert: true
+encrypt: false
 ~~~
 
 
@@ -1531,10 +1532,39 @@ Verify that trying to backup without having set a passphrase fails
 with an error message that clearly identifies the lack of a
 passphrase.
 
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on encryption.yaml
+and a file live/data.dat containing some random data
+and a manifest of the directory live in live.yaml
+when I try to run obnam --config encryption.yaml backup
+then command fails
+then stderr contains "obnam init"
+~~~
+
+~~~{#encryption.yaml .file .yaml .numberLines}
+verify_tls_cert: false
+roots: [live]
+encrypt: true
+~~~
+
 ## A passphrase can be set
 
 Set a passphrase. Verify that it's stored in a file that is only
 readable by it owner. Verify that a backup can be made.
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on encryption.yaml
+and a file live/data.dat containing some random data
+and a manifest of the directory live in live.yaml
+when I run obnam --config encryption.yaml init --insecure-passphrase=hunter2
+then file passwords.yaml exists
+then file passwords.yaml is only readable by owner
+then file passwords.yaml does not contain "hunter2"
+~~~
 
 ## A passphrase stored insecurely is rejected
 
