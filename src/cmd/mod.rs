@@ -1,7 +1,5 @@
+pub mod backup;
 pub mod init;
-
-mod backup;
-pub use backup::backup;
 
 mod list;
 pub use list::list;

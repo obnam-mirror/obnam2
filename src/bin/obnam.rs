@@ -2,8 +2,9 @@ use directories_next::ProjectDirs;
 use log::{debug, error, info, LevelFilter};
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Logger, Root};
+use obnam::cmd::backup::Backup;
 use obnam::cmd::init::Init;
-use obnam::cmd::{backup, get_chunk, list, list_files, restore, show_config, show_generation};
+use obnam::cmd::{get_chunk, list, list_files, restore, show_config, show_generation};
 use obnam::config::ClientConfig;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
@@ -28,7 +29,7 @@ fn main() -> anyhow::Result<()> {
         let config = load_config_with_passwords(&opt)?;
         match opt.cmd {
             Command::Init(_) => panic!("this cannot happen"),
-            Command::Backup => backup(&config),
+            Command::Backup(x) => x.run(&config),
             Command::List => list(&config),
             Command::ShowGeneration { gen_id } => show_generation(&config, &gen_id),
             Command::ListFiles { gen_id } => list_files(&config, &gen_id),
@@ -96,7 +97,7 @@ struct Opt {
 #[derive(Debug, StructOpt)]
 enum Command {
     Init(Init),
-    Backup,
+    Backup(Backup),
     List,
     ListFiles {
         #[structopt(default_value = "latest")]
