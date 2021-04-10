@@ -18,32 +18,50 @@ use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use tempfile::NamedTempFile;
 
-pub fn restore(config: &ClientConfig, gen_ref: &str, to: &Path) -> Result<(), ObnamError> {
-    let temp = NamedTempFile::new()?;
+#[derive(Debug, StructOpt)]
+pub struct Restore {
+    #[structopt()]
+    gen_id: String,
 
-    let client = BackupClient::new(config)?;
+    #[structopt(parse(from_os_str))]
+    to: PathBuf,
+}
 
-    let genlist = client.list_generations()?;
-    let gen_id: String = genlist.resolve(gen_ref)?;
-    info!("generation id is {}", gen_id);
+impl Restore {
+    pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
+        let temp = NamedTempFile::new()?;
 
-    let gen = client.fetch_generation(&gen_id, temp.path())?;
-    info!("restoring {} files", gen.file_count()?);
-    let progress = create_progress_bar(gen.file_count()?, true);
-    for file in gen.files()? {
-        match file.reason() {
-            Reason::FileError => (),
-            _ => restore_generation(&client, &gen, file.fileno(), file.entry(), &to, &progress)?,
+        let client = BackupClient::new(config)?;
+
+        let genlist = client.list_generations()?;
+        let gen_id: String = genlist.resolve(&self.gen_id)?;
+        info!("generation id is {}", gen_id);
+
+        let gen = client.fetch_generation(&gen_id, temp.path())?;
+        info!("restoring {} files", gen.file_count()?);
+        let progress = create_progress_bar(gen.file_count()?, true);
+        for file in gen.files()? {
+            match file.reason() {
+                Reason::FileError => (),
+                _ => restore_generation(
+                    &client,
+                    &gen,
+                    file.fileno(),
+                    file.entry(),
+                    &self.to,
+                    &progress,
+                )?,
+            }
         }
-    }
-    for file in gen.files()? {
-        if file.entry().is_dir() {
-            restore_directory_metadata(file.entry(), &to)?;
+        for file in gen.files()? {
+            if file.entry().is_dir() {
+                restore_directory_metadata(file.entry(), &self.to)?;
+            }
         }
-    }
-    progress.finish();
+        progress.finish();
 
-    Ok(())
+        Ok(())
+    }
 }
 
 #[derive(Debug, StructOpt)]
