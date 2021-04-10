@@ -1,7 +1,6 @@
 use crate::config::ClientConfigWithoutPasswords;
 use crate::error::ObnamError;
 use crate::passwords::{passwords_filename, Passwords};
-use std::path::Path;
 use structopt::StructOpt;
 
 const PROMPT: &str = "Obnam passphrase: ";
@@ -13,11 +12,7 @@ pub struct Init {
 }
 
 impl Init {
-    pub fn run(
-        &self,
-        config: &ClientConfigWithoutPasswords,
-        config_filename: &Path,
-    ) -> Result<(), ObnamError> {
+    pub fn run(&self, config: &ClientConfigWithoutPasswords) -> Result<(), ObnamError> {
         if !config.encrypt {
             panic!("no encryption specified");
         }
@@ -28,7 +23,7 @@ impl Init {
         };
 
         let passwords = Passwords::new(&passphrase);
-        let filename = passwords_filename(config_filename);
+        let filename = passwords_filename(&config.filename);
         passwords
             .save(&filename)
             .map_err(|err| ObnamError::PasswordSave(filename, err))?;

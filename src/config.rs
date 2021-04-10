@@ -52,6 +52,7 @@ impl ClientConfig {
 
 #[derive(Debug, Serialize, Clone)]
 pub struct ClientConfigWithoutPasswords {
+    pub filename: PathBuf,
     pub server_url: String,
     pub verify_tls_cert: bool,
     pub chunk_size: usize,
@@ -92,6 +93,7 @@ impl ClientConfigWithoutPasswords {
         let encrypt = tentative.encrypt.or(Some(false)).unwrap();
 
         let config = Self {
+            filename: filename.to_path_buf(),
             server_url: tentative.server_url,
             roots: tentative.roots,
             verify_tls_cert: tentative.verify_tls_cert.or(Some(false)).unwrap(),

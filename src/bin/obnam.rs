@@ -27,9 +27,8 @@ fn main() -> anyhow::Result<()> {
     debug!("{:?}", opt);
     debug!("configuration: {:#?}", config);
 
-    let cfgname = config_filename(&opt);
     let result = if let Command::Init(init) = opt.cmd {
-        init.run(config.config(), &cfgname)
+        init.run(config.config())
     } else {
         let config = load_config_with_passwords(&opt)?;
         match opt.cmd {
