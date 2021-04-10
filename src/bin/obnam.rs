@@ -1,14 +1,14 @@
 use directories_next::ProjectDirs;
 use log::{debug, error, info, LevelFilter};
 use log4rs::append::file::FileAppender;
-use log4rs::config::{Appender, Config, Logger, Root};
+use log4rs::config::{Appender, Logger, Root};
 use obnam::cmd::backup::Backup;
 use obnam::cmd::get_chunk::GetChunk;
 use obnam::cmd::init::Init;
 use obnam::cmd::list::List;
 use obnam::cmd::list_files::ListFiles;
 use obnam::cmd::restore::Restore;
-use obnam::cmd::show_config;
+use obnam::cmd::show_config::ShowConfig;
 use obnam::cmd::show_gen::ShowGeneration;
 use obnam::config::ClientConfig;
 use std::path::{Path, PathBuf};
@@ -40,7 +40,7 @@ fn main() -> anyhow::Result<()> {
             Command::ListFiles(x) => x.run(&config),
             Command::Restore(x) => x.run(&config),
             Command::GetChunk(x) => x.run(&config),
-            Command::Config => show_config(&config),
+            Command::Config(x) => x.run(&config),
         }
     };
 
@@ -56,7 +56,7 @@ fn main() -> anyhow::Result<()> {
 fn setup_logging(filename: &Path) -> anyhow::Result<()> {
     let logfile = FileAppender::builder().build(filename)?;
 
-    let config = Config::builder()
+    let config = log4rs::Config::builder()
         .appender(Appender::builder().build("obnam", Box::new(logfile)))
         .logger(Logger::builder().build("obnam", LevelFilter::Debug))
         .build(Root::builder().appender("obnam").build(LevelFilter::Debug))?;
@@ -108,5 +108,5 @@ enum Command {
     Restore(Restore),
     ShowGeneration(ShowGeneration),
     GetChunk(GetChunk),
-    Config,
+    Config(ShowConfig),
 }
