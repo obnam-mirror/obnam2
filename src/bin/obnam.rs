@@ -2,9 +2,8 @@ use directories_next::ProjectDirs;
 use log::{debug, error, info, LevelFilter};
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Logger, Root};
-use obnam::cmd::{
-    backup, get_chunk, init, list, list_files, restore, show_config, show_generation,
-};
+use obnam::cmd::init::Init;
+use obnam::cmd::{backup, get_chunk, list, list_files, restore, show_config, show_generation};
 use obnam::config::ClientConfig;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
@@ -23,17 +22,12 @@ fn main() -> anyhow::Result<()> {
     debug!("configuration: {:#?}", config);
 
     let cfgname = config_filename(&opt);
-    let result = if let Command::Init {
-        insecure_passphrase,
-    } = opt.cmd
-    {
-        init(config.config(), &cfgname, insecure_passphrase)
+    let result = if let Command::Init(init) = opt.cmd {
+        init.run(config.config(), &cfgname)
     } else {
         let config = load_config_with_passwords(&opt)?;
         match opt.cmd {
-            Command::Init {
-                insecure_passphrase: _,
-            } => panic!("this cannot happen"),
+            Command::Init(_) => panic!("this cannot happen"),
             Command::Backup => backup(&config),
             Command::List => list(&config),
             Command::ShowGeneration { gen_id } => show_generation(&config, &gen_id),
@@ -101,10 +95,7 @@ struct Opt {
 
 #[derive(Debug, StructOpt)]
 enum Command {
-    Init {
-        #[structopt(long)]
-        insecure_passphrase: Option<String>,
-    },
+    Init(Init),
     Backup,
     List,
     ListFiles {

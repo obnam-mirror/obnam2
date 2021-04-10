@@ -1,5 +1,4 @@
-mod init;
-pub use init::init;
+pub mod init;
 
 mod backup;
 pub use backup::backup;
