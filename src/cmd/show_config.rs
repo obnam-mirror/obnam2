@@ -1,7 +1,13 @@
-use crate::client::ClientConfig;
+use crate::config::ClientConfig;
 use crate::error::ObnamError;
+use structopt::StructOpt;
 
-pub fn show_config(config: &ClientConfig) -> Result<(), ObnamError> {
-    println!("{}", serde_json::to_string_pretty(&config.config())?);
-    Ok(())
+#[derive(Debug, StructOpt)]
+pub struct ShowConfig {}
+
+impl ShowConfig {
+    pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
+        println!("{}", serde_json::to_string_pretty(&config.config())?);
+        Ok(())
+    }
 }

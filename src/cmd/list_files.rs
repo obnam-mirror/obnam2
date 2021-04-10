@@ -1,24 +1,33 @@
 use crate::backup_reason::Reason;
 use crate::client::BackupClient;
-use crate::client::ClientConfig;
+use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
+use structopt::StructOpt;
 use tempfile::NamedTempFile;
 
-pub fn list_files(config: &ClientConfig, gen_ref: &str) -> Result<(), ObnamError> {
-    let temp = NamedTempFile::new()?;
+#[derive(Debug, StructOpt)]
+pub struct ListFiles {
+    #[structopt(default_value = "latest")]
+    gen_id: String,
+}
 
-    let client = BackupClient::new(config)?;
+impl ListFiles {
+    pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
+        let temp = NamedTempFile::new()?;
 
-    let genlist = client.list_generations()?;
-    let gen_id: String = genlist.resolve(gen_ref)?;
+        let client = BackupClient::new(config)?;
 
-    let gen = client.fetch_generation(&gen_id, temp.path())?;
-    for file in gen.files()? {
-        println!("{}", format_entry(&file.entry(), file.reason()));
+        let genlist = client.list_generations()?;
+        let gen_id: String = genlist.resolve(&self.gen_id)?;
+
+        let gen = client.fetch_generation(&gen_id, temp.path())?;
+        for file in gen.files()? {
+            println!("{}", format_entry(&file.entry(), file.reason()));
+        }
+
+        Ok(())
     }
-
-    Ok(())
 }
 
 fn format_entry(e: &FilesystemEntry, reason: Reason) -> String {

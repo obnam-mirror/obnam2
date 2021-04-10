@@ -1,28 +1,32 @@
-use crate::client::ClientConfigWithoutPasswords;
+use crate::config::ClientConfigWithoutPasswords;
 use crate::error::ObnamError;
 use crate::passwords::{passwords_filename, Passwords};
-use std::path::Path;
+use structopt::StructOpt;
 
 const PROMPT: &str = "Obnam passphrase: ";
 
-pub fn init(
-    config: &ClientConfigWithoutPasswords,
-    config_filename: &Path,
+#[derive(Debug, StructOpt)]
+pub struct Init {
+    #[structopt(long)]
     insecure_passphrase: Option<String>,
-) -> Result<(), ObnamError> {
-    if !config.encrypt {
-        panic!("no encryption specified");
+}
+
+impl Init {
+    pub fn run(&self, config: &ClientConfigWithoutPasswords) -> Result<(), ObnamError> {
+        if !config.encrypt {
+            panic!("no encryption specified");
+        }
+
+        let passphrase = match &self.insecure_passphrase {
+            Some(x) => x.to_string(),
+            None => rpassword::read_password_from_tty(Some(PROMPT)).unwrap(),
+        };
+
+        let passwords = Passwords::new(&passphrase);
+        let filename = passwords_filename(&config.filename);
+        passwords
+            .save(&filename)
+            .map_err(|err| ObnamError::PasswordSave(filename, err))?;
+        Ok(())
     }
-
-    let passphrase = match insecure_passphrase {
-        Some(x) => x,
-        None => rpassword::read_password_from_tty(Some(PROMPT)).unwrap(),
-    };
-
-    let passwords = Passwords::new(&passphrase);
-    let filename = passwords_filename(config_filename);
-    passwords
-        .save(&filename)
-        .map_err(|err| ObnamError::PasswordSave(filename, err))?;
-    Ok(())
 }

@@ -1,11 +1,16 @@
 use directories_next::ProjectDirs;
 use log::{debug, error, info, LevelFilter};
 use log4rs::append::file::FileAppender;
-use log4rs::config::{Appender, Config, Logger, Root};
-use obnam::client::ClientConfig;
-use obnam::cmd::{
-    backup, get_chunk, init, list, list_files, restore, show_config, show_generation,
-};
+use log4rs::config::{Appender, Logger, Root};
+use obnam::cmd::backup::Backup;
+use obnam::cmd::get_chunk::GetChunk;
+use obnam::cmd::init::Init;
+use obnam::cmd::list::List;
+use obnam::cmd::list_files::ListFiles;
+use obnam::cmd::restore::Restore;
+use obnam::cmd::show_config::ShowConfig;
+use obnam::cmd::show_gen::ShowGeneration;
+use obnam::config::ClientConfig;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
@@ -22,25 +27,20 @@ fn main() -> anyhow::Result<()> {
     debug!("{:?}", opt);
     debug!("configuration: {:#?}", config);
 
-    let cfgname = config_filename(&opt);
-    let result = if let Command::Init {
-        insecure_passphrase,
-    } = opt.cmd
-    {
-        init(config.config(), &cfgname, insecure_passphrase)
-    } else {
-        let config = load_config_with_passwords(&opt)?;
-        match opt.cmd {
-            Command::Init {
-                insecure_passphrase: _,
-            } => panic!("this cannot happen"),
-            Command::Backup => backup(&config),
-            Command::List => list(&config),
-            Command::ShowGeneration { gen_id } => show_generation(&config, &gen_id),
-            Command::ListFiles { gen_id } => list_files(&config, &gen_id),
-            Command::Restore { gen_id, to } => restore(&config, &gen_id, &to),
-            Command::GetChunk { chunk_id } => get_chunk(&config, &chunk_id),
-            Command::Config => show_config(&config),
+    let result = match opt.cmd {
+        Command::Init(x) => x.run(config.config()),
+        _ => {
+            let config = load_config_with_passwords(&opt)?;
+            match opt.cmd {
+                Command::Init(_) => panic!("this can't happen"),
+                Command::Backup(x) => x.run(&config),
+                Command::List(x) => x.run(&config),
+                Command::ShowGeneration(x) => x.run(&config),
+                Command::ListFiles(x) => x.run(&config),
+                Command::Restore(x) => x.run(&config),
+                Command::GetChunk(x) => x.run(&config),
+                Command::Config(x) => x.run(&config),
+            }
         }
     };
 
@@ -50,6 +50,19 @@ fn main() -> anyhow::Result<()> {
     }
 
     info!("client ends successfully");
+    Ok(())
+}
+
+fn setup_logging(filename: &Path) -> anyhow::Result<()> {
+    let logfile = FileAppender::builder().build(filename)?;
+
+    let config = log4rs::Config::builder()
+        .appender(Appender::builder().build("obnam", Box::new(logfile)))
+        .logger(Logger::builder().build("obnam", LevelFilter::Debug))
+        .build(Root::builder().appender("obnam").build(LevelFilter::Debug))?;
+
+    log4rs::init_config(config)?;
+
     Ok(())
 }
 
@@ -88,43 +101,12 @@ struct Opt {
 
 #[derive(Debug, StructOpt)]
 enum Command {
-    Init {
-        #[structopt(long)]
-        insecure_passphrase: Option<String>,
-    },
-    Backup,
-    List,
-    ListFiles {
-        #[structopt(default_value = "latest")]
-        gen_id: String,
-    },
-    Restore {
-        #[structopt()]
-        gen_id: String,
-
-        #[structopt(parse(from_os_str))]
-        to: PathBuf,
-    },
-    ShowGeneration {
-        #[structopt(default_value = "latest")]
-        gen_id: String,
-    },
-    GetChunk {
-        #[structopt()]
-        chunk_id: String,
-    },
-    Config,
-}
-
-fn setup_logging(filename: &Path) -> anyhow::Result<()> {
-    let logfile = FileAppender::builder().build(filename)?;
-
-    let config = Config::builder()
-        .appender(Appender::builder().build("obnam", Box::new(logfile)))
-        .logger(Logger::builder().build("obnam", LevelFilter::Debug))
-        .build(Root::builder().appender("obnam").build(LevelFilter::Debug))?;
-
-    log4rs::init_config(config)?;
-
-    Ok(())
+    Init(Init),
+    Backup(Backup),
+    List(List),
+    ListFiles(ListFiles),
+    Restore(Restore),
+    ShowGeneration(ShowGeneration),
+    GetChunk(GetChunk),
+    Config(ShowConfig),
 }

@@ -1,7 +1,8 @@
 use crate::backup_progress::BackupProgress;
 use crate::backup_run::{BackupError, IncrementalBackup, InitialBackup};
 use crate::chunkid::ChunkId;
-use crate::client::{BackupClient, ClientConfig};
+use crate::client::BackupClient;
+use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsiter::FsIterator;
 use crate::generation::NascentGeneration;
@@ -9,27 +10,33 @@ use bytesize::MIB;
 use log::info;
 use std::path::Path;
 use std::time::SystemTime;
+use structopt::StructOpt;
 use tempfile::NamedTempFile;
 
 const SQLITE_CHUNK_SIZE: usize = MIB as usize;
 
-pub fn backup(config: &ClientConfig) -> Result<(), ObnamError> {
-    let runtime = SystemTime::now();
+#[derive(Debug, StructOpt)]
+pub struct Backup {}
 
-    let client = BackupClient::new(config)?;
-    let genlist = client.list_generations()?;
-    let (gen_id, file_count, warnings) = match genlist.resolve("latest") {
-        Err(_) => initial_backup(&config, &client)?,
-        Ok(old_ref) => incremental_backup(&old_ref, &config, &client)?,
-    };
+impl Backup {
+    pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
+        let runtime = SystemTime::now();
 
-    for w in warnings.iter() {
-        println!("warning: {}", w);
+        let client = BackupClient::new(config)?;
+        let genlist = client.list_generations()?;
+        let (gen_id, file_count, warnings) = match genlist.resolve("latest") {
+            Err(_) => initial_backup(&config, &client)?,
+            Ok(old_ref) => incremental_backup(&old_ref, &config, &client)?,
+        };
+
+        for w in warnings.iter() {
+            println!("warning: {}", w);
+        }
+
+        report_stats(&runtime, file_count, &gen_id, warnings.len())?;
+
+        Ok(())
     }
-
-    report_stats(&runtime, file_count, &gen_id, warnings.len())?;
-
-    Ok(())
 }
 
 fn report_stats(

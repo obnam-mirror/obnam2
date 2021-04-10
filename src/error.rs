@@ -1,6 +1,7 @@
 use crate::backup_run::BackupError;
-use crate::client::{ClientConfigError, ClientError};
+use crate::client::ClientError;
 use crate::cmd::restore::RestoreError;
+use crate::config::ClientConfigError;
 use crate::generation::{LocalGenerationError, NascentError};
 use crate::genlist::GenerationListError;
 use crate::passwords::PasswordError;

@@ -1,33 +1,42 @@
 use crate::client::BackupClient;
-use crate::client::ClientConfig;
+use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::FilesystemKind;
 use indicatif::HumanBytes;
+use structopt::StructOpt;
 use tempfile::NamedTempFile;
 
-pub fn show_generation(config: &ClientConfig, gen_ref: &str) -> Result<(), ObnamError> {
-    let temp = NamedTempFile::new()?;
+#[derive(Debug, StructOpt)]
+pub struct ShowGeneration {
+    #[structopt(default_value = "latest")]
+    gen_id: String,
+}
 
-    let client = BackupClient::new(config)?;
+impl ShowGeneration {
+    pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
+        let temp = NamedTempFile::new()?;
 
-    let genlist = client.list_generations()?;
-    let gen_id: String = genlist.resolve(gen_ref)?;
-    let gen = client.fetch_generation(&gen_id, temp.path())?;
-    let files = gen.files()?;
+        let client = BackupClient::new(config)?;
 
-    let total_bytes = files.iter().fold(0, |acc, file| {
-        let e = file.entry();
-        if e.kind() == FilesystemKind::Regular {
-            acc + file.entry().len()
-        } else {
-            acc
-        }
-    });
+        let genlist = client.list_generations()?;
+        let gen_id: String = genlist.resolve(&self.gen_id)?;
+        let gen = client.fetch_generation(&gen_id, temp.path())?;
+        let files = gen.files()?;
 
-    println!("generation-id: {}", gen_id);
-    println!("file-count: {}", gen.file_count()?);
-    println!("file-bytes: {}", HumanBytes(total_bytes));
-    println!("file-bytes-raw: {}", total_bytes);
+        let total_bytes = files.iter().fold(0, |acc, file| {
+            let e = file.entry();
+            if e.kind() == FilesystemKind::Regular {
+                acc + file.entry().len()
+            } else {
+                acc
+            }
+        });
 
-    Ok(())
+        println!("generation-id: {}", gen_id);
+        println!("file-count: {}", gen.file_count()?);
+        println!("file-bytes: {}", HumanBytes(total_bytes));
+        println!("file-bytes-raw: {}", total_bytes);
+
+        Ok(())
+    }
 }

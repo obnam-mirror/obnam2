@@ -9,6 +9,7 @@ pub mod chunkid;
 pub mod chunkmeta;
 pub mod client;
 pub mod cmd;
+pub mod config;
 pub mod error;
 pub mod fsentry;
 pub mod fsiter;
