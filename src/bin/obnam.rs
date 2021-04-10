@@ -2,10 +2,10 @@ use directories_next::ProjectDirs;
 use log::{debug, error, info, LevelFilter};
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Logger, Root};
-use obnam::client::ClientConfig;
 use obnam::cmd::{
     backup, get_chunk, init, list, list_files, restore, show_config, show_generation,
 };
+use obnam::config::ClientConfig;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 

@@ -1,6 +1,6 @@
 use crate::backup_reason::Reason;
-use crate::client::ClientConfig;
 use crate::client::{BackupClient, ClientError};
+use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::{LocalGeneration, LocalGenerationError};

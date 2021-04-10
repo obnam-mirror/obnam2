@@ -1,4 +1,5 @@
-use crate::client::{BackupClient, ClientConfig};
+use crate::client::BackupClient;
+use crate::config::ClientConfig;
 use crate::error::ObnamError;
 
 pub fn list(config: &ClientConfig) -> Result<(), ObnamError> {

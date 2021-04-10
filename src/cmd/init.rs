@@ -1,4 +1,4 @@
-use crate::client::ClientConfigWithoutPasswords;
+use crate::config::ClientConfigWithoutPasswords;
 use crate::error::ObnamError;
 use crate::passwords::{passwords_filename, Passwords};
 use std::path::Path;

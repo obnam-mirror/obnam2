@@ -1,6 +1,6 @@
 use crate::chunkid::ChunkId;
 use crate::client::BackupClient;
-use crate::client::ClientConfig;
+use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use std::io::{stdout, Write};
 

@@ -1,6 +1,6 @@
 use crate::backup_reason::Reason;
 use crate::client::BackupClient;
-use crate::client::ClientConfig;
+use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use tempfile::NamedTempFile;

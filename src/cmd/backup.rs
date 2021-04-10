@@ -1,7 +1,8 @@
 use crate::backup_progress::BackupProgress;
 use crate::backup_run::{BackupError, IncrementalBackup, InitialBackup};
 use crate::chunkid::ChunkId;
-use crate::client::{BackupClient, ClientConfig};
+use crate::client::BackupClient;
+use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsiter::FsIterator;
 use crate::generation::NascentGeneration;

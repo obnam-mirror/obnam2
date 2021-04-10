@@ -1,4 +1,4 @@
-use crate::client::ClientConfig;
+use crate::config::ClientConfig;
 use crate::error::ObnamError;
 
 pub fn show_config(config: &ClientConfig) -> Result<(), ObnamError> {
