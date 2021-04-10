@@ -3,12 +3,13 @@ use log::{debug, error, info, LevelFilter};
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Logger, Root};
 use obnam::cmd::backup::Backup;
+use obnam::cmd::get_chunk::GetChunk;
 use obnam::cmd::init::Init;
 use obnam::cmd::list::List;
 use obnam::cmd::list_files::ListFiles;
 use obnam::cmd::restore::Restore;
+use obnam::cmd::show_config;
 use obnam::cmd::show_gen::ShowGeneration;
-use obnam::cmd::{get_chunk, show_config};
 use obnam::config::ClientConfig;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
@@ -38,7 +39,7 @@ fn main() -> anyhow::Result<()> {
             Command::ShowGeneration(x) => x.run(&config),
             Command::ListFiles(x) => x.run(&config),
             Command::Restore(x) => x.run(&config),
-            Command::GetChunk { chunk_id } => get_chunk(&config, &chunk_id),
+            Command::GetChunk(x) => x.run(&config),
             Command::Config => show_config(&config),
         }
     };
@@ -106,9 +107,6 @@ enum Command {
     ListFiles(ListFiles),
     Restore(Restore),
     ShowGeneration(ShowGeneration),
-    GetChunk {
-        #[structopt()]
-        chunk_id: String,
-    },
+    GetChunk(GetChunk),
     Config,
 }
