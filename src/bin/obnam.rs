@@ -27,19 +27,20 @@ fn main() -> anyhow::Result<()> {
     debug!("{:?}", opt);
     debug!("configuration: {:#?}", config);
 
-    let result = if let Command::Init(init) = opt.cmd {
-        init.run(config.config())
-    } else {
-        let config = load_config_with_passwords(&opt)?;
-        match opt.cmd {
-            Command::Init(_) => panic!("this cannot happen"),
-            Command::Backup(x) => x.run(&config),
-            Command::List(x) => x.run(&config),
-            Command::ShowGeneration(x) => x.run(&config),
-            Command::ListFiles(x) => x.run(&config),
-            Command::Restore(x) => x.run(&config),
-            Command::GetChunk(x) => x.run(&config),
-            Command::Config(x) => x.run(&config),
+    let result = match opt.cmd {
+        Command::Init(x) => x.run(config.config()),
+        _ => {
+            let config = load_config_with_passwords(&opt)?;
+            match opt.cmd {
+                Command::Init(_) => panic!("this can't happen"),
+                Command::Backup(x) => x.run(&config),
+                Command::List(x) => x.run(&config),
+                Command::ShowGeneration(x) => x.run(&config),
+                Command::ListFiles(x) => x.run(&config),
+                Command::Restore(x) => x.run(&config),
+                Command::GetChunk(x) => x.run(&config),
+                Command::Config(x) => x.run(&config),
+            }
         }
     };
 
