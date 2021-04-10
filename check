@@ -25,10 +25,10 @@ $hideok cargo build --all-targets
 got_cargo_cmd fmt && $hideok cargo fmt -- --check
 $hideok cargo test
 
-sp-docgen obnam.md -o obnam.html
-sp-docgen obnam.md -o obnam.pdf
+subplot docgen obnam.md -o obnam.html
+subplot docgen obnam.md -o obnam.pdf
 
-sp-codegen obnam.md -o test.py
+subplot codegen obnam.md -o test.py
 rm -f test.log
 if [ "$(id -un)" = root ]
 then
