@@ -1,10 +1,8 @@
 pub mod backup;
 pub mod init;
 pub mod list;
+pub mod list_files;
 pub mod show_gen;
-
-mod list_files;
-pub use list_files::list_files;
 
 pub mod restore;
 pub use restore::restore;

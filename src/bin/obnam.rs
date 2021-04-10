@@ -5,8 +5,9 @@ use log4rs::config::{Appender, Config, Logger, Root};
 use obnam::cmd::backup::Backup;
 use obnam::cmd::init::Init;
 use obnam::cmd::list::List;
+use obnam::cmd::list_files::ListFiles;
 use obnam::cmd::show_gen::ShowGeneration;
-use obnam::cmd::{get_chunk, list_files, restore, show_config};
+use obnam::cmd::{get_chunk, restore, show_config};
 use obnam::config::ClientConfig;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
@@ -34,7 +35,7 @@ fn main() -> anyhow::Result<()> {
             Command::Backup(x) => x.run(&config),
             Command::List(x) => x.run(&config),
             Command::ShowGeneration(x) => x.run(&config),
-            Command::ListFiles { gen_id } => list_files(&config, &gen_id),
+            Command::ListFiles(x) => x.run(&config),
             Command::Restore { gen_id, to } => restore(&config, &gen_id, &to),
             Command::GetChunk { chunk_id } => get_chunk(&config, &chunk_id),
             Command::Config => show_config(&config),
@@ -101,10 +102,7 @@ enum Command {
     Init(Init),
     Backup(Backup),
     List(List),
-    ListFiles {
-        #[structopt(default_value = "latest")]
-        gen_id: String,
-    },
+    ListFiles(ListFiles),
     Restore {
         #[structopt()]
         gen_id: String,
