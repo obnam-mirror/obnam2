@@ -66,7 +66,7 @@ $ sudo systemctl is-active obnam
 active
 ```
 
-Ansible created a directory, `/src/obnam/chunks`, that will contain the
+Ansible created a directory, `/srv/obnam/chunks`, that will contain the
 backed-up data. If you want to use a different directory, you have to stop the
 service, move the existing directory to a new location, and update Obnam's
 configuration:
