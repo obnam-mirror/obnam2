@@ -17,6 +17,7 @@ struct TentativeClientConfig {
     roots: Vec<PathBuf>,
     log: Option<PathBuf>,
     encrypt: Option<bool>,
+    exclude_cache_tag_directories: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -59,6 +60,7 @@ pub struct ClientConfigWithoutPasswords {
     pub roots: Vec<PathBuf>,
     pub log: PathBuf,
     pub encrypt: bool,
+    pub exclude_cache_tag_directories: bool,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -91,6 +93,7 @@ impl ClientConfigWithoutPasswords {
         let tentative: TentativeClientConfig = serde_yaml::from_str(&config)?;
 
         let encrypt = tentative.encrypt.or(Some(false)).unwrap();
+        let exclude_cache_tag_directories = tentative.exclude_cache_tag_directories.unwrap_or(true);
 
         let config = Self {
             filename: filename.to_path_buf(),
@@ -103,6 +106,7 @@ impl ClientConfigWithoutPasswords {
                 .or_else(|| Some(PathBuf::from(DEVNULL)))
                 .unwrap(),
             encrypt,
+            exclude_cache_tag_directories,
         };
 
         config.check()?;

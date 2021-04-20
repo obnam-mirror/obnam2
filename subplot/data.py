@@ -29,6 +29,13 @@ def create_fifo(ctx, filename=None):
     os.mkfifo(filename)
 
 
+def create_cachedir_tag_in(ctx, dirpath=None):
+    filepath = f"{dirpath}/CACHEDIR.TAG"
+    logging.debug(f"creating {filepath}")
+    os.makedirs(dirpath, exist_ok=True)
+    open(filepath, "w").write("Signature: 8a477f597d28d172789f06886806bc55")
+
+
 def create_nonutf8_filename(ctx, dirname=None):
     filename = "\x88"
     os.mkdir(dirname)
