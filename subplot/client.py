@@ -102,3 +102,12 @@ def stdout_matches_file(ctx, filename=None):
     stdout = runcmd_get_stdout(ctx)
     data = open(filename).read()
     assert_eq(stdout, data)
+
+
+def stdout_contains_home_dir_path(ctx, path=None):
+    runcmd_get_stdout = globals()["runcmd_get_stdout"]
+    stdout = runcmd_get_stdout(ctx)
+    wanted = os.path.abspath(os.path.normpath("./" + path))
+    logging.debug(f"stdout_contains_home_dir_path: stdout={stdout!r}")
+    logging.debug(f"stdout_contains_home_dir_path: wanted={wanted!r}")
+    assert wanted in stdout

@@ -1122,6 +1122,29 @@ encrypt: false
 ~~~
 
 
+## Client expands tildes in its configuration file
+
+This scenario verifies that the client expands tildes in pathnames in
+its configuration file.
+
+
+~~~scenario
+given an installed obnam
+and file tilde.yaml
+when I run obnam --config tilde.yaml config
+then stdout contains home directory followed by /important
+then stdout contains home directory followed by /obnam.log
+~~~
+
+~~~{#tilde.yaml .file .yaml .numberLines}
+roots: [~/important]
+log: ~/obnam.log
+server_url: https://backup.example.com
+verify_tls_cert: true
+encrypt: false
+~~~
+
+
 ## Client requires https
 
 This scenario verifies that the client rejects a configuration with a
