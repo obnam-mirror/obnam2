@@ -36,8 +36,11 @@ pub enum GenerationChunkError {
     #[error(transparent)]
     Utf8Error(#[from] std::str::Utf8Error),
 
-    #[error(transparent)]
-    SerdeJsonError(#[from] serde_json::Error),
+    #[error("failed to parse JSON: {0}")]
+    JsonParse(serde_json::Error),
+
+    #[error("failed to serialize to JSON: {0}")]
+    JsonGenerate(serde_json::Error),
 }
 
 /// A result from a chunk operation.
@@ -51,7 +54,7 @@ impl GenerationChunk {
     pub fn from_data_chunk(chunk: &DataChunk) -> GenerationChunkResult<Self> {
         let data = chunk.data();
         let data = std::str::from_utf8(data)?;
-        Ok(serde_json::from_str(data)?)
+        serde_json::from_str(data).map_err(GenerationChunkError::JsonParse)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -67,7 +70,7 @@ impl GenerationChunk {
     }
 
     pub fn to_data_chunk(&self) -> GenerationChunkResult<DataChunk> {
-        let json = serde_json::to_string(self)?;
+        let json = serde_json::to_string(self).map_err(GenerationChunkError::JsonGenerate)?;
         Ok(DataChunk::new(json.as_bytes().to_vec()))
     }
 }

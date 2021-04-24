@@ -29,20 +29,20 @@ pub enum ServerConfigError {
     #[error("server address can't be resolved")]
     BadServerAddress,
 
-    #[error("I/O error for {0}: {1}")]
-    IoError(PathBuf, #[source] std::io::Error),
+    #[error("failed to read configuration file {0}: {1}")]
+    Read(PathBuf, std::io::Error),
 
-    #[error(transparent)]
-    SerdeYamlError(#[from] serde_yaml::Error),
+    #[error("failed to parse configuration file as YAML: {0}")]
+    YamlParse(serde_yaml::Error),
 }
 
 impl ServerConfig {
     pub fn read_config(filename: &Path) -> Result<Self, ServerConfigError> {
         let config = match std::fs::read_to_string(filename) {
             Ok(config) => config,
-            Err(err) => return Err(ServerConfigError::IoError(filename.to_path_buf(), err)),
+            Err(err) => return Err(ServerConfigError::Read(filename.to_path_buf(), err)),
         };
-        let config: Self = serde_yaml::from_str(&config)?;
+        let config: Self = serde_yaml::from_str(&config).map_err(ServerConfigError::YamlParse)?;
         config.check()?;
         Ok(config)
     }

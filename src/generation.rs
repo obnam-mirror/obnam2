@@ -27,11 +27,11 @@ pub enum NascentError {
     #[error(transparent)]
     BackupError(#[from] BackupError),
 
-    #[error(transparent)]
-    RusqliteError(#[from] rusqlite::Error),
+    #[error("SQL transaction error: {0}")]
+    Transaction(rusqlite::Error),
 
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
+    #[error("SQL commit error: {0}")]
+    Commit(rusqlite::Error),
 }
 
 pub type NascentResult<T> = Result<T, NascentError>;
@@ -55,10 +55,10 @@ impl NascentGeneration {
         ids: &[ChunkId],
         reason: Reason,
     ) -> NascentResult<()> {
-        let t = self.conn.transaction()?;
+        let t = self.conn.transaction().map_err(NascentError::Transaction)?;
         self.fileno += 1;
         sql::insert_one(&t, e, self.fileno, ids, reason)?;
-        t.commit()?;
+        t.commit().map_err(NascentError::Commit)?;
         Ok(())
     }
 
@@ -66,7 +66,7 @@ impl NascentGeneration {
         &mut self,
         entries: impl Iterator<Item = BackupResult<(FilesystemEntry, Vec<ChunkId>, Reason)>>,
     ) -> NascentResult<Vec<BackupError>> {
-        let t = self.conn.transaction()?;
+        let t = self.conn.transaction().map_err(NascentError::Transaction)?;
         let mut warnings = vec![];
         for r in entries {
             match r {
@@ -80,7 +80,7 @@ impl NascentGeneration {
                 }
             }
         }
-        t.commit()?;
+        t.commit().map_err(NascentError::Commit)?;
         Ok(warnings)
     }
 }

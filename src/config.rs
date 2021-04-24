@@ -77,11 +77,11 @@ pub enum ClientConfigError {
     #[error("No passwords are set: you may need to run 'obnam init': {0}")]
     PasswordsMissing(PasswordError),
 
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
+    #[error("failed to read configuration file {0}: {1}")]
+    Read(PathBuf, std::io::Error),
 
-    #[error(transparent)]
-    SerdeYamlError(#[from] serde_yaml::Error),
+    #[error("failed to parse configuration file {0} as YAML: {1}")]
+    YamlParse(PathBuf, serde_yaml::Error),
 }
 
 pub type ClientConfigResult<T> = Result<T, ClientConfigError>;
@@ -89,8 +89,10 @@ pub type ClientConfigResult<T> = Result<T, ClientConfigError>;
 impl ClientConfigWithoutPasswords {
     pub fn read_config(filename: &Path) -> ClientConfigResult<Self> {
         trace!("read_config: filename={:?}", filename);
-        let config = std::fs::read_to_string(filename)?;
-        let tentative: TentativeClientConfig = serde_yaml::from_str(&config)?;
+        let config = std::fs::read_to_string(filename)
+            .map_err(|err| ClientConfigError::Read(filename.to_path_buf(), err))?;
+        let tentative: TentativeClientConfig = serde_yaml::from_str(&config)
+            .map_err(|err| ClientConfigError::YamlParse(filename.to_path_buf(), err))?;
         let roots = tentative
             .roots
             .iter()
