@@ -91,21 +91,26 @@ impl ClientConfigWithoutPasswords {
         trace!("read_config: filename={:?}", filename);
         let config = std::fs::read_to_string(filename)?;
         let tentative: TentativeClientConfig = serde_yaml::from_str(&config)?;
-
+        let roots = tentative
+            .roots
+            .iter()
+            .map(|path| expand_tilde(path))
+            .collect();
+        let log = tentative
+            .log
+            .map(|path| expand_tilde(&path))
+            .unwrap_or_else(|| PathBuf::from(DEVNULL));
         let encrypt = tentative.encrypt.or(Some(false)).unwrap();
         let exclude_cache_tag_directories = tentative.exclude_cache_tag_directories.unwrap_or(true);
 
         let config = Self {
-            filename: filename.to_path_buf(),
-            server_url: tentative.server_url,
-            roots: tentative.roots,
-            verify_tls_cert: tentative.verify_tls_cert.or(Some(false)).unwrap(),
             chunk_size: tentative.chunk_size.or(Some(DEFAULT_CHUNK_SIZE)).unwrap(),
-            log: tentative
-                .log
-                .or_else(|| Some(PathBuf::from(DEVNULL)))
-                .unwrap(),
             encrypt,
+            filename: filename.to_path_buf(),
+            roots,
+            server_url: tentative.server_url,
+            verify_tls_cert: tentative.verify_tls_cert.or(Some(false)).unwrap(),
+            log,
             exclude_cache_tag_directories,
         };
 
@@ -124,5 +129,21 @@ impl ClientConfigWithoutPasswords {
             return Err(ClientConfigError::NoBackupRoot);
         }
         Ok(())
+    }
+}
+
+fn expand_tilde(path: &Path) -> PathBuf {
+    if path.starts_with("~/") {
+        if let Some(home) = std::env::var_os("HOME") {
+            let mut expanded = PathBuf::from(home);
+            for comp in path.components().skip(1) {
+                expanded.push(comp);
+            }
+            expanded
+        } else {
+            path.to_path_buf()
+        }
+    } else {
+        path.to_path_buf()
     }
 }

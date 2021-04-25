@@ -28,3 +28,6 @@
 
 - then: "stdout matches file {filename}"
   function: stdout_matches_file
+
+- then: "stdout contains home directory followed by {path}"
+  function: stdout_contains_home_dir_path
