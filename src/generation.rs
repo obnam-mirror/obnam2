@@ -197,7 +197,7 @@ impl LocalGeneration {
     }
 
     pub fn files(&self) -> LocalGenerationResult<Vec<LocalGenerationResult<BackedUpFile>>> {
-        sql::files(&self.conn)
+        Ok(sql::files(&self.conn)?.iter()?.collect())
     }
 
     pub fn chunkids(&self, fileno: FileId) -> LocalGenerationResult<Vec<ChunkId>> {
@@ -221,7 +221,7 @@ mod sql {
     use crate::backup_reason::Reason;
     use crate::chunkid::ChunkId;
     use crate::fsentry::FilesystemEntry;
-    use rusqlite::{params, Connection, OpenFlags, Row, Transaction};
+    use rusqlite::{params, Connection, OpenFlags, Row, Statement, Transaction};
     use std::os::unix::ffi::OsStrExt;
     use std::path::Path;
 
@@ -289,24 +289,37 @@ mod sql {
         Ok(count)
     }
 
-    pub fn files(
-        conn: &Connection,
-    ) -> LocalGenerationResult<Vec<LocalGenerationResult<BackedUpFile>>> {
-        let mut stmt = conn.prepare("SELECT * FROM files")?;
-        let iter = stmt.query_map(params![], |row| row_to_entry(row))?;
-        let mut files: Vec<LocalGenerationResult<BackedUpFile>> = vec![];
-        for x in iter {
-            match x {
-                Ok((fileno, json, reason)) => {
-                    let result = serde_json::from_str(&json)
-                        .map(|entry| BackedUpFile::new(fileno, entry, &reason))
-                        .map_err(|e| e.into());
-                    files.push(result)
-                }
-                Err(e) => files.push(Err(e.into())),
-            }
+    // A pointer to an iterator over values of type `LocalGenerationResult<T>`. The iterator is
+    // only valid for the lifetime 'stmt.
+    //
+    // The fact that it's a pointer (`Box<dyn ...>`) means we don't care what the actual type of
+    // the iterator is, and who produces it.
+    type SqlResultsIterator<'stmt, T> = Box<dyn Iterator<Item = LocalGenerationResult<T>> + 'stmt>;
+
+    pub struct SqlResults<'conn> {
+        stmt: Statement<'conn>,
+    }
+
+    impl<'conn> SqlResults<'conn> {
+        fn new(conn: &'conn Connection, statement: &str) -> LocalGenerationResult<Self> {
+            let stmt = conn.prepare(statement)?;
+            Ok(Self { stmt })
         }
-        Ok(files)
+
+        pub fn iter(&'_ mut self) -> LocalGenerationResult<SqlResultsIterator<'_, BackedUpFile>> {
+            let iter = self.stmt.query_map(params![], |row| row_to_entry(row))?;
+            let iter = iter.map(|x| match x {
+                Ok((fileno, json, reason)) => serde_json::from_str(&json)
+                    .map(|entry| BackedUpFile::new(fileno, entry, &reason))
+                    .map_err(|e| e.into()),
+                Err(e) => Err(e.into()),
+            });
+            Ok(iter)
+        }
+    }
+
+    pub fn files(conn: &Connection) -> LocalGenerationResult<SqlResults<'_>> {
+        SqlResults::new(conn, "SELECT * FROM files")
     }
 
     pub fn chunkids(conn: &Connection, fileno: FileId) -> LocalGenerationResult<Vec<ChunkId>> {
