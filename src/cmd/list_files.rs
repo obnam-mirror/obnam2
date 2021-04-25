@@ -23,6 +23,7 @@ impl ListFiles {
 
         let gen = client.fetch_generation(&gen_id, temp.path())?;
         for file in gen.files()? {
+            let file = file?;
             println!("{}", format_entry(&file.entry(), file.reason()));
         }
 

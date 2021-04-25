@@ -23,14 +23,17 @@ impl ShowGeneration {
         let gen = client.fetch_generation(&gen_id, temp.path())?;
         let files = gen.files()?;
 
-        let total_bytes = files.iter().fold(0, |acc, file| {
-            let e = file.entry();
-            if e.kind() == FilesystemKind::Regular {
-                acc + file.entry().len()
-            } else {
-                acc
-            }
+        let total_bytes = files.into_iter().try_fold(0, |acc, file| {
+            file.map(|file| {
+                let e = file.entry();
+                if e.kind() == FilesystemKind::Regular {
+                    acc + e.len()
+                } else {
+                    acc
+                }
+            })
         });
+        let total_bytes = total_bytes?;
 
         println!("generation-id: {}", gen_id);
         println!("file-count: {}", gen.file_count()?);

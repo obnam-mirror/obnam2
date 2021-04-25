@@ -41,6 +41,7 @@ impl Restore {
         info!("restoring {} files", gen.file_count()?);
         let progress = create_progress_bar(gen.file_count()?, true);
         for file in gen.files()? {
+            let file = file?;
             match file.reason() {
                 Reason::FileError => (),
                 _ => restore_generation(
@@ -54,6 +55,7 @@ impl Restore {
             }
         }
         for file in gen.files()? {
+            let file = file?;
             if file.entry().is_dir() {
                 restore_directory_metadata(file.entry(), &self.to)?;
             }

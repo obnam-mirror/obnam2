@@ -196,7 +196,7 @@ impl LocalGeneration {
         sql::file_count(&self.conn)
     }
 
-    pub fn files(&self) -> LocalGenerationResult<Vec<BackedUpFile>> {
+    pub fn files(&self) -> LocalGenerationResult<Vec<LocalGenerationResult<BackedUpFile>>> {
         sql::files(&self.conn)
     }
 
@@ -289,14 +289,22 @@ mod sql {
         Ok(count)
     }
 
-    pub fn files(conn: &Connection) -> LocalGenerationResult<Vec<BackedUpFile>> {
+    pub fn files(
+        conn: &Connection,
+    ) -> LocalGenerationResult<Vec<LocalGenerationResult<BackedUpFile>>> {
         let mut stmt = conn.prepare("SELECT * FROM files")?;
         let iter = stmt.query_map(params![], |row| row_to_entry(row))?;
-        let mut files = vec![];
+        let mut files: Vec<LocalGenerationResult<BackedUpFile>> = vec![];
         for x in iter {
-            let (fileno, json, reason) = x?;
-            let entry = serde_json::from_str(&json)?;
-            files.push(BackedUpFile::new(fileno, entry, &reason));
+            match x {
+                Ok((fileno, json, reason)) => {
+                    let result = serde_json::from_str(&json)
+                        .map(|entry| BackedUpFile::new(fileno, entry, &reason))
+                        .map_err(|e| e.into());
+                    files.push(result)
+                }
+                Err(e) => files.push(Err(e.into())),
+            }
         }
         Ok(files)
     }
