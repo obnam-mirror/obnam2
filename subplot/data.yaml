@@ -10,6 +10,9 @@
 - given: "a named pipe {filename}"
   function: create_fifo
 
+- given: a cache directory tag in {dirpath}
+  function: create_cachedir_tag_in
+
 - given: "a file in {dirname} with a non-UTF8 filename"
   function: create_nonutf8_filename
 

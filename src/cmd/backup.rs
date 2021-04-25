@@ -65,7 +65,7 @@ fn initial_backup(
     let count = {
         let mut new = NascentGeneration::create(newtemp.path())?;
         for root in &config.roots {
-            let iter = FsIterator::new(root);
+            let iter = FsIterator::new(root, config.exclude_cache_tag_directories);
             let warnings = new.insert_iter(iter.map(|entry| run.backup(entry)))?;
             for w in warnings {
                 all_warnings.push(w);
@@ -95,7 +95,7 @@ fn incremental_backup(
         run.start_backup(&old)?;
         let mut new = NascentGeneration::create(newtemp.path())?;
         for root in &config.roots {
-            let iter = FsIterator::new(root);
+            let iter = FsIterator::new(root, config.exclude_cache_tag_directories);
             let warnings = new.insert_iter(iter.map(|entry| run.backup(entry, &old)))?;
             for w in warnings {
                 all_warnings.push(w);

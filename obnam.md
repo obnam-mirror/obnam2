@@ -1519,6 +1519,66 @@ roots:
 - live/two
 ~~~
 
+## CACHEDIR.TAG support
+
+### By default, skip directories containing CACHEDIR.TAG
+
+This scenario verifies that Obnam client skips the contents of directories that
+contain [CACHEDIR.TAG][], but backs up the tag itself.
+
+[CACHEDIR.TAG]: https://bford.info/cachedir/
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on client.yaml
+and a file live/ignored/data.dat containing some random data
+and a cache directory tag in live/ignored
+and a file live/not_ignored/data.dat containing some random data
+and a manifest of the directory live/not_ignored in initial.yaml
+when I run obnam backup
+then backup generation is GEN
+when I invoke obnam restore <GEN> rest
+given a manifest of the directory live/not_ignored restored in rest in restored.yaml
+then manifests initial.yaml and restored.yaml match
+then file rest/live/ignored/CACHEDIR.TAG contains "Signature: 8a477f597d28d172789f06886806bc55"
+then file rest/live/ignored/data.dat does not exist
+~~~
+
+~~~{#client.yaml .file .yaml .numberLines}
+roots:
+- live
+~~~
+
+### Can ignore CACHEDIR.TAGs if told to do so
+
+This scenario verifies that when `exclude_cache_tag_directories` setting is
+disabled, Obnam client backs up directories even if they
+contain [CACHEDIR.TAG][].
+
+[CACHEDIR.TAG]: https://bford.info/cachedir/
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on client_includes_cachedirs.yaml
+and a file live/ignored/data.dat containing some random data
+and a cache directory tag in live/ignored
+and a file live/not_ignored/data.dat containing some random data
+and a manifest of the directory live in initial.yaml
+when I run obnam backup
+then backup generation is GEN
+when I invoke obnam restore <GEN> rest
+given a manifest of the directory live restored in rest in restored.yaml
+then manifests initial.yaml and restored.yaml match
+~~~
+
+~~~{#client_includes_cachedirs.yaml .file .yaml .numberLines}
+roots:
+- live
+exclude_cache_tag_directories: false
+~~~
+
 
 # Acceptance criteria for backup encryption
 
