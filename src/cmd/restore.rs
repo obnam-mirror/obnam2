@@ -40,7 +40,7 @@ impl Restore {
         let gen = client.fetch_generation(&gen_id, temp.path())?;
         info!("restoring {} files", gen.file_count()?);
         let progress = create_progress_bar(gen.file_count()?, true);
-        for file in gen.files()? {
+        for file in gen.files()?.iter()? {
             let file = file?;
             match file.reason() {
                 Reason::FileError => (),
@@ -54,7 +54,7 @@ impl Restore {
                 )?,
             }
         }
-        for file in gen.files()? {
+        for file in gen.files()?.iter()? {
             let file = file?;
             if file.entry().is_dir() {
                 restore_directory_metadata(file.entry(), &self.to)?;

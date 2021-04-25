@@ -21,9 +21,10 @@ impl ShowGeneration {
         let genlist = client.list_generations()?;
         let gen_id: String = genlist.resolve(&self.gen_id)?;
         let gen = client.fetch_generation(&gen_id, temp.path())?;
-        let files = gen.files()?;
+        let mut files = gen.files()?;
+        let mut files = files.iter()?;
 
-        let total_bytes = files.into_iter().try_fold(0, |acc, file| {
+        let total_bytes = files.try_fold(0, |acc, file| {
             file.map(|file| {
                 let e = file.entry();
                 if e.kind() == FilesystemKind::Regular {

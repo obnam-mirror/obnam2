@@ -196,8 +196,8 @@ impl LocalGeneration {
         sql::file_count(&self.conn)
     }
 
-    pub fn files(&self) -> LocalGenerationResult<Vec<LocalGenerationResult<BackedUpFile>>> {
-        Ok(sql::files(&self.conn)?.iter()?.collect())
+    pub fn files(&self) -> LocalGenerationResult<sql::SqlResults> {
+        sql::files(&self.conn)
     }
 
     pub fn chunkids(&self, fileno: FileId) -> LocalGenerationResult<Vec<ChunkId>> {
