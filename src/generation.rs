@@ -200,7 +200,7 @@ impl LocalGeneration {
         sql::files(&self.conn)
     }
 
-    pub fn chunkids(&self, fileno: FileId) -> LocalGenerationResult<Vec<ChunkId>> {
+    pub fn chunkids(&self, fileno: FileId) -> LocalGenerationResult<sql::SqlResults<ChunkId>> {
         sql::chunkids(&self.conn, fileno)
     }
 
@@ -359,15 +359,22 @@ mod sql {
         )
     }
 
-    pub fn chunkids(conn: &Connection, fileno: FileId) -> LocalGenerationResult<Vec<ChunkId>> {
-        let mut stmt = conn.prepare("SELECT chunkid FROM chunks WHERE fileno = ?1")?;
-        let iter = stmt.query_map(params![fileno], |row| row.get(0))?;
-        let mut ids: Vec<ChunkId> = vec![];
-        for x in iter {
-            let fileno: String = x?;
-            ids.push(ChunkId::from(&fileno));
-        }
-        Ok(ids)
+    pub fn chunkids(
+        conn: &Connection,
+        fileno: FileId,
+    ) -> LocalGenerationResult<SqlResults<ChunkId>> {
+        SqlResults::new(
+            conn,
+            "SELECT chunkid FROM chunks WHERE fileno = ?1",
+            Box::new(move |stmt| {
+                let iter = stmt.query_map(params![fileno], |row| row.get(0))?;
+                let iter = iter.map(|x| {
+                    let fileno: String = x?;
+                    Ok(ChunkId::from(&fileno))
+                });
+                Ok(Box::new(iter))
+            }),
+        )
     }
 
     pub fn get_file(

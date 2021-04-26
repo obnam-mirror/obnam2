@@ -149,7 +149,11 @@ impl<'a> IncrementalBackup<'a> {
                     Reason::Unchanged | Reason::Skipped | Reason::FileError => {
                         let fileno = old.get_fileno(&entry.pathbuf())?;
                         let ids = if let Some(fileno) = fileno {
-                            old.chunkids(fileno)?
+                            let mut ids = vec![];
+                            for id in old.chunkids(fileno)?.iter()? {
+                                ids.push(id?);
+                            }
+                            ids
                         } else {
                             vec![]
                         };

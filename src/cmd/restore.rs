@@ -172,7 +172,8 @@ fn restore_regular(
     std::fs::create_dir_all(parent)?;
     {
         let mut file = std::fs::File::create(path)?;
-        for chunkid in gen.chunkids(fileid)? {
+        for chunkid in gen.chunkids(fileid)?.iter()? {
+            let chunkid = chunkid?;
             let chunk = client.fetch_chunk(&chunkid)?;
             file.write_all(chunk.data())?;
         }
