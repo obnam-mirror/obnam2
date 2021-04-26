@@ -129,6 +129,24 @@ addressed later.
 The mitigation technique against this threat is to encrypt the live
 data and its metadata before uploading it to the server.
 
+## An attacker with access to live data can stealthily exclude files from the backup
+
+This threat arises from Obnam's support for [CACHEDIR.TAG][] files. As the spec
+itself says in the "Security Considerations" section:
+
+> "Blind" use of cache directory tags in automatic system backups could
+> potentially increase the damage that intruders or malware could cause to
+> a system. A user or system administrator might be substantially less likely to
+> notice the malicious insertion of a CACHDIR.TAG into an important directory
+> than the outright deletion of that directory, for example, causing the
+> contents of that directory to be omitted from regular backups.
+
+For now, the only mitigation is a setting called
+`exclude_cache_tag_directories`, which users can disable if they want to avoid
+this threat.
+
+[CACHEDIR.TAG]: https://bford.info/cachedir/
+
 # Software architecture
 
 ## Effects of requirements
