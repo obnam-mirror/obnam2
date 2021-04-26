@@ -196,7 +196,7 @@ impl LocalGeneration {
         sql::file_count(&self.conn)
     }
 
-    pub fn files(&self) -> LocalGenerationResult<sql::SqlResults> {
+    pub fn files(&self) -> LocalGenerationResult<sql::SqlResults<BackedUpFile>> {
         sql::files(&self.conn)
     }
 
@@ -289,37 +289,74 @@ mod sql {
         Ok(count)
     }
 
-    // A pointer to an iterator over values of type `LocalGenerationResult<T>`. The iterator is
-    // only valid for the lifetime 'stmt.
+    // A pointer to a "fallible iterator" over values of type `T`, which is to say it's an iterator
+    // over values of type `LocalGenerationResult<T>`. The iterator is only valid for the lifetime
+    // 'stmt.
     //
     // The fact that it's a pointer (`Box<dyn ...>`) means we don't care what the actual type of
     // the iterator is, and who produces it.
     type SqlResultsIterator<'stmt, T> = Box<dyn Iterator<Item = LocalGenerationResult<T>> + 'stmt>;
 
-    pub struct SqlResults<'conn> {
+    // A pointer to a function which, when called on a prepared SQLite statement, would create
+    // a "fallible iterator" over values of type `ItemT`. (See above for an explanation of what
+    // a "fallible iterator" is.)
+    //
+    // The iterator is only valid for the lifetime of the associated SQLite statement; we
+    // call this lifetime 'stmt, and use it both both on the reference and the returned iterator.
+    //
+    // Now we're in a pickle: all named lifetimes have to be declared _somewhere_, but we can't add
+    // 'stmt to the signature of `CreateIterFn` because then we'll have to specify it when we
+    // define the function. Obviously, at that point we won't yet have a `Statement`, and thus we
+    // would have no idea what its lifetime is going to be. So we can't put the 'stmt lifetime into
+    // the signature of `CreateIterFn`.
+    //
+    // That's what `for<'stmt>` is for. This is a so-called ["higher-rank trait bound"][hrtb], and
+    // it enables us to say that a function is valid for *some* lifetime 'stmt that we pass into it
+    // at the call site. It lets Rust continue to track lifetimes even though `CreateIterFn`
+    // interferes by "hiding" the 'stmt lifetime from its signature.
+    //
+    // [hrtb]: https://doc.rust-lang.org/nomicon/hrtb.html
+    type CreateIterFn<'conn, ItemT> = Box<
+        dyn for<'stmt> Fn(
+            &'stmt mut Statement<'conn>,
+        ) -> LocalGenerationResult<SqlResultsIterator<'stmt, ItemT>>,
+    >;
+
+    pub struct SqlResults<'conn, ItemT> {
         stmt: Statement<'conn>,
+        create_iter: CreateIterFn<'conn, ItemT>,
     }
 
-    impl<'conn> SqlResults<'conn> {
-        fn new(conn: &'conn Connection, statement: &str) -> LocalGenerationResult<Self> {
+    impl<'conn, ItemT> SqlResults<'conn, ItemT> {
+        fn new(
+            conn: &'conn Connection,
+            statement: &str,
+            create_iter: CreateIterFn<'conn, ItemT>,
+        ) -> LocalGenerationResult<Self> {
             let stmt = conn.prepare(statement)?;
-            Ok(Self { stmt })
+            Ok(Self { stmt, create_iter })
         }
 
-        pub fn iter(&'_ mut self) -> LocalGenerationResult<SqlResultsIterator<'_, BackedUpFile>> {
-            let iter = self.stmt.query_map(params![], |row| row_to_entry(row))?;
-            let iter = iter.map(|x| match x {
-                Ok((fileno, json, reason)) => serde_json::from_str(&json)
-                    .map(|entry| BackedUpFile::new(fileno, entry, &reason))
-                    .map_err(|e| e.into()),
-                Err(e) => Err(e.into()),
-            });
-            Ok(iter)
+        pub fn iter(&'_ mut self) -> LocalGenerationResult<SqlResultsIterator<'_, ItemT>> {
+            (self.create_iter)(&mut self.stmt)
         }
     }
 
-    pub fn files(conn: &Connection) -> LocalGenerationResult<SqlResults<'_>> {
-        SqlResults::new(conn, "SELECT * FROM files")
+    pub fn files(conn: &Connection) -> LocalGenerationResult<SqlResults<BackedUpFile>> {
+        SqlResults::new(
+            conn,
+            "SELECT * FROM files",
+            Box::new(|stmt| {
+                let iter = stmt.query_map(params![], |row| row_to_entry(row))?;
+                let iter = iter.map(|x| match x {
+                    Ok((fileno, json, reason)) => serde_json::from_str(&json)
+                        .map(|entry| BackedUpFile::new(fileno, entry, &reason))
+                        .map_err(|e| e.into()),
+                    Err(e) => Err(e.into()),
+                });
+                Ok(Box::new(iter))
+            }),
+        )
     }
 
     pub fn chunkids(conn: &Connection, fileno: FileId) -> LocalGenerationResult<Vec<ChunkId>> {
