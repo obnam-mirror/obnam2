@@ -10,11 +10,11 @@ pub struct FsIterator {
 
 #[derive(Debug, thiserror::Error)]
 pub enum FsIterError {
-    #[error(transparent)]
-    WalkError(#[from] walkdir::Error),
+    #[error("walkdir failed: {0}")]
+    WalkDir(walkdir::Error),
 
-    #[error("I/O error on {0}: {1}")]
-    IoError(PathBuf, #[source] std::io::Error),
+    #[error("failed to get file system metadata for {0}: {1}")]
+    Metadata(PathBuf, std::io::Error),
 
     #[error(transparent)]
     FsEntryError(#[from] FsEntryError),
@@ -110,7 +110,7 @@ impl Iterator for SkipCachedirs {
             debug!("walkdir found: {:?}", next);
             match next {
                 None => None,
-                Some(Err(err)) => Some(Err(err.into())),
+                Some(Err(err)) => Some(Err(FsIterError::WalkDir(err))),
                 Some(Ok(entry)) => {
                     self.try_enqueue_cachedir_tag(&entry);
                     Some(new_entry(entry.path()))
@@ -127,7 +127,7 @@ fn new_entry(path: &Path) -> FsIterResult<FilesystemEntry> {
         Ok(meta) => meta,
         Err(err) => {
             warn!("failed to get metadata for {}: {}", path.display(), err);
-            return Err(FsIterError::IoError(path.to_path_buf(), err));
+            return Err(FsIterError::Metadata(path.to_path_buf(), err));
         }
     };
     let entry = FilesystemEntry::from_metadata(path, &meta)?;

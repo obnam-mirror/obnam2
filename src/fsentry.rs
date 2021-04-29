@@ -52,8 +52,8 @@ pub enum FsEntryError {
     #[error("Unknown file kind {0}")]
     UnknownFileKindCode(u8),
 
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
+    #[error("failed to read symbolic link target {0}: {1}")]
+    ReadLink(PathBuf, std::io::Error),
 }
 
 pub type FsEntryResult<T> = Result<T, FsEntryError>;
@@ -64,13 +64,8 @@ impl FilesystemEntry {
         let kind = FilesystemKind::from_file_type(meta.file_type());
         let symlink_target = if kind == FilesystemKind::Symlink {
             debug!("reading symlink target for {:?}", path);
-            let target = match read_link(path) {
-                Ok(x) => x,
-                Err(err) => {
-                    error!("read_link failed: {}", err);
-                    return Err(err.into());
-                }
-            };
+            let target =
+                read_link(path).map_err(|err| FsEntryError::ReadLink(path.to_path_buf(), err))?;
             Some(target)
         } else {
             None

@@ -15,11 +15,11 @@ use reqwest::blocking::Client;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ClientError {
-    #[error("Server successful response to creating chunk lacked chunk id")]
+    #[error("Server response claimed it had created a chunk, but lacked chunk id")]
     NoCreatedChunkId,
 
     #[error("Server does not have chunk {0}")]
@@ -27,6 +27,12 @@ pub enum ClientError {
 
     #[error("Server does not have generation {0}")]
     GenerationNotFound(String),
+
+    #[error("Server response did not have a 'chunk-meta' header for chunk {0}")]
+    NoChunkMeta(ChunkId),
+
+    #[error("Wrong checksum for chunk {0}, got {1}, expected {2}")]
+    WrongChecksum(ChunkId, String, String),
 
     #[error(transparent)]
     GenerationChunkError(#[from] GenerationChunkError),
@@ -37,26 +43,32 @@ pub enum ClientError {
     #[error(transparent)]
     ChunkerError(#[from] ChunkerError),
 
-    #[error("Server response did not have a 'chunk-meta' header for chunk {0}")]
-    NoChunkMeta(ChunkId),
+    #[error("couldn't convert response chunk-meta header to string: {0}")]
+    MetaHeaderToString(reqwest::header::ToStrError),
 
-    #[error("Wrong checksum for chunk {0}, got {1}, expected {2}")]
-    WrongChecksum(ChunkId, String, String),
+    #[error("error from reqwest library: {0}")]
+    ReqwestError(reqwest::Error),
 
-    #[error(transparent)]
-    ReqwestError(#[from] reqwest::Error),
+    #[error("lookup by chunk checksum failed: {0}")]
+    ChunkExists(reqwest::Error),
 
-    #[error(transparent)]
-    ReqwestToStrError(#[from] reqwest::header::ToStrError),
+    #[error("failed to parse JSON: {0}")]
+    JsonParse(serde_json::Error),
 
-    #[error(transparent)]
-    SerdeJsonError(#[from] serde_json::Error),
+    #[error("failed to generate JSON: {0}")]
+    JsonGenerate(serde_json::Error),
 
-    #[error(transparent)]
-    SerdeYamlError(#[from] serde_yaml::Error),
+    #[error("failed to parse YAML: {0}")]
+    YamlParse(serde_yaml::Error),
 
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
+    #[error("failed to open file {0}: {1}")]
+    FileOpen(PathBuf, std::io::Error),
+
+    #[error("failed to create file {0}: {1}")]
+    FileCreate(PathBuf, std::io::Error),
+
+    #[error("failed to write to file {0}: {1}")]
+    FileWrite(PathBuf, std::io::Error),
 }
 
 pub type ClientResult<T> = Result<T, ClientError>;
@@ -72,7 +84,8 @@ impl BackupClient {
         let config = config.config();
         let client = Client::builder()
             .danger_accept_invalid_certs(!config.verify_tls_cert)
-            .build()?;
+            .build()
+            .map_err(ClientError::ReqwestError)?;
         Ok(Self {
             client,
             base_url: config.server_url.to_string(),
@@ -110,8 +123,9 @@ impl BackupClient {
 
     fn read_file(&self, filename: &Path, size: usize) -> ClientResult<Vec<ChunkId>> {
         info!("upload file {}", filename.display());
-        let file = std::fs::File::open(filename)?;
-        let chunker = Chunker::new(size, file);
+        let file = std::fs::File::open(filename)
+            .map_err(|err| ClientError::FileOpen(filename.to_path_buf(), err))?;
+        let chunker = Chunker::new(size, file, filename);
         let chunk_ids = self.upload_new_file_chunks(chunker)?;
         Ok(chunk_ids)
     }
@@ -130,17 +144,19 @@ impl BackupClient {
             .client
             .get(&self.chunks_url())
             .query(&[("sha256", meta.sha256())])
-            .build()?;
+            .build()
+            .map_err(ClientError::ReqwestError)?;
 
-        let res = self.client.execute(req)?;
+        let res = self.client.execute(req).map_err(ClientError::ChunkExists)?;
         debug!("has_chunk: status={}", res.status());
         let has = if res.status() != 200 {
             debug!("has_chunk: error from server");
             None
         } else {
-            let text = res.text()?;
+            let text = res.text().map_err(ClientError::ReqwestError)?;
             debug!("has_chunk: text={:?}", text);
-            let hits: HashMap<String, ChunkMeta> = serde_json::from_str(&text)?;
+            let hits: HashMap<String, ChunkMeta> =
+                serde_json::from_str(&text).map_err(ClientError::JsonParse)?;
             debug!("has_chunk: hits={:?}", hits);
             let mut iter = hits.iter();
             if let Some((chunk_id, _)) = iter.next() {
@@ -161,9 +177,10 @@ impl BackupClient {
             .post(&self.chunks_url())
             .header("chunk-meta", meta.to_json())
             .body(chunk.data().to_vec())
-            .send()?;
+            .send()
+            .map_err(ClientError::ReqwestError)?;
         debug!("upload_chunk: res={:?}", res);
-        let res: HashMap<String, String> = res.json()?;
+        let res: HashMap<String, String> = res.json().map_err(ClientError::ReqwestError)?;
         let chunk_id = if let Some(chunk_id) = res.get("chunk_id") {
             debug!("upload_chunk: id={}", chunk_id);
             chunk_id.parse().unwrap()
@@ -179,10 +196,11 @@ impl BackupClient {
             .client
             .post(&self.chunks_url())
             .header("chunk-meta", meta.to_json())
-            .body(serde_json::to_string(&gen)?)
-            .send()?;
+            .body(serde_json::to_string(&gen).map_err(ClientError::JsonGenerate)?)
+            .send()
+            .map_err(ClientError::ReqwestError)?;
         debug!("upload_chunk: res={:?}", res);
-        let res: HashMap<String, String> = res.json()?;
+        let res: HashMap<String, String> = res.json().map_err(ClientError::ReqwestError)?;
         let chunk_id = if let Some(chunk_id) = res.get("chunk_id") {
             debug!("upload_chunk: id={}", chunk_id);
             chunk_id.parse().unwrap()
@@ -213,12 +231,20 @@ impl BackupClient {
     pub fn list_generations(&self) -> ClientResult<GenerationList> {
         let url = format!("{}?generation=true", &self.chunks_url());
         trace!("list_generations: url={:?}", url);
-        let req = self.client.get(&url).build()?;
-        let res = self.client.execute(req)?;
+        let req = self
+            .client
+            .get(&url)
+            .build()
+            .map_err(ClientError::ReqwestError)?;
+        let res = self
+            .client
+            .execute(req)
+            .map_err(ClientError::ReqwestError)?;
         debug!("list_generations: status={}", res.status());
-        let body = res.bytes()?;
+        let body = res.bytes().map_err(ClientError::ReqwestError)?;
         debug!("list_generations: body={:?}", body);
-        let map: HashMap<String, ChunkMeta> = serde_yaml::from_slice(&body)?;
+        let map: HashMap<String, ChunkMeta> =
+            serde_yaml::from_slice(&body).map_err(ClientError::YamlParse)?;
         debug!("list_generations: map={:?}", map);
         let finished = map
             .iter()
@@ -231,8 +257,15 @@ impl BackupClient {
         info!("fetch chunk {}", chunk_id);
 
         let url = format!("{}/{}", &self.chunks_url(), chunk_id);
-        let req = self.client.get(&url).build()?;
-        let res = self.client.execute(req)?;
+        let req = self
+            .client
+            .get(&url)
+            .build()
+            .map_err(ClientError::ReqwestError)?;
+        let res = self
+            .client
+            .execute(req)
+            .map_err(ClientError::ReqwestError)?;
         if res.status() != 200 {
             let err = ClientError::ChunkNotFound(chunk_id.to_string());
             error!("fetching chunk {} failed: {}", chunk_id, err);
@@ -246,12 +279,15 @@ impl BackupClient {
             error!("fetching chunk {} failed: {}", chunk_id, err);
             return Err(err);
         }
-        let meta = meta.unwrap().to_str()?;
+        let meta = meta
+            .unwrap()
+            .to_str()
+            .map_err(ClientError::MetaHeaderToString)?;
         debug!("fetching chunk {}: meta={:?}", chunk_id, meta);
-        let meta: ChunkMeta = serde_json::from_str(meta)?;
+        let meta: ChunkMeta = serde_json::from_str(meta).map_err(ClientError::JsonParse)?;
         debug!("fetching chunk {}: meta={:?}", chunk_id, meta);
 
-        let body = res.bytes()?;
+        let body = res.bytes().map_err(ClientError::ReqwestError)?;
         let body = body.to_vec();
         let actual = sha256(&body);
         if actual != meta.sha256() {
@@ -277,10 +313,13 @@ impl BackupClient {
         let gen = self.fetch_generation_chunk(gen_id)?;
 
         // Fetch the SQLite file, storing it in the named file.
-        let mut dbfile = File::create(&dbname)?;
+        let mut dbfile = File::create(&dbname)
+            .map_err(|err| ClientError::FileCreate(dbname.to_path_buf(), err))?;
         for id in gen.chunk_ids() {
             let chunk = self.fetch_chunk(id)?;
-            dbfile.write_all(chunk.data())?;
+            dbfile
+                .write_all(chunk.data())
+                .map_err(|err| ClientError::FileWrite(dbname.to_path_buf(), err))?;
         }
         info!("downloaded generation to {}", dbname.display());
 

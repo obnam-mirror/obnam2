@@ -96,14 +96,26 @@ pub enum RestoreError {
     #[error(transparent)]
     StripPrefixError(#[from] StripPrefixError),
 
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
+    #[error("failed to create directory {0}: {1}")]
+    CreateDirs(PathBuf, std::io::Error),
 
-    #[error(transparent)]
-    SerdeYamlError(#[from] serde_yaml::Error),
+    #[error("failed to create file {0}: {1}")]
+    CreateFile(PathBuf, std::io::Error),
 
-    #[error(transparent)]
-    NulError(#[from] std::ffi::NulError),
+    #[error("failed to write file {0}: {1}")]
+    WriteFile(PathBuf, std::io::Error),
+
+    #[error("failed to create symbolic link {0}: {1}")]
+    Symlink(PathBuf, std::io::Error),
+
+    #[error("failed to create UNIX domain socket {0}: {1}")]
+    UnixBind(PathBuf, std::io::Error),
+
+    #[error("failed to set permissions for {0}: {1}")]
+    Chmod(PathBuf, std::io::Error),
+
+    #[error("failed to set timestamp for {0}: {1}")]
+    SetTimestamp(PathBuf, std::io::Error),
 }
 
 pub type RestoreResult<T> = Result<T, RestoreError>;
@@ -133,7 +145,8 @@ fn restore_generation(
 
 fn restore_directory(path: &Path) -> RestoreResult<()> {
     debug!("restoring directory {}", path.display());
-    std::fs::create_dir_all(path)?;
+    std::fs::create_dir_all(path)
+        .map_err(|err| RestoreError::CreateDirs(path.to_path_buf(), err))?;
     Ok(())
 }
 
@@ -169,13 +182,16 @@ fn restore_regular(
     debug!("restoring regular {}", path.display());
     let parent = path.parent().unwrap();
     debug!("  mkdir {}", parent.display());
-    std::fs::create_dir_all(parent)?;
+    std::fs::create_dir_all(parent)
+        .map_err(|err| RestoreError::CreateDirs(parent.to_path_buf(), err))?;
     {
-        let mut file = std::fs::File::create(path)?;
+        let mut file = std::fs::File::create(path)
+            .map_err(|err| RestoreError::CreateFile(path.to_path_buf(), err))?;
         for chunkid in gen.chunkids(fileid)?.iter()? {
             let chunkid = chunkid?;
             let chunk = client.fetch_chunk(&chunkid)?;
-            file.write_all(chunk.data())?;
+            file.write_all(chunk.data())
+                .map_err(|err| RestoreError::WriteFile(path.to_path_buf(), err))?;
         }
         restore_metadata(path, entry)?;
     }
@@ -188,16 +204,18 @@ fn restore_symlink(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
     let parent = path.parent().unwrap();
     debug!("  mkdir {}", parent.display());
     if !parent.exists() {
-        std::fs::create_dir_all(parent)?;
+        std::fs::create_dir_all(parent)
+            .map_err(|err| RestoreError::CreateDirs(parent.to_path_buf(), err))?;
     }
-    symlink(entry.symlink_target().unwrap(), path)?;
+    symlink(entry.symlink_target().unwrap(), path)
+        .map_err(|err| RestoreError::Symlink(path.to_path_buf(), err))?;
     debug!("restored symlink {}", path.display());
     Ok(())
 }
 
 fn restore_socket(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
     debug!("creating Unix domain socket {:?}", path);
-    UnixListener::bind(path)?;
+    UnixListener::bind(path).map_err(|err| RestoreError::UnixBind(path.to_path_buf(), err))?;
     restore_metadata(path, entry)?;
     Ok(())
 }
@@ -230,6 +248,7 @@ fn restore_metadata(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
     let times = [atime, mtime];
     let times: *const timespec = &times[0];
 
+    let pathbuf = path.to_path_buf();
     let path = path_to_cstring(path);
 
     // We have to use unsafe here to be able call the libc functions
@@ -239,14 +258,14 @@ fn restore_metadata(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
         if chmod(path.as_ptr(), entry.mode()) == -1 {
             let error = Error::last_os_error();
             error!("chmod failed on {:?}", path);
-            return Err(error.into());
+            return Err(RestoreError::Chmod(pathbuf, error));
         }
 
         debug!("utimens {:?}", path);
         if utimensat(AT_FDCWD, path.as_ptr(), times, 0) == -1 {
             let error = Error::last_os_error();
             error!("utimensat failed on {:?}", path);
-            return Err(error.into());
+            return Err(RestoreError::SetTimestamp(pathbuf, error));
         }
     }
     Ok(())
