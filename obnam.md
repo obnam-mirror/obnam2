@@ -1704,16 +1704,16 @@ bindings:
   - subplot/server.yaml
   - subplot/client.yaml
   - subplot/data.yaml
-  - subplot/vendored/files.yaml
-  - subplot/vendored/runcmd.yaml
+  - lib/files.yaml
+  - lib/runcmd.yaml
 template: python
 functions:
   - subplot/server.py
   - subplot/client.py
   - subplot/data.py
-  - subplot/vendored/daemon.py
-  - subplot/vendored/files.py
-  - subplot/vendored/runcmd.py
+  - lib/daemon.py
+  - lib/files.py
+  - lib/runcmd.py
 classes:
   - json
 abstract: |
