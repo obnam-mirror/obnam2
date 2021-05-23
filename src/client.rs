@@ -74,21 +74,14 @@ pub enum ClientError {
 pub type ClientResult<T> = Result<T, ClientError>;
 
 pub struct BackupClient {
-    client: Client,
-    base_url: String,
+    chunk_client: ChunkClient,
 }
 
 impl BackupClient {
     pub fn new(config: &ClientConfig) -> ClientResult<Self> {
         info!("creating backup client with config: {:#?}", config);
-        let config = config.config();
-        let client = Client::builder()
-            .danger_accept_invalid_certs(!config.verify_tls_cert)
-            .build()
-            .map_err(ClientError::ReqwestError)?;
         Ok(Self {
-            client,
-            base_url: config.server_url.to_string(),
+            chunk_client: ChunkClient::new(config)?,
         })
     }
 
@@ -128,6 +121,88 @@ impl BackupClient {
         let chunker = Chunker::new(size, file, filename);
         let chunk_ids = self.upload_new_file_chunks(chunker)?;
         Ok(chunk_ids)
+    }
+
+    pub fn has_chunk(&self, meta: &ChunkMeta) -> ClientResult<Option<ChunkId>> {
+        self.chunk_client.has_chunk(meta)
+    }
+
+    pub fn upload_chunk(&self, meta: ChunkMeta, chunk: DataChunk) -> ClientResult<ChunkId> {
+        self.chunk_client.upload_chunk(meta, chunk)
+    }
+
+    pub fn upload_gen_chunk(&self, meta: ChunkMeta, gen: GenerationChunk) -> ClientResult<ChunkId> {
+        let data = gen.to_data_chunk()?;
+        self.upload_chunk(meta, data)
+    }
+
+    pub fn upload_new_file_chunks(&self, chunker: Chunker) -> ClientResult<Vec<ChunkId>> {
+        let mut chunk_ids = vec![];
+        for item in chunker {
+            let (meta, chunk) = item?;
+            if let Some(chunk_id) = self.has_chunk(&meta)? {
+                chunk_ids.push(chunk_id.clone());
+                info!("reusing existing chunk {}", chunk_id);
+            } else {
+                let chunk_id = self.upload_chunk(meta, chunk)?;
+                chunk_ids.push(chunk_id.clone());
+                info!("created new chunk {}", chunk_id);
+            }
+        }
+
+        Ok(chunk_ids)
+    }
+
+    pub fn list_generations(&self) -> ClientResult<GenerationList> {
+        self.chunk_client.list_generations()
+    }
+
+    pub fn fetch_chunk(&self, chunk_id: &ChunkId) -> ClientResult<DataChunk> {
+        self.chunk_client.fetch_chunk(chunk_id)
+    }
+
+    fn fetch_generation_chunk(&self, gen_id: &str) -> ClientResult<GenerationChunk> {
+        let chunk_id = ChunkId::recreate(gen_id);
+        let chunk = self.fetch_chunk(&chunk_id)?;
+        let gen = GenerationChunk::from_data_chunk(&chunk)?;
+        Ok(gen)
+    }
+
+    pub fn fetch_generation(&self, gen_id: &str, dbname: &Path) -> ClientResult<LocalGeneration> {
+        let gen = self.fetch_generation_chunk(gen_id)?;
+
+        // Fetch the SQLite file, storing it in the named file.
+        let mut dbfile = File::create(&dbname)
+            .map_err(|err| ClientError::FileCreate(dbname.to_path_buf(), err))?;
+        for id in gen.chunk_ids() {
+            let chunk = self.fetch_chunk(id)?;
+            dbfile
+                .write_all(chunk.data())
+                .map_err(|err| ClientError::FileWrite(dbname.to_path_buf(), err))?;
+        }
+        info!("downloaded generation to {}", dbname.display());
+
+        let gen = LocalGeneration::open(dbname)?;
+        Ok(gen)
+    }
+}
+
+pub struct ChunkClient {
+    client: Client,
+    base_url: String,
+}
+
+impl ChunkClient {
+    pub fn new(config: &ClientConfig) -> ClientResult<Self> {
+        let config = config.config();
+        let client = Client::builder()
+            .danger_accept_invalid_certs(!config.verify_tls_cert)
+            .build()
+            .map_err(ClientError::ReqwestError)?;
+        Ok(Self {
+            client,
+            base_url: config.server_url.to_string(),
+        })
     }
 
     fn base_url(&self) -> &str {
@@ -189,43 +264,6 @@ impl BackupClient {
         };
         info!("uploaded_chunk {} meta {:?}", chunk_id, meta);
         Ok(chunk_id)
-    }
-
-    pub fn upload_gen_chunk(&self, meta: ChunkMeta, gen: GenerationChunk) -> ClientResult<ChunkId> {
-        let res = self
-            .client
-            .post(&self.chunks_url())
-            .header("chunk-meta", meta.to_json())
-            .body(serde_json::to_string(&gen).map_err(ClientError::JsonGenerate)?)
-            .send()
-            .map_err(ClientError::ReqwestError)?;
-        debug!("upload_chunk: res={:?}", res);
-        let res: HashMap<String, String> = res.json().map_err(ClientError::ReqwestError)?;
-        let chunk_id = if let Some(chunk_id) = res.get("chunk_id") {
-            debug!("upload_chunk: id={}", chunk_id);
-            chunk_id.parse().unwrap()
-        } else {
-            return Err(ClientError::NoCreatedChunkId);
-        };
-        info!("uploaded_generation chunk {}", chunk_id);
-        Ok(chunk_id)
-    }
-
-    pub fn upload_new_file_chunks(&self, chunker: Chunker) -> ClientResult<Vec<ChunkId>> {
-        let mut chunk_ids = vec![];
-        for item in chunker {
-            let (meta, chunk) = item?;
-            if let Some(chunk_id) = self.has_chunk(&meta)? {
-                chunk_ids.push(chunk_id.clone());
-                info!("reusing existing chunk {}", chunk_id);
-            } else {
-                let chunk_id = self.upload_chunk(meta, chunk)?;
-                chunk_ids.push(chunk_id.clone());
-                info!("created new chunk {}", chunk_id);
-            }
-        }
-
-        Ok(chunk_ids)
     }
 
     pub fn list_generations(&self) -> ClientResult<GenerationList> {
@@ -300,31 +338,6 @@ impl BackupClient {
         let chunk: DataChunk = DataChunk::new(body);
 
         Ok(chunk)
-    }
-
-    fn fetch_generation_chunk(&self, gen_id: &str) -> ClientResult<GenerationChunk> {
-        let chunk_id = ChunkId::recreate(gen_id);
-        let chunk = self.fetch_chunk(&chunk_id)?;
-        let gen = GenerationChunk::from_data_chunk(&chunk)?;
-        Ok(gen)
-    }
-
-    pub fn fetch_generation(&self, gen_id: &str, dbname: &Path) -> ClientResult<LocalGeneration> {
-        let gen = self.fetch_generation_chunk(gen_id)?;
-
-        // Fetch the SQLite file, storing it in the named file.
-        let mut dbfile = File::create(&dbname)
-            .map_err(|err| ClientError::FileCreate(dbname.to_path_buf(), err))?;
-        for id in gen.chunk_ids() {
-            let chunk = self.fetch_chunk(id)?;
-            dbfile
-                .write_all(chunk.data())
-                .map_err(|err| ClientError::FileWrite(dbname.to_path_buf(), err))?;
-        }
-        info!("downloaded generation to {}", dbname.display());
-
-        let gen = LocalGeneration::open(dbname)?;
-        Ok(gen)
     }
 }
 
