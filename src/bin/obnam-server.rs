@@ -109,9 +109,9 @@ pub async fn create_chunk(
         }
     };
 
-    let chunk = DataChunk::new(data.to_vec());
+    let chunk = DataChunk::new(data.to_vec(), meta);
 
-    let id = match store.save(&meta, &chunk) {
+    let id = match store.save(&chunk) {
         Ok(id) => id,
         Err(e) => {
             error!("couldn't save: {}", e);
@@ -119,7 +119,7 @@ pub async fn create_chunk(
         }
     };
 
-    info!("created chunk {}: {:?}", id, meta);
+    info!("created chunk {}", id);
     Ok(ChunkResult::Created(id))
 }
 

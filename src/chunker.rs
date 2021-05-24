@@ -31,7 +31,7 @@ impl Chunker {
         }
     }
 
-    pub fn read_chunk(&mut self) -> ChunkerResult<Option<(ChunkMeta, DataChunk)>> {
+    pub fn read_chunk(&mut self) -> ChunkerResult<Option<DataChunk>> {
         let mut used = 0;
 
         loop {
@@ -52,18 +52,18 @@ impl Chunker {
         let buffer = &self.buf.as_slice()[..used];
         let hash = sha256(buffer);
         let meta = ChunkMeta::new(&hash);
-        let chunk = DataChunk::new(buffer.to_vec());
-        Ok(Some((meta, chunk)))
+        let chunk = DataChunk::new(buffer.to_vec(), meta);
+        Ok(Some(chunk))
     }
 }
 
 impl Iterator for Chunker {
-    type Item = ChunkerResult<(ChunkMeta, DataChunk)>;
+    type Item = ChunkerResult<DataChunk>;
 
-    fn next(&mut self) -> Option<ChunkerResult<(ChunkMeta, DataChunk)>> {
+    fn next(&mut self) -> Option<ChunkerResult<DataChunk>> {
         match self.read_chunk() {
             Ok(None) => None,
-            Ok(Some((meta, chunk))) => Some(Ok((meta, chunk))),
+            Ok(Some(chunk)) => Some(Ok(chunk)),
             Err(e) => Some(Err(e)),
         }
     }

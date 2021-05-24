@@ -1,4 +1,6 @@
+use crate::checksummer::sha256;
 use crate::chunkid::ChunkId;
+use crate::chunkmeta::ChunkMeta;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
 
@@ -11,17 +13,23 @@ use std::default::Default;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataChunk {
     data: Vec<u8>,
+    meta: ChunkMeta,
 }
 
 impl DataChunk {
     /// Construct a new chunk.
-    pub fn new(data: Vec<u8>) -> Self {
-        Self { data }
+    pub fn new(data: Vec<u8>, meta: ChunkMeta) -> Self {
+        Self { data, meta }
     }
 
     /// Return a chunk's data.
     pub fn data(&self) -> &[u8] {
         &self.data
+    }
+
+    /// Return a chunk's metadata.
+    pub fn meta(&self) -> &ChunkMeta {
+        &self.meta
     }
 }
 
@@ -69,8 +77,12 @@ impl GenerationChunk {
         self.chunk_ids.iter()
     }
 
-    pub fn to_data_chunk(&self) -> GenerationChunkResult<DataChunk> {
-        let json = serde_json::to_string(self).map_err(GenerationChunkError::JsonGenerate)?;
-        Ok(DataChunk::new(json.as_bytes().to_vec()))
+    pub fn to_data_chunk(&self, ended: &str) -> GenerationChunkResult<DataChunk> {
+        let json: String =
+            serde_json::to_string(self).map_err(GenerationChunkError::JsonGenerate)?;
+        let bytes = json.as_bytes().to_vec();
+        let sha = sha256(&bytes);
+        let meta = ChunkMeta::new_generation(&sha, ended);
+        Ok(DataChunk::new(bytes, meta))
     }
 }

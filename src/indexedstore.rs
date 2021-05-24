@@ -40,10 +40,10 @@ impl IndexedStore {
         Ok(Self { store, index })
     }
 
-    pub fn save(&mut self, meta: &ChunkMeta, chunk: &DataChunk) -> IndexedResult<ChunkId> {
+    pub fn save(&mut self, chunk: &DataChunk) -> IndexedResult<ChunkId> {
         let id = ChunkId::new();
-        self.store.save(&id, meta, chunk)?;
-        self.insert_meta(&id, meta)?;
+        self.store.save(&id, chunk)?;
+        self.insert_meta(&id, chunk.meta())?;
         Ok(id)
     }
 

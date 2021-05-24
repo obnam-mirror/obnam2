@@ -107,10 +107,9 @@ impl BackupClient {
         info!("upload SQLite {}", filename.display());
         let ids = self.read_file(filename, size)?;
         let gen = GenerationChunk::new(ids);
-        let data = gen.to_data_chunk()?;
-        let meta = ChunkMeta::new_generation(&sha256(data.data()), &current_timestamp());
-        let gen_id = self.upload_gen_chunk(meta.clone(), gen)?;
-        info!("uploaded generation {}, meta {:?}", gen_id, meta);
+        let data = gen.to_data_chunk(&current_timestamp())?;
+        let gen_id = self.upload_chunk(data)?;
+        info!("uploaded generation {}", gen_id);
         Ok(gen_id)
     }
 
@@ -127,24 +126,19 @@ impl BackupClient {
         self.chunk_client.has_chunk(meta)
     }
 
-    pub fn upload_chunk(&self, meta: ChunkMeta, chunk: DataChunk) -> ClientResult<ChunkId> {
-        self.chunk_client.upload_chunk(meta, chunk)
-    }
-
-    pub fn upload_gen_chunk(&self, meta: ChunkMeta, gen: GenerationChunk) -> ClientResult<ChunkId> {
-        let data = gen.to_data_chunk()?;
-        self.upload_chunk(meta, data)
+    pub fn upload_chunk(&self, chunk: DataChunk) -> ClientResult<ChunkId> {
+        self.chunk_client.upload_chunk(chunk)
     }
 
     pub fn upload_new_file_chunks(&self, chunker: Chunker) -> ClientResult<Vec<ChunkId>> {
         let mut chunk_ids = vec![];
         for item in chunker {
-            let (meta, chunk) = item?;
-            if let Some(chunk_id) = self.has_chunk(&meta)? {
+            let chunk = item?;
+            if let Some(chunk_id) = self.has_chunk(chunk.meta())? {
                 chunk_ids.push(chunk_id.clone());
                 info!("reusing existing chunk {}", chunk_id);
             } else {
-                let chunk_id = self.upload_chunk(meta, chunk)?;
+                let chunk_id = self.upload_chunk(chunk)?;
                 chunk_ids.push(chunk_id.clone());
                 info!("created new chunk {}", chunk_id);
             }
@@ -246,11 +240,11 @@ impl ChunkClient {
         Ok(has)
     }
 
-    pub fn upload_chunk(&self, meta: ChunkMeta, chunk: DataChunk) -> ClientResult<ChunkId> {
+    pub fn upload_chunk(&self, chunk: DataChunk) -> ClientResult<ChunkId> {
         let res = self
             .client
             .post(&self.chunks_url())
-            .header("chunk-meta", meta.to_json())
+            .header("chunk-meta", chunk.meta().to_json())
             .body(chunk.data().to_vec())
             .send()
             .map_err(ClientError::ReqwestError)?;
@@ -262,7 +256,7 @@ impl ChunkClient {
         } else {
             return Err(ClientError::NoCreatedChunkId);
         };
-        info!("uploaded_chunk {} meta {:?}", chunk_id, meta);
+        info!("uploaded_chunk {}", chunk_id);
         Ok(chunk_id)
     }
 
@@ -335,7 +329,7 @@ impl ChunkClient {
             return Err(err);
         }
 
-        let chunk: DataChunk = DataChunk::new(body);
+        let chunk: DataChunk = DataChunk::new(body, meta);
 
         Ok(chunk)
     }
