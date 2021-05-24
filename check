@@ -20,7 +20,7 @@ got_cargo_cmd()
     cargo "$1" --help > /dev/null
 }
 
-got_cargo_cmd clippy && $hideok cargo clippy --all-targets
+got_cargo_cmd clippy && cargo  clippy --all-targets -q
 $hideok cargo build --all-targets
 got_cargo_cmd fmt && $hideok cargo fmt -- --check
 $hideok cargo test
