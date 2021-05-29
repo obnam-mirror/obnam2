@@ -48,3 +48,9 @@
 
 - then: "file {filename} does not contain \"{pattern:text}\""
   function: file_does_not_contain
+
+- then: "files {filename1} and {filename2} are different"
+  function: files_are_different
+
+- then: "files {filename1} and {filename2} are identical"
+  function: files_are_identical

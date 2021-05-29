@@ -170,3 +170,19 @@ def file_is_readable_by_owner(ctx, filename=None):
 def file_does_not_contain(ctx, filename=None, pattern=None):
     data = open(filename).read()
     assert pattern not in data
+
+
+def files_are_different(ctx, filename1=None, filename2=None):
+    assert_ne = globals()["assert_ne"]
+
+    data1 = open(filename1, "rb").read()
+    data2 = open(filename2, "rb").read()
+    assert_ne(data1, data2)
+
+
+def files_are_identical(ctx, filename1=None, filename2=None):
+    assert_eq = globals()["assert_eq"]
+
+    data1 = open(filename1, "rb").read()
+    data2 = open(filename2, "rb").read()
+    assert_eq(data1, data2)
