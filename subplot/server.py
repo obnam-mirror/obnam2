@@ -134,13 +134,21 @@ def json_body_matches(ctx, wanted=None):
         assert_eq(body.get(key, "not.there"), wanted[key])
 
 
-def server_has_n_file_chunks(ctx, n=None):
+def server_has_n_chunks(ctx, n=None):
     assert_eq = globals()["assert_eq"]
     n = int(n)
-    url = f"{ctx['server_url']}/chunks?data=true"
-    _request(ctx, requests.get, url)
-    num_chunks = len(ctx["http.json"])
-    assert_eq(n, num_chunks)
+    files = find_files(ctx["config"]["chunks"])
+    files = [json.load(open(x)) for x in files if x.endswith(".meta")]
+    logging.debug(f"server_has_n_file_chunks: n={n}")
+    logging.debug(f"server_has_n_file_chunks: len(files)={len(files)}")
+    logging.debug(f"server_has_n_file_chunks: files={files}")
+    assert_eq(n, len(files))
+
+
+def find_files(root):
+    for dirname, _, names in os.walk(root):
+        for name in names:
+            yield os.path.join(dirname, name)
 
 
 # Make an HTTP request.
