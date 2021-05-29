@@ -994,7 +994,7 @@ when I POST data.dat to /chunks, with chunk-meta: {"sha256":"abc"}
 then HTTP status code is 201
 and content-type is application/json
 and the JSON body has a field chunk_id, henceforth ID
-and server has 1 file chunks
+and server has 1 chunks
 ~~~
 
 We must be able to retrieve it.
@@ -1136,7 +1136,6 @@ then stdout, as JSON, matches file config.json
 roots: [live]
 server_url: https://backup.example.com
 verify_tls_cert: true
-encrypt: false
 ~~~
 
 
@@ -1159,7 +1158,6 @@ roots: [~/important]
 log: ~/obnam.log
 server_url: https://backup.example.com
 verify_tls_cert: true
-encrypt: false
 ~~~
 
 
@@ -1204,6 +1202,19 @@ verify_tls_cert: true
 roots: [live]
 ~~~
 
+
+## Encrypt and decrypt chunk locally
+
+~~~scenario
+given an installed obnam
+given a running chunk server
+given a client config based on smoke.yaml
+given a file cleartext.dat containing some random data
+when I run obnam encrypt-chunk cleartext.dat encrypted.dat '{"sha256":"fake"}'
+when I run obnam decrypt-chunk encrypted.dat decrypted.dat '{"sha256":"fake"}'
+then files cleartext.dat and encrypted.dat are different
+then files cleartext.dat and decrypted.dat are identical
+~~~
 
 # Acceptance criteria for Obnam as a whole
 
@@ -1313,13 +1324,18 @@ This scenario verifies that the user can set the chunk size in the
 configuration file. The chunk size only affects the chunks of live
 data.
 
+The backup uses a chunk size of one byte, and backs up a file with
+three bytes. This results in three chunks for the file data, plus one
+for the generation SQLite file (not split into chunks of one byte),
+plus a chunk for the generation itself. A total of five chunks.
+
 ~~~scenario
 given an installed obnam
 given a running chunk server
 given a client config based on tiny-chunk-size.yaml
 given a file live/data.dat containing "abc"
 when I run obnam backup
-then server has 3 file chunks
+then server has 5 chunks
 ~~~
 
 ~~~{#tiny-chunk-size.yaml .file .yaml .numberLines}
@@ -1636,7 +1652,7 @@ passphrase.
 ~~~scenario
 given an installed obnam
 and a running chunk server
-and a client config based on encryption.yaml
+and a client config, without passphrase, based on encryption.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
 when I try to run obnam backup
@@ -1647,7 +1663,6 @@ then stderr contains "obnam init"
 ~~~{#encryption.yaml .file .yaml .numberLines}
 verify_tls_cert: false
 roots: [live]
-encrypt: true
 ~~~
 
 ## A passphrase can be set
@@ -1658,7 +1673,7 @@ readable by it owner. Verify that a backup can be made.
 ~~~scenario
 given an installed obnam
 and a running chunk server
-and a client config based on encryption.yaml
+and a client config, without passphrase, based on encryption.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
 when I run obnam init --insecure-passphrase=hunter2
