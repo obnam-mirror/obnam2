@@ -3,6 +3,7 @@ use log::{debug, error, info, LevelFilter};
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Logger, Root};
 use obnam::cmd::backup::Backup;
+use obnam::cmd::chunk::{DecryptChunk, EncryptChunk};
 use obnam::cmd::get_chunk::GetChunk;
 use obnam::cmd::init::Init;
 use obnam::cmd::list::List;
@@ -20,28 +21,24 @@ const APPLICATION: &str = "obnam";
 
 fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
-    let config = load_config_without_passwords(&opt)?;
-    setup_logging(&config.config().log)?;
+    let config = ClientConfig::read(&config_filename(&opt))?;
+    setup_logging(&config.log)?;
 
     info!("client starts");
     debug!("{:?}", opt);
     debug!("configuration: {:#?}", config);
 
     let result = match opt.cmd {
-        Command::Init(x) => x.run(config.config()),
-        _ => {
-            let config = load_config_with_passwords(&opt)?;
-            match opt.cmd {
-                Command::Init(_) => panic!("this can't happen"),
-                Command::Backup(x) => x.run(&config),
-                Command::List(x) => x.run(&config),
-                Command::ShowGeneration(x) => x.run(&config),
-                Command::ListFiles(x) => x.run(&config),
-                Command::Restore(x) => x.run(&config),
-                Command::GetChunk(x) => x.run(&config),
-                Command::Config(x) => x.run(&config),
-            }
-        }
+        Command::Init(x) => x.run(&config),
+        Command::Backup(x) => x.run(&config),
+        Command::List(x) => x.run(&config),
+        Command::ShowGeneration(x) => x.run(&config),
+        Command::ListFiles(x) => x.run(&config),
+        Command::Restore(x) => x.run(&config),
+        Command::GetChunk(x) => x.run(&config),
+        Command::Config(x) => x.run(&config),
+        Command::EncryptChunk(x) => x.run(&config),
+        Command::DecryptChunk(x) => x.run(&config),
     };
 
     if let Err(ref e) = result {
@@ -64,14 +61,6 @@ fn setup_logging(filename: &Path) -> anyhow::Result<()> {
     log4rs::init_config(config)?;
 
     Ok(())
-}
-
-fn load_config_with_passwords(opt: &Opt) -> Result<ClientConfig, anyhow::Error> {
-    Ok(ClientConfig::read_with_passwords(&config_filename(opt))?)
-}
-
-fn load_config_without_passwords(opt: &Opt) -> Result<ClientConfig, anyhow::Error> {
-    Ok(ClientConfig::read_without_passwords(&config_filename(opt))?)
 }
 
 fn config_filename(opt: &Opt) -> PathBuf {
@@ -109,4 +98,6 @@ enum Command {
     ShowGeneration(ShowGeneration),
     GetChunk(GetChunk),
     Config(ShowConfig),
+    EncryptChunk(EncryptChunk),
+    DecryptChunk(DecryptChunk),
 }

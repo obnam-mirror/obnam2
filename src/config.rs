@@ -16,78 +16,22 @@ struct TentativeClientConfig {
     chunk_size: Option<usize>,
     roots: Vec<PathBuf>,
     log: Option<PathBuf>,
-    encrypt: Option<bool>,
     exclude_cache_tag_directories: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Clone)]
-pub enum ClientConfig {
-    Plain(ClientConfigWithoutPasswords),
-    WithPasswords(ClientConfigWithoutPasswords, Passwords),
-}
-
-impl ClientConfig {
-    pub fn read_without_passwords(filename: &Path) -> Result<Self, ClientConfigError> {
-        let config = ClientConfigWithoutPasswords::read_config(filename)?;
-        Ok(ClientConfig::Plain(config))
-    }
-
-    pub fn read_with_passwords(filename: &Path) -> Result<Self, ClientConfigError> {
-        let config = ClientConfigWithoutPasswords::read_config(filename)?;
-        if config.encrypt {
-            let passwords = Passwords::load(&passwords_filename(filename))
-                .map_err(ClientConfigError::PasswordsMissing)?;
-            Ok(ClientConfig::WithPasswords(config, passwords))
-        } else {
-            Ok(ClientConfig::Plain(config))
-        }
-    }
-
-    pub fn config(&self) -> &ClientConfigWithoutPasswords {
-        match self {
-            Self::Plain(config) => &config,
-            Self::WithPasswords(config, _) => &config,
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Clone)]
-pub struct ClientConfigWithoutPasswords {
+pub struct ClientConfig {
     pub filename: PathBuf,
     pub server_url: String,
     pub verify_tls_cert: bool,
     pub chunk_size: usize,
     pub roots: Vec<PathBuf>,
     pub log: PathBuf,
-    pub encrypt: bool,
     pub exclude_cache_tag_directories: bool,
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum ClientConfigError {
-    #[error("server_url is empty")]
-    ServerUrlIsEmpty,
-
-    #[error("No backup roots in config; at least one is needed")]
-    NoBackupRoot,
-
-    #[error("server URL doesn't use https: {0}")]
-    NotHttps(String),
-
-    #[error("No passwords are set: you may need to run 'obnam init': {0}")]
-    PasswordsMissing(PasswordError),
-
-    #[error("failed to read configuration file {0}: {1}")]
-    Read(PathBuf, std::io::Error),
-
-    #[error("failed to parse configuration file {0} as YAML: {1}")]
-    YamlParse(PathBuf, serde_yaml::Error),
-}
-
-pub type ClientConfigResult<T> = Result<T, ClientConfigError>;
-
-impl ClientConfigWithoutPasswords {
-    pub fn read_config(filename: &Path) -> ClientConfigResult<Self> {
+impl ClientConfig {
+    pub fn read(filename: &Path) -> ClientConfigResult<Self> {
         trace!("read_config: filename={:?}", filename);
         let config = std::fs::read_to_string(filename)
             .map_err(|err| ClientConfigError::Read(filename.to_path_buf(), err))?;
@@ -102,12 +46,10 @@ impl ClientConfigWithoutPasswords {
             .log
             .map(|path| expand_tilde(&path))
             .unwrap_or_else(|| PathBuf::from(DEVNULL));
-        let encrypt = tentative.encrypt.or(Some(false)).unwrap();
         let exclude_cache_tag_directories = tentative.exclude_cache_tag_directories.unwrap_or(true);
 
         let config = Self {
             chunk_size: tentative.chunk_size.or(Some(DEFAULT_CHUNK_SIZE)).unwrap(),
-            encrypt,
             filename: filename.to_path_buf(),
             roots,
             server_url: tentative.server_url,
@@ -132,7 +74,35 @@ impl ClientConfigWithoutPasswords {
         }
         Ok(())
     }
+
+    pub fn passwords(&self) -> Result<Passwords, ClientConfigError> {
+        Passwords::load(&passwords_filename(&self.filename))
+            .map_err(ClientConfigError::PasswordsMissing)
+    }
 }
+
+#[derive(Debug, thiserror::Error)]
+pub enum ClientConfigError {
+    #[error("server_url is empty")]
+    ServerUrlIsEmpty,
+
+    #[error("No backup roots in config; at least one is needed")]
+    NoBackupRoot,
+
+    #[error("server URL doesn't use https: {0}")]
+    NotHttps(String),
+
+    #[error("No passwords are set: you may need to run 'obnam init': {0}")]
+    PasswordsMissing(PasswordError),
+
+    #[error("failed to read configuration file {0}: {1}")]
+    Read(PathBuf, std::io::Error),
+
+    #[error("failed to parse configuration file {0} as YAML: {1}")]
+    YamlParse(PathBuf, serde_yaml::Error),
+}
+
+pub type ClientConfigResult<T> = Result<T, ClientConfigError>;
 
 fn expand_tilde(path: &Path) -> PathBuf {
     if path.starts_with("~/") {

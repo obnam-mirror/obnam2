@@ -16,7 +16,7 @@ def uninstall_obnam(ctx):
     runcmd_run(ctx, ["chmod", "-R", "u+rwX", "."])
 
 
-def configure_client(ctx, filename=None):
+def configure_client_without_init(ctx, filename=None):
     get_file = globals()["get_file"]
 
     assert ctx.get("server_url") is not None
@@ -33,6 +33,15 @@ def configure_client(ctx, filename=None):
     logging.debug(f"configure_client: filename={filename}")
     with open(filename, "w") as f:
         yaml.safe_dump(config, stream=f)
+
+
+def configure_client_with_init(ctx, filename=None):
+    runcmd_run = globals()["runcmd_run"]
+    runcmd_exit_code_is_zero = globals()["runcmd_exit_code_is_zero"]
+
+    configure_client_without_init(ctx, filename=filename)
+    runcmd_run(ctx, ["obnam", "init", "--insecure-passphrase=hunter2"])
+    runcmd_exit_code_is_zero(ctx)
 
 
 def run_obnam_restore(ctx, genid=None, todir=None):
