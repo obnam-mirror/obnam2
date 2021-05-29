@@ -1,17 +1,18 @@
-use crate::checksummer::sha256;
 use crate::chunk::DataChunk;
 use crate::chunk::{GenerationChunk, GenerationChunkError};
 use crate::chunker::{Chunker, ChunkerError};
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
-use crate::config::ClientConfig;
+use crate::cipher::{CipherEngine, CipherError};
+use crate::config::{ClientConfig, ClientConfigError};
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::{FinishedGeneration, LocalGeneration, LocalGenerationError};
 use crate::genlist::GenerationList;
 
 use chrono::{DateTime, Local};
-use log::{debug, error, info, trace};
+use log::{debug, error, info};
 use reqwest::blocking::Client;
+use reqwest::header::HeaderMap;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
@@ -21,6 +22,9 @@ use std::path::{Path, PathBuf};
 pub enum ClientError {
     #[error("Server response claimed it had created a chunk, but lacked chunk id")]
     NoCreatedChunkId,
+
+    #[error("Server does not have {0}")]
+    NotFound(String),
 
     #[error("Server does not have chunk {0}")]
     ChunkNotFound(String),
@@ -33,6 +37,12 @@ pub enum ClientError {
 
     #[error("Wrong checksum for chunk {0}, got {1}, expected {2}")]
     WrongChecksum(ChunkId, String, String),
+
+    #[error(transparent)]
+    ClientConfigError(#[from] ClientConfigError),
+
+    #[error(transparent)]
+    CipherError(#[from] CipherError),
 
     #[error(transparent)]
     GenerationChunkError(#[from] GenerationChunkError),
@@ -184,11 +194,13 @@ impl BackupClient {
 pub struct ChunkClient {
     client: Client,
     base_url: String,
+    cipher: CipherEngine,
 }
 
 impl ChunkClient {
     pub fn new(config: &ClientConfig) -> ClientResult<Self> {
-        let config = config.config();
+        let pass = config.passwords()?;
+
         let client = Client::builder()
             .danger_accept_invalid_certs(!config.verify_tls_cert)
             .build()
@@ -196,6 +208,7 @@ impl ChunkClient {
         Ok(Self {
             client,
             base_url: config.server_url.to_string(),
+            cipher: CipherEngine::new(&pass),
         })
     }
 
@@ -208,44 +221,30 @@ impl ChunkClient {
     }
 
     pub fn has_chunk(&self, meta: &ChunkMeta) -> ClientResult<Option<ChunkId>> {
-        trace!("has_chunk: url={:?}", self.base_url());
-        let req = self
-            .client
-            .get(&self.chunks_url())
-            .query(&[("sha256", meta.sha256())])
-            .build()
-            .map_err(ClientError::ReqwestError)?;
-
-        let res = self.client.execute(req).map_err(ClientError::ChunkExists)?;
-        debug!("has_chunk: status={}", res.status());
-        let has = if res.status() != 200 {
-            debug!("has_chunk: error from server");
-            None
-        } else {
-            let text = res.text().map_err(ClientError::ReqwestError)?;
-            debug!("has_chunk: text={:?}", text);
-            let hits: HashMap<String, ChunkMeta> =
-                serde_json::from_str(&text).map_err(ClientError::JsonParse)?;
-            debug!("has_chunk: hits={:?}", hits);
-            let mut iter = hits.iter();
-            if let Some((chunk_id, _)) = iter.next() {
-                debug!("has_chunk: chunk_id={:?}", chunk_id);
-                Some(chunk_id.into())
-            } else {
-                None
-            }
+        let body = match self.get("", &[("sha256", meta.sha256())]) {
+            Ok((_, body)) => body,
+            Err(err) => return Err(err),
         };
 
-        info!("has_chunk result: {:?}", has);
+        let hits: HashMap<String, ChunkMeta> =
+            serde_json::from_slice(&body).map_err(ClientError::JsonParse)?;
+        let mut iter = hits.iter();
+        let has = if let Some((chunk_id, _)) = iter.next() {
+            Some(chunk_id.into())
+        } else {
+            None
+        };
+
         Ok(has)
     }
 
     pub fn upload_chunk(&self, chunk: DataChunk) -> ClientResult<ChunkId> {
+        let enc = self.cipher.encrypt_chunk(&chunk)?;
         let res = self
             .client
             .post(&self.chunks_url())
             .header("chunk-meta", chunk.meta().to_json())
-            .body(chunk.data().to_vec())
+            .body(enc.ciphertext().to_vec())
             .send()
             .map_err(ClientError::ReqwestError)?;
         debug!("upload_chunk: res={:?}", res);
@@ -261,20 +260,8 @@ impl ChunkClient {
     }
 
     pub fn list_generations(&self) -> ClientResult<GenerationList> {
-        let url = format!("{}?generation=true", &self.chunks_url());
-        trace!("list_generations: url={:?}", url);
-        let req = self
-            .client
-            .get(&url)
-            .build()
-            .map_err(ClientError::ReqwestError)?;
-        let res = self
-            .client
-            .execute(req)
-            .map_err(ClientError::ReqwestError)?;
-        debug!("list_generations: status={}", res.status());
-        let body = res.bytes().map_err(ClientError::ReqwestError)?;
-        debug!("list_generations: body={:?}", body);
+        let (_, body) = self.get("", &[("generation", "true")])?;
+
         let map: HashMap<String, ChunkMeta> =
             serde_yaml::from_slice(&body).map_err(ClientError::YamlParse)?;
         debug!("list_generations: map={:?}", map);
@@ -286,52 +273,65 @@ impl ChunkClient {
     }
 
     pub fn fetch_chunk(&self, chunk_id: &ChunkId) -> ClientResult<DataChunk> {
-        info!("fetch chunk {}", chunk_id);
+        let (headers, body) = self.get(&format!("/{}", chunk_id), &[])?;
+        let meta = self.get_chunk_meta_header(chunk_id, &headers)?;
 
-        let url = format!("{}/{}", &self.chunks_url(), chunk_id);
+        let meta_bytes = meta.to_json_vec();
+        let chunk = self.cipher.decrypt_chunk(&body, &meta_bytes)?;
+
+        Ok(chunk)
+    }
+
+    fn get(&self, path: &str, query: &[(&str, &str)]) -> ClientResult<(HeaderMap, Vec<u8>)> {
+        let url = format!("{}{}", &self.chunks_url(), path);
+        info!("GET {}", url);
+
+        // Build HTTP request structure.
         let req = self
             .client
             .get(&url)
+            .query(query)
             .build()
             .map_err(ClientError::ReqwestError)?;
+
+        // Make HTTP request.
         let res = self
             .client
             .execute(req)
             .map_err(ClientError::ReqwestError)?;
+
+        // Did it work?
         if res.status() != 200 {
-            let err = ClientError::ChunkNotFound(chunk_id.to_string());
-            error!("fetching chunk {} failed: {}", chunk_id, err);
-            return Err(err);
+            return Err(ClientError::NotFound(path.to_string()));
         }
 
-        let headers = res.headers();
+        // Return headers and body.
+        let headers = res.headers().clone();
+        let body = res.bytes().map_err(ClientError::ReqwestError)?;
+        let body = body.to_vec();
+        Ok((headers, body))
+    }
+
+    fn get_chunk_meta_header(
+        &self,
+        chunk_id: &ChunkId,
+        headers: &HeaderMap,
+    ) -> ClientResult<ChunkMeta> {
         let meta = headers.get("chunk-meta");
+
         if meta.is_none() {
             let err = ClientError::NoChunkMeta(chunk_id.clone());
             error!("fetching chunk {} failed: {}", chunk_id, err);
             return Err(err);
         }
+
         let meta = meta
             .unwrap()
             .to_str()
             .map_err(ClientError::MetaHeaderToString)?;
-        debug!("fetching chunk {}: meta={:?}", chunk_id, meta);
         let meta: ChunkMeta = serde_json::from_str(meta).map_err(ClientError::JsonParse)?;
-        debug!("fetching chunk {}: meta={:?}", chunk_id, meta);
 
-        let body = res.bytes().map_err(ClientError::ReqwestError)?;
-        let body = body.to_vec();
-        let actual = sha256(&body);
-        if actual != meta.sha256() {
-            let err =
-                ClientError::WrongChecksum(chunk_id.clone(), actual, meta.sha256().to_string());
-            error!("fetching chunk {} failed: {}", chunk_id, err);
-            return Err(err);
-        }
-
-        let chunk: DataChunk = DataChunk::new(body, meta);
-
-        Ok(chunk)
+        Ok(meta)
     }
 }
 
