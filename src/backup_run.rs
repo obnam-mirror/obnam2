@@ -41,7 +41,6 @@ pub type BackupResult<T> = Result<T, BackupError>;
 impl<'a> InitialBackup<'a> {
     pub fn new(config: &ClientConfig, client: &'a BackupClient) -> BackupResult<Self> {
         let progress = BackupProgress::initial();
-        let config = config.config();
         Ok(Self {
             client,
             buffer_size: config.chunk_size,
@@ -81,7 +80,6 @@ impl<'a> InitialBackup<'a> {
 
 impl<'a> IncrementalBackup<'a> {
     pub fn new(config: &ClientConfig, client: &'a BackupClient) -> BackupResult<Self> {
-        let config = config.config();
         let policy = BackupPolicy::default();
         Ok(Self {
             client,

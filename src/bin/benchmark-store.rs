@@ -20,8 +20,8 @@ fn main() -> anyhow::Result<()> {
     let gen = ChunkGenerator::new(opt.num);
 
     let store = Store::new(&opt.chunks);
-    for (id, _, meta, chunk) in gen {
-        store.save(&id, &meta, &chunk)?;
+    for (id, _, chunk) in gen {
+        store.save(&id, &&chunk)?;
     }
 
     Ok(())

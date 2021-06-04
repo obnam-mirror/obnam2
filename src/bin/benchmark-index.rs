@@ -60,7 +60,8 @@ fn create(chunks: &Path, num: u32) -> anyhow::Result<()> {
     let mut index = Index::new(chunks)?;
     let gen = ChunkGenerator::new(num);
 
-    for (id, _, meta, _) in gen {
+    for (id, _, chunk) in gen {
+        let meta = (*chunk.meta()).clone();
         index.insert_meta(id, meta)?;
     }
 
@@ -82,8 +83,8 @@ fn lookup(index: &mut Index, num: u32) -> anyhow::Result<()> {
 
     loop {
         let gen = ChunkGenerator::new(num);
-        for (_, _, meta, _) in gen {
-            index.find_by_sha256(&meta.sha256())?;
+        for (_, _, chunk) in gen {
+            index.find_by_sha256(&chunk.meta().sha256())?;
             done += 1;
             if done >= num {
                 return Ok(());

@@ -1,6 +1,5 @@
 use crate::chunk::DataChunk;
 use crate::chunkid::ChunkId;
-use crate::chunkmeta::ChunkMeta;
 use std::path::{Path, PathBuf};
 
 /// Store chunks, with metadata, persistently.
@@ -43,23 +42,26 @@ impl Store {
     }
 
     /// Save a chunk into a store.
-    pub fn save(&self, id: &ChunkId, meta: &ChunkMeta, chunk: &DataChunk) -> StoreResult<()> {
+    pub fn save(&self, id: &ChunkId, chunk: &DataChunk) -> StoreResult<()> {
         let (dir, metaname, dataname) = &self.filenames(id);
 
         if !dir.exists() {
             std::fs::create_dir_all(dir)?;
         }
 
-        std::fs::write(&metaname, meta.to_json())?;
+        std::fs::write(&metaname, chunk.meta().to_json())?;
         std::fs::write(&dataname, chunk.data())?;
         Ok(())
     }
 
     /// Load a chunk from a store.
     pub fn load(&self, id: &ChunkId) -> StoreResult<DataChunk> {
-        let (_, _, dataname) = &self.filenames(id);
+        let (_, metaname, dataname) = &self.filenames(id);
+        let meta = std::fs::read(&metaname)?;
+        let meta = serde_json::from_slice(&meta)?;
+
         let data = std::fs::read(&dataname)?;
-        let data = DataChunk::new(data);
+        let data = DataChunk::new(data, meta);
         Ok(data)
     }
 

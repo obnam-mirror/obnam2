@@ -7,6 +7,7 @@ pub mod chunk;
 pub mod chunker;
 pub mod chunkid;
 pub mod chunkmeta;
+pub mod cipher;
 pub mod client;
 pub mod cmd;
 pub mod config;

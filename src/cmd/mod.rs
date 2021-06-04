@@ -1,4 +1,5 @@
 pub mod backup;
+pub mod chunk;
 pub mod get_chunk;
 pub mod init;
 pub mod list;

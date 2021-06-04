@@ -3,7 +3,10 @@
   cleanup: uninstall_obnam
 
 - given: "a client config based on {filename}"
-  function: configure_client
+  function: configure_client_with_init
+
+- given: "a client config, without passphrase, based on {filename}"
+  function: configure_client_without_init
 
 - when: "I invoke obnam restore <{genid}> {todir}"
   function: run_obnam_restore

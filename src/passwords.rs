@@ -8,18 +8,23 @@ use std::io::prelude::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
+const KEY_LEN: usize = 32; // Only size accepted by aead crate?
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Passwords {
     encryption: String,
-    mac: String,
 }
 
 impl Passwords {
     pub fn new(passphrase: &str) -> Self {
-        Self {
-            encryption: derive_password(passphrase),
-            mac: derive_password(passphrase),
-        }
+        let mut key = derive_password(passphrase);
+        let _ = key.split_off(KEY_LEN);
+        assert_eq!(key.len(), KEY_LEN);
+        Self { encryption: key }
+    }
+
+    pub fn encryption_key(&self) -> &[u8] {
+        self.encryption.as_bytes()
     }
 
     pub fn load(filename: &Path) -> Result<Self, PasswordError> {

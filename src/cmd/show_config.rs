@@ -7,7 +7,7 @@ pub struct ShowConfig {}
 
 impl ShowConfig {
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
-        println!("{}", serde_json::to_string_pretty(&config.config())?);
+        println!("{}", serde_json::to_string_pretty(config)?);
         Ok(())
     }
 }

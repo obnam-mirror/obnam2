@@ -23,5 +23,5 @@ fn main() {
     let opt = Opt::from_args();
     let gen = ChunkGenerator::new(opt.num);
 
-    for (_, _, _, _) in gen {}
+    for (_, _, _) in gen {}
 }

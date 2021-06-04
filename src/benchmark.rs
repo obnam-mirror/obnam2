@@ -15,7 +15,7 @@ impl ChunkGenerator {
 }
 
 impl Iterator for ChunkGenerator {
-    type Item = (ChunkId, String, ChunkMeta, DataChunk);
+    type Item = (ChunkId, String, DataChunk);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.next >= self.goal {
@@ -24,9 +24,9 @@ impl Iterator for ChunkGenerator {
             let id = ChunkId::recreate(&format!("{}", self.next));
             let checksum = id.sha256();
             let meta = ChunkMeta::new(&checksum);
-            let chunk = DataChunk::new(vec![]);
+            let chunk = DataChunk::new(vec![], meta);
             self.next += 1;
-            Some((id, checksum, meta, chunk))
+            Some((id, checksum, chunk))
         }
     }
 }

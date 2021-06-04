@@ -80,9 +80,19 @@ impl ChunkMeta {
         &self.sha256
     }
 
+    /// Serialize from a textual JSON representation.
+    pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(json)
+    }
+
     /// Serialize as JSON.
     pub fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap()
+    }
+
+    /// Serialize as JSON, as a byte vector.
+    pub fn to_json_vec(&self) -> Vec<u8> {
+        self.to_json().as_bytes().to_vec()
     }
 }
 
@@ -135,10 +145,19 @@ mod test {
     }
 
     #[test]
-    fn json_roundtrip() {
+    fn generation_json_roundtrip() {
         let meta = ChunkMeta::new_generation("abcdef", "2020-09-17T08:17:13+03:00");
         let json = serde_json::to_string(&meta).unwrap();
         let meta2 = serde_json::from_str(&json).unwrap();
         assert_eq!(meta, meta2);
+    }
+
+    #[test]
+    fn data_json_roundtrip() {
+        let meta = ChunkMeta::new("abcdef");
+        let json = meta.to_json_vec();
+        let meta2 = serde_json::from_slice(&json).unwrap();
+        assert_eq!(meta, meta2);
+        assert_eq!(meta.to_json_vec(), meta2.to_json_vec());
     }
 }

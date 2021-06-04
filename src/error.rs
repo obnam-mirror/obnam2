@@ -1,4 +1,5 @@
 use crate::backup_run::BackupError;
+use crate::cipher::CipherError;
 use crate::client::ClientError;
 use crate::cmd::restore::RestoreError;
 use crate::config::ClientConfigError;
@@ -30,6 +31,9 @@ pub enum ObnamError {
 
     #[error(transparent)]
     NascentError(#[from] NascentError),
+
+    #[error(transparent)]
+    CipherError(#[from] CipherError),
 
     #[error(transparent)]
     LocalGenerationError(#[from] LocalGenerationError),
