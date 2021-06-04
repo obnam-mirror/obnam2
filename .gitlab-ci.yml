@@ -1,0 +1,48 @@
+# Debian Buster (10) with the latest Rust stable
+image: rust:1-buster
+
+variables:
+  # GitLab CI can only cache data that resides in /builds/ and /cache/
+  # directories[1]. Both of these locations are *not* writeable to non-privileged
+  # users, but the project directory (the Git workdir) is — it's
+  # world-writeable. So we ask Cargo to put its caches inside the Git workdir,
+  # and install binaries (e.g. cargo-sweep) in there too.
+  #
+  # 1. https://gitlab.com/gitlab-org/gitlab-runner/-/issues/327
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  CARGO_INSTALL_ROOT: $CI_PROJECT_DIR/.local/
+
+check:
+  script:
+    - sh -c 'echo "deb http://ci-prod-controller.vm.liw.fi/debian unstable-ci main" > /etc/apt/sources.list.d/liw.fi.list'
+    - echo -e '-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nmQINBFrLO7kBEADdz6mHstYmKU5Dp6OSjxWtWaqTDOX1sJdmmaIK/9EKVIH0Maxp\n5kvVO5G6mULLAjv/kLG0MxasHPrq8I2A/y8AqKAGVL8QelwLjQMIFZ30/VbGQPHS\n+T5TZXEnoQtNce1GUhFwJ38ZyjjwHBFV9tSec7rZ2Q3YeM3nNnGPf6DacXGfEOPO\nHIN4sXAN2hzNXNjKRzTIvxQseb6nr7afUh/SlZ3yhQOCrIzmYlD7tP9WJe7ofL0p\nJY4pDQYw8rT6nC2BE/ioemh84kERCT1vCe+OVFlSRuMlqfEv+ZpKQ+itOmPDQ/lM\njpUm1K2hrW/lWpxT/ZxHKo/w1K36J5WshgMZxfUu5BMCL9LMqMcrXNhNjDMfxDMM\n3yBPOvQ4ls6fecOZ/bsFo1p8VzMk/w/eG8vPs5yuNa5XxN95yFMXoOHGb5Xbu8D4\n6yiW+Af70LbiSNpGdmNdneiGB2fY38NxBukPw5u3S5qG8HedSmMr1RvSr5kHoAAe\nUbOY+BYaaKsTAT7+1skUW1o3FJSqoRKCHAzTsMWC6zzhR8hRn7jVrrguH1hGbqq5\nTZSCFQZExuTJ7uXrTLG0WoBXIjB5wWNcSeXn8myUWYB51nJNF4tJBouZOz9JwWGl\nkiAQkrHnBttLQWdW9FyjbIoTZMtpvVx+m6ObGTGdGL1cNlLAvWprMXGc+QARAQAB\ntDJJY2sgQVBUIHJlcG9zaXRvcnkgc2lnbmluZyBrZXkgKDIwMTgpIDxsaXdAbGl3\nLmZpPokCTgQTAQgAOBYhBKL1uyDoXyxUH3O717Wr+TZVS6PGBQJayzu5AhsDBQsJ\nCAcCBhUICQoLAgQWAgMBAh4BAheAAAoJELWr+TZVS6PGB5QQANTcikhRUHwt9N4h\ndGc/Hp6CbqdshMoWlwpFskttoVDxQG5OAobuZl5XyzGcmja1lT85RGkZFfbca0IZ\nLnXOLLSAu51QBkXNaj4OhjK/0uQ+ITrvL6RQSXNgHiUTR/W2XD1GIUq6nBqe2GSN\n31S1baYKKVj5QIMsi7Dq8ls3BBXuPCE+xTSaNmGWjes2t9pPidcRvxsksCLY1qgw\nP1GFXBeMkBQ29kBP87SUL15SIk7OiQLlEURCy5iRls5rt/YEsdEpRWIb0Tm5Nrjv\n2M3VM+iBhfNXTwj0rJ34mlycF1qQmA7YcTEobT7z587GPY0VWzBpQUnEQj7rQWPM\ncDYY0b+I6kQ8VKOaL4wVAtE98d7HzFIrIrwhTKufnrWrVDPYsmLZ+LPC1jiF7JBD\nSR6Vftb+SdDR9xoE1yRuXbC6IfoW+5/qQNrdQ2mm9BFw5jOonBqchs18HTTf3441\n6SWwP9fY3Vi+IZphPPi0Gf85oMStgnv/Wnw6LacEL32ek39Desero/D8iGLZernK\nQ2mC9mua5A/bYGVhsNWyURNFkKdbFa+/wW3NfdKYyZnsSfo+jJ2luNewrhAY7Kod\nGWXTer9RxzTGA3EXFGvNr+BBOOxSj0SfWTl0Olo7J5dnxof+jLAUS1VHpceHGHps\nGSJSdir7NkZidgwoCPA7BTqsb5LN\n=dXB0\n-----END PGP PUBLIC KEY BLOCK-----' | apt-key add -
+    - apt-get update
+    - apt-get install --assume-yes summain subplot daemonize python3-requests python3-yaml
+    
+    - rustup component add clippy rustfmt
+    
+    - useradd --create-home tester
+      # A tool we use to keep the size of Cargo's "target" directory in check
+    - su tester sh -c 'cargo install cargo-sweep'
+
+      # The following should closely match the contents of the "check" script,
+      # minus Subplot docgen
+    - su tester sh -c 'cargo clippy --all-targets'
+    - su tester sh -c 'cargo build --all-targets'
+    - su tester sh -c 'cargo fmt -- --check'
+    - su tester sh -c 'cargo test'
+    - su tester sh -c 'subplot codegen obnam.md -o test.py'
+    - su tester sh -c 'python3 test.py --log test.log || cat test.log'
+
+      # Remove all build artifacts unrelated to the currently installed Rust
+      # toolchain(s). We have to tweak the PATH because of the caching-related
+      # shenanigans described in the "variables" section above.
+    - su tester sh -c 'PATH=${CARGO_INSTALL_ROOT}/bin:${PATH} cargo sweep --installed'
+
+  cache:
+    key: check-job-cache
+    paths:
+      - $CARGO_HOME/registry/cache
+      - $CARGO_HOME/registry/index
+      - $CARGO_INSTALL_ROOT
+      - target
