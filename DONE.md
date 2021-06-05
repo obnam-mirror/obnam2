@@ -1,3 +1,7 @@
+---
+title: Definition of done
+...
+
 # Definition of done
 
 For changes to this project to be considered done, the following must
