@@ -289,9 +289,8 @@ didn't quite work for you. If so, please [open issues][issue-tracker] and help
 us improve Obnam!
 
 If you're interested in more details, and especially in how Obnam works
-internally, take a look at [obnam.md](obnam.md) Subplot file. It not just
-explains things, but also contains acceptance criteria and tests for them. Great
-stuff!
+internally, take a look at [the Subplot file](obnam.html). It not just explains
+things, but also contains acceptance criteria and tests for them. Great stuff!
 
 
 [issue-tracker]: https://gitlab.com/larswirzenius/obnam/-/issues
