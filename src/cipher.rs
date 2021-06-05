@@ -78,13 +78,10 @@ impl CipherEngine {
         let version_len = CHUNK_V1.len();
         let bytes = &bytes[version_len..];
 
-        // Get nonce.
-        let nonce = &bytes[..NONCE_SIZE];
-        if nonce.len() != NONCE_SIZE {
-            return Err(CipherError::NoNonce);
-        }
-        let nonce = GenericArray::from_slice(nonce);
-        let ciphertext = &bytes[NONCE_SIZE..];
+        let (nonce, ciphertext) = match bytes.get(..NONCE_SIZE) {
+            Some(nonce) => (GenericArray::from_slice(nonce), &bytes[NONCE_SIZE..]),
+            None => return Err(CipherError::NoNonce),
+        };
 
         let payload = Payload {
             msg: ciphertext,
@@ -169,7 +166,7 @@ impl Nonce {
 mod test {
     use crate::chunk::DataChunk;
     use crate::chunkmeta::ChunkMeta;
-    use crate::cipher::CipherEngine;
+    use crate::cipher::{CipherEngine, CipherError, CHUNK_V1, NONCE_SIZE};
     use crate::passwords::Passwords;
 
     #[test]
@@ -196,5 +193,27 @@ mod test {
         let bytes: Vec<u8> = enc.ciphertext().to_vec();
         let dec = cipher.decrypt_chunk(&bytes, enc.aad()).unwrap();
         assert_eq!(chunk, dec);
+    }
+
+    #[test]
+    fn decrypt_errors_if_nonce_is_too_short() {
+        let pass = Passwords::new("our little test secret");
+        let e = CipherEngine::new(&pass);
+
+        // *Almost* a valid chunk header, except it's one byte too short
+        let bytes = {
+            let mut result = [0; CHUNK_V1.len() + NONCE_SIZE - 1];
+            for (i, x) in CHUNK_V1.iter().enumerate() {
+                result[i] = *x;
+            }
+            result
+        };
+
+        let meta = [0; 0];
+
+        assert!(matches!(
+            e.decrypt_chunk(&bytes, &meta),
+            Err(CipherError::NoNonce)
+        ));
     }
 }
