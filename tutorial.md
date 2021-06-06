@@ -197,10 +197,8 @@ sure that the roots are accessible to the user who would be doing the backupÂ â€
 the user has to be able to read their contents to back them up.
 
 To generate an encryption key, run `obnam init` and type a passphrase. The key
-will be derived from that, and saved into `~/.config/obnam/passwords.yaml`. TK
-do I need to remember the passphrase for anything else? `backup` and `restore`
-don't need it. Should we advise users to keep a separate backup of
-passwords.yaml, since it's impossible to restore backups without it?
+will be derived from that, and saved into
+`~/.config/obnam/passwords.yaml`.
 
 With that, you're ready to make your first backup! Run the following command,
 and watch Obnam go through all the files in your roots:
