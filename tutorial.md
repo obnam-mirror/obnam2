@@ -179,8 +179,9 @@ The version might be different, but at least there should **not** be any errors.
 # Making a backup
 
 To create a backup, client needs to know three things: where the backup server
-is, where the live data is, and what key to use for encryption. Create a file
-`~/.config/obnam/obnam.yaml` with contents like this:
+is, where the live data is, and what key to use for encryption. To tell the
+client about the first two, create a file `~/.config/obnam/obnam.yaml` with
+contents like this:
 
 ```yaml
 server_url: https://obnam.example.com:443
@@ -196,9 +197,12 @@ The `roots` key is a list of all the directories that Obnam should back up. Make
 sure that the roots are accessible to the user who would be doing the backup —
 the user has to be able to read their contents to back them up.
 
-To generate an encryption key, run `obnam init` and type a passphrase. The key
-will be derived from that, and saved into
-`~/.config/obnam/passwords.yaml`.
+To generate an encryption key, run `obnam init` and type a passphrase. You don't
+need to remember it — it's just an additional random input to aid key
+generation; Obnam will not prompt you for it ever again. The generated key will
+be saved into `~/.config/obnam/passwords.yaml`, and *that's* the file you should
+not lose: you can't make or restore backups without it. Consider copying it
+somewhere separate from your main backup.
 
 With that, you're ready to make your first backup! Run the following command,
 and watch Obnam go through all the files in your roots:
@@ -274,10 +278,10 @@ Obnam will print out a progress bar and some stats. Once the restoration is
 done, you can look under `yesterday/` to find the file you needed. Easy!
 
 Now you're prepared for the worst. (Unless *both* your primary and backup disks
-break. Or your backup server is inaccessible. Or there is no electrical grid
-anymore to power your devices. Or the zombies are trying to break in,
-distracting you from reading this tutorial. Look up "disaster recovery
-planning"—oh right, no electricity.)
+break. Or your backup server is inaccessible. Or you lose all copies of
+`passwords.yaml`. Or there is no electrical grid anymore to power your devices.
+Or the zombies are trying to break in, distracting you from reading this
+tutorial. Look up "disaster recovery planning"—oh right, no electricity.)
 
 
 # Where to go from here
