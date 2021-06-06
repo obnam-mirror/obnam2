@@ -1,3 +1,9 @@
+obnam (0.4.0-1) unstable; urgency=medium
+
+  * New release.
+
+ -- Lars Wirzenius <liw@liw.fi>  Sun, 06 Jun 2021 10:25:02 +0300
+
 obnam (0.3.1-1) unstable; urgency=medium
 
   * New release.
@@ -16,3 +22,4 @@ obnam (0.2.2-1) unstable; urgency=low
     no closing of an ITP bug.
 
  -- Lars Wirzenius <liw@liw.fi>  Sat, 28 Sep 2019 16:45:49 +0300
+
