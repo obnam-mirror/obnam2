@@ -1,5 +1,5 @@
 /target
-obnam.pdf
-obnam.html
+*.pdf
+*.html
 test.py
 test.log

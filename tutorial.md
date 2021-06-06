@@ -169,7 +169,7 @@ Now verify that everything is installed correctly:
 
 ```
 $ obnam --version
-obnam-backup 0.2.2
+obnam-backup 0.3.1
 ```
 
 The version might be different, but at least there should **not** be any errors.
@@ -178,8 +178,8 @@ The version might be different, but at least there should **not** be any errors.
 
 # Making a backup
 
-To create a backup, client needs to know just two things: where the backup
-server is, and where the live data is. To tell it about that, create a file
+To create a backup, client needs to know three things: where the backup server
+is, where the live data is, and what key to use for encryption. Create a file
 `~/.config/obnam/obnam.yaml` with contents like this:
 
 ```yaml
@@ -195,6 +195,10 @@ Adjust the server address to match what you previously configured on the server.
 The `roots` key is a list of all the directories that Obnam should back up. Make
 sure that the roots are accessible to the user who would be doing the backup —
 the user has to be able to read their contents to back them up.
+
+To generate an encryption key, run `obnam init` and type a passphrase. The key
+will be derived from that, and saved into
+`~/.config/obnam/passwords.yaml`.
 
 With that, you're ready to make your first backup! Run the following command,
 and watch Obnam go through all the files in your roots:
@@ -227,8 +231,16 @@ recover the files you just backed up.
 Let's imagine that your disk crapped out. In that case, you probably want to
 just grab the latest backup. In other cases, you might find that a file you
 thought useless and deleted long ago is actually important. To restore it, you
-need to find the backup that still has it. So the first thing you do is get
-a list of all your backups with `obnam list`:
+need to find the backup that still has it.
+
+The first order of business is to restore your `passwords.yaml`. If you already
+have it on your current machine, great; if not, you'll have to restore it from
+some *other* backup before you can use Obnam to restore everything else. It's
+impossible to recover any data without knowing the key, since it's all
+encrypted.
+
+Got the `passwords.yaml` in place? Good. Let's get a list of all your backups
+with `obnam list`:
 
 ```
 $ obnam list
@@ -275,9 +287,8 @@ didn't quite work for you. If so, please [open issues][issue-tracker] and help
 us improve Obnam!
 
 If you're interested in more details, and especially in how Obnam works
-internally, take a look at [obnam.md](obnam.md) Subplot file. It not just
-explains things, but also contains acceptance criteria and tests for them. Great
-stuff!
+internally, take a look at [the Subplot file](obnam.html). It not just explains
+things, but also contains acceptance criteria and tests for them. Great stuff!
 
 
 [issue-tracker]: https://gitlab.com/larswirzenius/obnam/-/issues
