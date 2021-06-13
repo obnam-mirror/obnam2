@@ -7,8 +7,11 @@ title: Obnam &ndash; a backup system
 Obnam2 is a project to develop a backup system.
 
 For installation instructions and a quick start guide, see
-[tutorial.md](tutorial.md). For more details on goals, requirements, and
-implementation details, see the [obnam.md](obnam.md) subplot file.
+[tutorial.md][]. For more details on goals, requirements, and
+implementation details, see the [obnam.md][] subplot file.
+
+[tutorial.md]: https://doc.obnam.org/tutorial.html
+[obnam.md]: https://doc.obnam.org/obnam.html
 
 ## Legalese
 
