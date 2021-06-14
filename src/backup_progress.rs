@@ -63,7 +63,7 @@ impl BackupProgress {
         let parts = vec!["{msg}", "elapsed: {elapsed}", "{spinner}"];
         progress.set_style(ProgressStyle::default_bar().template(&parts.join("\n")));
         progress.enable_steady_tick(100);
-        progress.set_message(&format!(
+        progress.set_message(format!(
             "downloading previous generation metadata: {}",
             gen_id
         ));
@@ -84,8 +84,7 @@ impl BackupProgress {
         if self.progress.length() < self.progress.position() {
             self.progress.set_length(self.progress.position());
         }
-        self.progress
-            .set_message(&format!("{}", filename.display()));
+        self.progress.set_message(format!("{}", filename.display()));
     }
 
     pub fn finish(&self) {
