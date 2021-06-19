@@ -13,6 +13,56 @@ implementation details, see the [obnam.md][] subplot file.
 [tutorial.md]: https://doc.obnam.org/tutorial.html
 [obnam.md]: https://doc.obnam.org/obnam.html
 
+# Dependencies for build and test
+
+The up-to-date, tested list of dependencies for building and testing
+Obnam are listed in the file [debian/control](debian/control), in
+terms of Debian packages, and in [Cargo.toml](Cargo.toml) for Rust.
+The Rust dependencies are handled automatically by the Cargo tool on
+all platforms. The other dependencies are, not including ones needed
+merely for building Debian packages:
+
+* [daemonize](http://software.clapper.org/daemonize/) &ndash; a tool
+  for running a command as a daemon in the background; needed for
+  testing, so that the Obnam server can be started and stopped by the
+  Obnam test suite.
+
+* [SQLite](https://sqlite.org), specifically its development library
+  component &ndash; an SQL database engine that stores the whole
+  database in a file and can be used as a library rather then run as a
+  service.
+
+* [OpenSSL](https://www.openssl.org), specifically its development
+  library component known as `libssl-dev` &ndash; a library that
+  implments TLS, which Obnam uses for communication between its client
+  and server parts.
+
+* [moreutils](https://joeyh.name/code/moreutils/) &ndash; a collection
+  of handy utilities, of which the Obnam test suite uses the `chronic`
+  tool to hide output of successful commands.
+
+* [pkg-config](http://pkg-config.freedesktop.org) &ndash; a tool for
+  managing compile and link time flags; needed so that the OpenSSL
+  library can be linked into the Obnam binaries.
+
+* [Python 3](https://www.python.org/),
+  [Requests](http://python-requests.org),
+  [PYYAML](https://github.com/yaml/pyyaml) &ndash; programming
+  language and libraries for it, used by the Obnam test suite.
+
+* [Subplot](https://subplot.liw.fi) &ndash; a tool for documenting
+  acceptance criteria and verifying that they are met.
+
+* [TeX Live](http://www.tug.org/texlive/) &ndash; a typesetting system
+  for generating PDF versions of documentation. The LaTeX
+  implementation and fonts are needed, not the full suite. None of Tex
+  Live is needed, if PDFs aren't needed, but `./check` does not
+  currently have a way to be told not to generate PDFs.
+
+* [Summain](https://summain.liw.fi) &ndash; a tool for generating
+  manifests of files. Used by the Obnam test suite to verify restored
+  data matches the original data.
+
 ## Legalese
 
 Copyright 2020-2021  Lars Wirzenius
