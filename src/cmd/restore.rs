@@ -129,7 +129,7 @@ fn restore_generation(
     progress: &ProgressBar,
 ) -> RestoreResult<()> {
     info!("restoring {:?}", entry);
-    progress.set_message(&format!("{}", entry.pathbuf().display()));
+    progress.set_message(format!("{}", entry.pathbuf().display()));
     progress.inc(1);
 
     let to = restored_path(entry, to)?;
