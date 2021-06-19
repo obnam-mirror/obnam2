@@ -5,7 +5,7 @@ use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::{LocalGeneration, LocalGenerationError};
 use indicatif::{ProgressBar, ProgressStyle};
-use libc::{chmod, mkfifo, timespec, utimensat, AT_FDCWD};
+use libc::{chmod, mkfifo, timespec, utimensat, AT_FDCWD, AT_SYMLINK_NOFOLLOW};
 use log::{debug, error, info};
 use std::ffi::CString;
 use std::io::prelude::*;
@@ -209,6 +209,7 @@ fn restore_symlink(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
     }
     symlink(entry.symlink_target().unwrap(), path)
         .map_err(|err| RestoreError::Symlink(path.to_path_buf(), err))?;
+    restore_metadata(path, entry)?;
     debug!("restored symlink {}", path.display());
     Ok(())
 }
@@ -254,15 +255,21 @@ fn restore_metadata(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
     // We have to use unsafe here to be able call the libc functions
     // below.
     unsafe {
-        debug!("chmod {:?}", path);
-        if chmod(path.as_ptr(), entry.mode()) == -1 {
-            let error = Error::last_os_error();
-            error!("chmod failed on {:?}", path);
-            return Err(RestoreError::Chmod(pathbuf, error));
+        if entry.kind() != FilesystemKind::Symlink {
+            debug!("chmod {:?}", path);
+            if chmod(path.as_ptr(), entry.mode()) == -1 {
+                let error = Error::last_os_error();
+                error!("chmod failed on {:?}", path);
+                return Err(RestoreError::Chmod(pathbuf, error));
+            }
+        } else {
+            debug!(
+                "skipping chmod of a symlink because it'll attempt to change the pointed-at file"
+            );
         }
 
         debug!("utimens {:?}", path);
-        if utimensat(AT_FDCWD, path.as_ptr(), times, 0) == -1 {
+        if utimensat(AT_FDCWD, path.as_ptr(), times, AT_SYMLINK_NOFOLLOW) == -1 {
             let error = Error::last_os_error();
             error!("utimensat failed on {:?}", path);
             return Err(RestoreError::SetTimestamp(pathbuf, error));
