@@ -19,7 +19,15 @@ const QUALIFIER: &str = "";
 const ORG: &str = "";
 const APPLICATION: &str = "obnam";
 
-fn main() -> anyhow::Result<()> {
+fn main() {
+    if let Err(err) = main_program() {
+        error!("{}", err);
+        eprintln!("ERROR: {}", err);
+        std::process::exit(1);
+    }
+}
+
+fn main_program() -> anyhow::Result<()> {
     let opt = Opt::from_args();
     let config = ClientConfig::read(&config_filename(&opt))?;
     setup_logging(&config.log)?;
@@ -28,7 +36,7 @@ fn main() -> anyhow::Result<()> {
     debug!("{:?}", opt);
     debug!("configuration: {:#?}", config);
 
-    let result = match opt.cmd {
+    match opt.cmd {
         Command::Init(x) => x.run(&config),
         Command::Backup(x) => x.run(&config),
         Command::List(x) => x.run(&config),
@@ -39,12 +47,7 @@ fn main() -> anyhow::Result<()> {
         Command::Config(x) => x.run(&config),
         Command::EncryptChunk(x) => x.run(&config),
         Command::DecryptChunk(x) => x.run(&config),
-    };
-
-    if let Err(ref e) = result {
-        error!("command failed: {}", e);
-        result?
-    }
+    }?;
 
     info!("client ends successfully");
     Ok(())
