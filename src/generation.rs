@@ -32,6 +32,9 @@ pub enum NascentError {
 
     #[error("SQL commit error: {0}")]
     Commit(rusqlite::Error),
+
+    #[error("Failed to create temporary file: {0}")]
+    TempFile(#[from] std::io::Error),
 }
 
 pub type NascentResult<T> = Result<T, NascentError>;
@@ -221,6 +224,7 @@ mod sql {
     use crate::backup_reason::Reason;
     use crate::chunkid::ChunkId;
     use crate::fsentry::FilesystemEntry;
+    use log::debug;
     use rusqlite::{params, Connection, OpenFlags, Row, Statement, Transaction};
     use std::os::unix::ffi::OsStrExt;
     use std::path::Path;
@@ -403,12 +407,16 @@ mod sql {
             stmt.query_map(params![path_into_blob(filename)], |row| row_to_entry(row))?;
         match iter.next() {
             None => Ok(None),
-            Some(Err(e)) => Err(e.into()),
+            Some(Err(e)) => {
+                debug!("database lookup error: {}", e);
+                Err(e.into())
+            }
             Some(Ok((fileno, json, reason))) => {
                 let entry = serde_json::from_str(&json)?;
                 if iter.next() == None {
                     Ok(Some((fileno, entry, reason)))
                 } else {
+                    debug!("too many files in file lookup");
                     Err(LocalGenerationError::TooManyFiles(filename.to_path_buf()))
                 }
             }

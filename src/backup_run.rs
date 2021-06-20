@@ -5,23 +5,17 @@ use crate::client::{BackupClient, ClientError};
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::FilesystemEntry;
-use crate::fsiter::{FsIterError, FsIterResult};
-use crate::generation::{LocalGeneration, LocalGenerationError};
+use crate::fsiter::{FsIterError, FsIterResult, FsIterator};
+use crate::generation::{LocalGeneration, LocalGenerationError, NascentError, NascentGeneration};
 use crate::policy::BackupPolicy;
 use log::{info, warn};
 use std::path::Path;
 
-pub struct InitialBackup<'a> {
-    client: &'a BackupClient,
-    buffer_size: usize,
-    progress: BackupProgress,
-}
-
-pub struct IncrementalBackup<'a> {
+pub struct BackupRun<'a> {
     client: &'a BackupClient,
     policy: BackupPolicy,
     buffer_size: usize,
-    progress: Option<BackupProgress>,
+    progress: BackupProgress,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -38,85 +32,81 @@ pub enum BackupError {
 
 pub type BackupResult<T> = Result<T, BackupError>;
 
-impl<'a> InitialBackup<'a> {
-    pub fn new(config: &ClientConfig, client: &'a BackupClient) -> BackupResult<Self> {
-        let progress = BackupProgress::initial();
+impl<'a> BackupRun<'a> {
+    pub fn initial(config: &ClientConfig, client: &'a BackupClient) -> BackupResult<Self> {
         Ok(Self {
             client,
+            policy: BackupPolicy::default(),
             buffer_size: config.chunk_size,
-            progress,
+            progress: BackupProgress::initial(),
         })
     }
 
-    pub fn drop(&self) {
-        self.progress.finish();
-    }
-
-    pub fn backup(
-        &self,
-        entry: FsIterResult<FilesystemEntry>,
-    ) -> BackupResult<(FilesystemEntry, Vec<ChunkId>, Reason)> {
-        match entry {
-            Err(err) => {
-                warn!("backup: there was a problem: {:?}", err);
-                self.progress.found_problem();
-                Err(err.into())
-            }
-            Ok(entry) => {
-                let path = &entry.pathbuf();
-                info!("backup: {}", path.display());
-                self.progress.found_live_file(path);
-                Ok(backup_file(
-                    &self.client,
-                    &entry,
-                    &path,
-                    self.buffer_size,
-                    Reason::IsNew,
-                ))
-            }
-        }
-    }
-}
-
-impl<'a> IncrementalBackup<'a> {
-    pub fn new(config: &ClientConfig, client: &'a BackupClient) -> BackupResult<Self> {
-        let policy = BackupPolicy::default();
+    pub fn incremental(config: &ClientConfig, client: &'a BackupClient) -> BackupResult<Self> {
         Ok(Self {
             client,
-            policy,
+            policy: BackupPolicy::default(),
             buffer_size: config.chunk_size,
-            progress: None,
+            progress: BackupProgress::incremental(),
         })
     }
 
-    pub fn start_backup(&mut self, old: &LocalGeneration) -> Result<(), ObnamError> {
-        let progress = BackupProgress::incremental();
-        progress.files_in_previous_generation(old.file_count()? as u64);
-        self.progress = Some(progress);
-        Ok(())
-    }
+    pub fn start(
+        &mut self,
+        genid: Option<&str>,
+        oldname: &Path,
+    ) -> Result<LocalGeneration, ObnamError> {
+        match genid {
+            None => {
+                // Create a new, empty generation.
+                NascentGeneration::create(oldname)?;
 
-    pub fn client(&self) -> &BackupClient {
-        self.client
-    }
-
-    pub fn drop(&self) {
-        if let Some(progress) = &self.progress {
-            progress.finish();
+                // Open the newly created empty generation.
+                Ok(LocalGeneration::open(oldname)?)
+            }
+            Some(genid) => {
+                let old = self.fetch_previous_generation(genid, oldname)?;
+                self.progress
+                    .files_in_previous_generation(old.file_count()? as u64);
+                Ok(old)
+            }
         }
     }
 
-    pub fn fetch_previous_generation(
+    fn fetch_previous_generation(
         &self,
         genid: &str,
         oldname: &Path,
     ) -> Result<LocalGeneration, ObnamError> {
         let progress = BackupProgress::download_generation(genid);
-        let old = self.client().fetch_generation(genid, &oldname)?;
+        let old = self.client.fetch_generation(genid, &oldname)?;
         progress.finish();
         Ok(old)
     }
 
+    pub fn finish(&self) {
+        self.progress.finish();
+    }
+
+    pub fn backup_roots(
+        &self,
+        config: &ClientConfig,
+        old: &LocalGeneration,
+        newpath: &Path,
+    ) -> Result<(i64, Vec<BackupError>), NascentError> {
+        let mut all_warnings = vec![];
+        let count = {
+            let mut new = NascentGeneration::create(newpath)?;
+            for root in &config.roots {
+                let iter = FsIterator::new(root, config.exclude_cache_tag_directories);
+                let mut warnings = new.insert_iter(iter.map(|entry| self.backup(entry, &old)))?;
+                all_warnings.append(&mut warnings);
+            }
+            new.file_count()
+        };
+        self.finish();
+        Ok((count, all_warnings))
+    }
     pub fn backup(
         &self,
         entry: FsIterResult<FilesystemEntry>,
@@ -163,15 +153,11 @@ impl<'a> IncrementalBackup<'a> {
     }
 
     fn found_live_file(&self, path: &Path) {
-        if let Some(progress) = &self.progress {
-            progress.found_live_file(path);
-        }
+        self.progress.found_live_file(path);
     }
 
     fn found_problem(&self) {
-        if let Some(progress) = &self.progress {
-            progress.found_problem();
-        }
+        self.progress.found_problem();
     }
 }
 
