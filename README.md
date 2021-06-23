@@ -1,8 +1,8 @@
 ---
-title: Obnam &ndash; a backup system
+title: Obnam &mdash; a backup system
 ...
 
-# Obnam &ndash; a backup system
+# Obnam &mdash; a backup system
 
 Obnam2 is a project to develop a backup system.
 
@@ -22,44 +22,44 @@ The Rust dependencies are handled automatically by the Cargo tool on
 all platforms. The other dependencies are, not including ones needed
 merely for building Debian packages:
 
-* [daemonize](http://software.clapper.org/daemonize/) &ndash; a tool
+* [daemonize](http://software.clapper.org/daemonize/) &mdash; a tool
   for running a command as a daemon in the background; needed for
   testing, so that the Obnam server can be started and stopped by the
   Obnam test suite.
 
 * [SQLite](https://sqlite.org), specifically its development library
-  component &ndash; an SQL database engine that stores the whole
+  component &mdash; an SQL database engine that stores the whole
   database in a file and can be used as a library rather then run as a
   service.
 
 * [OpenSSL](https://www.openssl.org), specifically its development
-  library component known as `libssl-dev` &ndash; a library that
+  library component known as `libssl-dev` &mdash; a library that
   implments TLS, which Obnam uses for communication between its client
   and server parts.
 
-* [moreutils](https://joeyh.name/code/moreutils/) &ndash; a collection
+* [moreutils](https://joeyh.name/code/moreutils/) &mdash; a collection
   of handy utilities, of which the Obnam test suite uses the `chronic`
   tool to hide output of successful commands.
 
-* [pkg-config](http://pkg-config.freedesktop.org) &ndash; a tool for
+* [pkg-config](http://pkg-config.freedesktop.org) &mdash; a tool for
   managing compile and link time flags; needed so that the OpenSSL
   library can be linked into the Obnam binaries.
 
 * [Python 3](https://www.python.org/),
   [Requests](http://python-requests.org),
-  [PYYAML](https://github.com/yaml/pyyaml) &ndash; programming
+  [PYYAML](https://github.com/yaml/pyyaml) &mdash; programming
   language and libraries for it, used by the Obnam test suite.
 
-* [Subplot](https://subplot.liw.fi) &ndash; a tool for documenting
+* [Subplot](https://subplot.liw.fi) &mdash; a tool for documenting
   acceptance criteria and verifying that they are met.
 
-* [TeX Live](http://www.tug.org/texlive/) &ndash; a typesetting system
+* [TeX Live](http://www.tug.org/texlive/) &mdash; a typesetting system
   for generating PDF versions of documentation. The LaTeX
   implementation and fonts are needed, not the full suite. None of Tex
   Live is needed, if PDFs aren't needed, but `./check` does not
   currently have a way to be told not to generate PDFs.
 
-* [Summain](https://summain.liw.fi) &ndash; a tool for generating
+* [Summain](https://summain.liw.fi) &mdash; a tool for generating
   manifests of files. Used by the Obnam test suite to verify restored
   data matches the original data.
 

@@ -574,45 +574,45 @@ use [lstat(2)][] instead. The metadata is stored in an [inode][]. Both
 variants return a C `struct stat`. On Linux, it has the following
 fields:
 
-* `st_dev` &ndash; id of the block device containing file system where
+* `st_dev` &mdash; id of the block device containing file system where
   the file is; this encodes the major and minor device numbers
   - this field can't be restored as such, it is forced by the
     operating system for the file system to which files are restored
   - Obnam stores it so that hard links can be restored, see below
-* `st_ino` &ndash; the inode number for the file
+* `st_ino` &mdash; the inode number for the file
   - this field can't be restored as such, it is forced by the file
     system whan the restored file is created
   - Obnam stores it so that hard links can be restored, see below
-* `st_nlink` &ndash; number of hard links referring to the inode
+* `st_nlink` &mdash; number of hard links referring to the inode
   - this field can't be restored as such, it is maintained by the
     operating system when hard links are created
   - Obnam stores it so that hard links can be restored, see below
-* `st_mode` &ndash; file type and permissions
+* `st_mode` &mdash; file type and permissions
   - stored and restored
-* `st_uid` &ndash; the numeric id of the user account owning the file
+* `st_uid` &mdash; the numeric id of the user account owning the file
   - stored
   - restored if restore is running as root, otherwise not restored
-* `st_gid` &ndash; the numeric id of the group owning the file
+* `st_gid` &mdash; the numeric id of the group owning the file
   - stored
   - restored if restore is running as root, otherwise not restored
-* `st_rdev` &ndash; the device this inode represents
+* `st_rdev` &mdash; the device this inode represents
   - not stored?
-* `st_size` &ndash; size or length of the file in bytes
+* `st_size` &mdash; size or length of the file in bytes
   - stored
   - restored implicitly be re-creating the origtinal contents
-* `st_blksize` &ndash; preferred block size for efficient I/O
+* `st_blksize` &mdash; preferred block size for efficient I/O
   - not stored?
-* `st_blocks` &ndash; how many blocks of 512 bytes are actually
+* `st_blocks` &mdash; how many blocks of 512 bytes are actually
     allocated to store this file's contents
   - see below for discussion about sparse files
   - not stored by Obnam
-* `st_atime` &ndash; timestamp of latest access
+* `st_atime` &mdash; timestamp of latest access
   - stored and restored
   - On Linux, split into two integer fields
-* `st_mtime` &ndash; timestamp of latest modification
+* `st_mtime` &mdash; timestamp of latest modification
   - stored and restored
   - On Linux, split into two integer fields
-* `st_ctime` &ndash; timestamp of latest inode change
+* `st_ctime` &mdash; timestamp of latest inode change
   - On Linux, split into two integer fields
   - stored
   - not restored
@@ -788,18 +788,18 @@ Chunks consist of arbitrary binary data, a small amount of metadata,
 and an identifier chosen by the server. The chunk metadata is a JSON
 object, consisting of the following fields:
 
-* `sha256` &ndash; the SHA256 checksum of the chunk contents as
+* `sha256` &mdash; the SHA256 checksum of the chunk contents as
   determined by the client
   - this MUST be set for every chunk, including generation chunks
   - the server allows for searching based on this field
   - note that the server doesn't verify this in any way, to pave way
     for future client-side encryption of the chunk data
-* `generation` &ndash; set to `true` if the chunk represents a
+* `generation` &mdash; set to `true` if the chunk represents a
   generation
   - may also be set to `false` or `null` or be missing entirely
   - the server allows for listing chunks where this field is set to
     `true`
-* `ended` &ndash; the timestamp of when the backup generation ended
+* `ended` &mdash; the timestamp of when the backup generation ended
   - note that the server doesn't process this in any way, the contents
     is entirely up to the client
   - may be set to the empty string, `null`, or be missing entirely
@@ -814,14 +814,14 @@ that can be put into HTTP headers.
 
 The server has the following API for managing chunks:
 
-* `POST /chunks` &ndash; store a new chunk (and its metadata) on the
+* `POST /chunks` &mdash; store a new chunk (and its metadata) on the
   server, return its randomly chosen identifier
-* `GET /chunks/<ID>` &ndash; retrieve a chunk (and its metadata) from
+* `GET /chunks/<ID>` &mdash; retrieve a chunk (and its metadata) from
   the server, given a chunk identifier
-* `GET /chunks?sha256=xyzzy` &ndash; find chunks on the server whose
+* `GET /chunks?sha256=xyzzy` &mdash; find chunks on the server whose
   metadata indicates their contents has a given SHA256 checksum
-* `GET /chunks?generation=true` &ndash; find generation chunks
-* `GET /chunks?data=True` &ndash; find chunks with file data
+* `GET /chunks?generation=true` &mdash; find generation chunks
+* `GET /chunks?data=True` &mdash; find chunks with file data
   - this is meant for testing only
   - it excludes generation chunks, and chunks used to store the
     generation's SQLite file
