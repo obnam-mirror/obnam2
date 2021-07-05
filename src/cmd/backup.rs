@@ -1,11 +1,9 @@
 use crate::backup_progress::BackupProgress;
-use crate::backup_run::{BackupError, IncrementalBackup, InitialBackup};
+use crate::backup_run::BackupRun;
 use crate::chunkid::ChunkId;
 use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
-use crate::fsiter::FsIterator;
-use crate::generation::NascentGeneration;
 use bytesize::MIB;
 use log::info;
 use std::path::Path;
@@ -24,16 +22,32 @@ impl Backup {
 
         let client = BackupClient::new(config)?;
         let genlist = client.list_generations()?;
-        let (gen_id, file_count, warnings) = match genlist.resolve("latest") {
-            Err(_) => initial_backup(&config, &client)?,
-            Ok(old_ref) => incremental_backup(&old_ref, &config, &client)?,
+
+        let oldtemp = NamedTempFile::new()?;
+        let newtemp = NamedTempFile::new()?;
+
+        let (count, warnings) = match genlist.resolve("latest") {
+            Err(_) => {
+                info!("fresh backup without a previous generation");
+                let mut run = BackupRun::initial(config, &client)?;
+                let old = run.start(None, oldtemp.path())?;
+                run.backup_roots(config, &old, newtemp.path())?
+            }
+            Ok(old_id) => {
+                info!("incremental backup based on {}", old_id);
+                let mut run = BackupRun::incremental(config, &client)?;
+                let old = run.start(Some(&old_id), oldtemp.path())?;
+                run.backup_roots(config, &old, newtemp.path())?
+            }
         };
+
+        let gen_id = upload_nascent_generation(&client, newtemp.path())?;
 
         for w in warnings.iter() {
             println!("warning: {}", w);
         }
 
-        report_stats(&runtime, file_count, &gen_id, warnings.len())?;
+        report_stats(&runtime, count, &gen_id, warnings.len())?;
 
         Ok(())
     }
@@ -51,60 +65,6 @@ fn report_stats(
     println!("file-count: {}", file_count);
     println!("generation-id: {}", gen_id);
     Ok(())
-}
-
-fn initial_backup(
-    config: &ClientConfig,
-    client: &BackupClient,
-) -> Result<(ChunkId, i64, Vec<BackupError>), ObnamError> {
-    info!("fresh backup without a previous generation");
-    let newtemp = NamedTempFile::new()?;
-    let run = InitialBackup::new(config, &client)?;
-    let mut all_warnings = vec![];
-    let count = {
-        let mut new = NascentGeneration::create(newtemp.path())?;
-        for root in &config.roots {
-            let iter = FsIterator::new(root, config.exclude_cache_tag_directories);
-            let warnings = new.insert_iter(iter.map(|entry| run.backup(entry)))?;
-            for w in warnings {
-                all_warnings.push(w);
-            }
-        }
-        new.file_count()
-    };
-    run.drop();
-
-    let gen_id = upload_nascent_generation(client, newtemp.path())?;
-    Ok((gen_id, count, all_warnings))
-}
-
-fn incremental_backup(
-    old_ref: &str,
-    config: &ClientConfig,
-    client: &BackupClient,
-) -> Result<(ChunkId, i64, Vec<BackupError>), ObnamError> {
-    info!("incremental backup based on {}", old_ref);
-    let newtemp = NamedTempFile::new()?;
-    let mut run = IncrementalBackup::new(config, &client)?;
-    let mut all_warnings = vec![];
-    let count = {
-        let oldtemp = NamedTempFile::new()?;
-        let old = run.fetch_previous_generation(old_ref, oldtemp.path())?;
-        run.start_backup(&old)?;
-        let mut new = NascentGeneration::create(newtemp.path())?;
-        for root in &config.roots {
-            let iter = FsIterator::new(root, config.exclude_cache_tag_directories);
-            let warnings = new.insert_iter(iter.map(|entry| run.backup(entry, &old)))?;
-            for w in warnings {
-                all_warnings.push(w);
-            }
-        }
-        new.file_count()
-    };
-    run.drop();
-
-    let gen_id = upload_nascent_generation(client, newtemp.path())?;
-    Ok((gen_id, count, all_warnings))
 }
 
 fn upload_nascent_generation(
