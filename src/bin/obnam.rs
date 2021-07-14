@@ -4,6 +4,7 @@ use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Logger, Root};
 use obnam::cmd::backup::Backup;
 use obnam::cmd::chunk::{DecryptChunk, EncryptChunk};
+use obnam::cmd::chunkify::Chunkify;
 use obnam::cmd::get_chunk::GetChunk;
 use obnam::cmd::init::Init;
 use obnam::cmd::list::List;
@@ -39,6 +40,7 @@ fn main_program() -> anyhow::Result<()> {
     match opt.cmd {
         Command::Init(x) => x.run(&config),
         Command::Backup(x) => x.run(&config),
+        Command::Chunkify(x) => x.run(&config),
         Command::List(x) => x.run(&config),
         Command::ShowGeneration(x) => x.run(&config),
         Command::ListFiles(x) => x.run(&config),
@@ -95,6 +97,7 @@ struct Opt {
 enum Command {
     Init(Init),
     Backup(Backup),
+    Chunkify(Chunkify),
     List(List),
     ListFiles(ListFiles),
     Restore(Restore),
