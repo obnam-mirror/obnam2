@@ -22,6 +22,16 @@ The Rust dependencies are handled automatically by the Cargo tool on
 all platforms. The other dependencies are, not including ones needed
 merely for building Debian packages:
 
+* [Rust](https://www.rust-lang.org/tools/install) &mdash; the
+  programming implementation. This can be installed via the standard
+  Rust installer, `rustup`, or any other way. Obnam does not currently
+  specify an explicit minimum version of Rust it requires, but its
+  developers use whatever is the current stable version of the
+  language.
+  
+  On Debian, the `build-essential` package also needs to be installed
+  to build Rust programs.
+
 * [daemonize](http://software.clapper.org/daemonize/) &mdash; a tool
   for running a command as a daemon in the background; needed for
   testing, so that the Obnam server can be started and stopped by the
