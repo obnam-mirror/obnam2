@@ -15,10 +15,33 @@ then
     esac
 fi
 
+require_cmd()
+{
+    if ! command -v "$1" > /dev/null
+    then
+        echo "Need to have $1 installed, but can't find it" 1>&2
+        return 1
+    fi
+}
+
 got_cargo_cmd()
 {
     cargo "$1" --help > /dev/null
 }
+
+require_cmd rustc
+require_cmd cc
+require_cmd cargo
+require_cmd python3
+require_cmd subplot
+require_cmd summain
+require_cmd chronic
+require_cmd pkg-config
+require_cmd pandoc
+require_cmd pdflatex
+
+# daemonize installation location changed from Debian 10 to 11.
+require_cmd daemonize || require_cmd /usr/sbin/daemonize
 
 got_cargo_cmd clippy && cargo  clippy --all-targets -q
 $hideok cargo build --all-targets
