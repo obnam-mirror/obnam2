@@ -38,7 +38,7 @@ impl<T: Send + 'static> Engine<T> {
         Self { rx }
     }
 
-    /// Get the oldest result worker function, if any.
+    /// Get the oldest result of the worker function, if any.
     ///
     /// This will block until there is a result, or it's known that no
     /// more results will be forthcoming.
@@ -96,7 +96,7 @@ async fn manage_workers<S, T, F>(
     }
 
     while workers.next().await.is_some() {
-        // Finish the chunks
+        // Finish the remaining work items.
     }
 }
 
