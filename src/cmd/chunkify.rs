@@ -2,13 +2,13 @@ use crate::config::ClientConfig;
 use crate::engine::Engine;
 use crate::error::ObnamError;
 use crate::workqueue::WorkQueue;
-use futures::executor::block_on;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use structopt::StructOpt;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, BufReader};
+use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
 
 // Size of queue with unprocessed chunks, and also queue of computed
@@ -22,7 +22,8 @@ pub struct Chunkify {
 
 impl Chunkify {
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
-        block_on(self.run_async(config))
+        let rt = Runtime::new()?;
+        rt.block_on(self.run_async(config))
     }
 
     pub async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
