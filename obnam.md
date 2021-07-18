@@ -1129,7 +1129,7 @@ given an installed obnam
 and file config.yaml
 and JSON file config.json converted from YAML file config.yaml
 when I run obnam --config config.yaml config
-then stdout, as JSON, matches file config.json
+then stdout, as JSON, has all the values in file config.json
 ~~~
 
 ~~~{#config.yaml .file .yaml .numberLines}
@@ -1214,6 +1214,34 @@ when I run obnam encrypt-chunk cleartext.dat encrypted.dat '{"sha256":"fake"}'
 when I run obnam decrypt-chunk encrypted.dat decrypted.dat '{"sha256":"fake"}'
 then files cleartext.dat and encrypted.dat are different
 then files cleartext.dat and decrypted.dat are identical
+~~~
+
+## Split a file into chunks
+
+The `obnam chunkify` command reads one or more files and splits them
+into chunks, and writes to the standard output a JSON file describing
+each chunk. This scenario verifies that the command works at least in
+a simple case.
+
+~~~scenario
+given an installed obnam
+given a running chunk server
+given a client config based on smoke.yaml
+given a file data.dat containing "hello, world"
+given file chunks.json
+when I run obnam chunkify data.dat
+then stdout, as JSON, exactly matches file chunks.json
+~~~
+
+~~~{#chunks.json .file .json}
+[
+  {
+    "filename": "data.dat",
+    "offset": 0,
+    "len": 12,
+    "checksum": "09ca7e4eaa6e8ae9c7d261167129184883644d07dfba7cbfbc4c8a2e08360d5b"
+  }
+]
 ~~~
 
 # Acceptance criteria for Obnam as a whole
