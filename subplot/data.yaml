@@ -31,8 +31,11 @@
 - given: "JSON file {json_name} converted from YAML file {yaml_name}"
   function: convert_yaml_to_json
 
-- then: "stdout, as JSON, matches file {filename}"
-  function: match_stdout_to_json_file
+- then: "stdout, as JSON, exactly matches file {filename}"
+  function: match_stdout_to_json_file_exactly
+
+- then: "stdout, as JSON, has all the values in file {filename}"
+  function: match_stdout_to_json_file_superset
 
 - then: "file {filename} is restored to {restored}"
   function: file_is_restored

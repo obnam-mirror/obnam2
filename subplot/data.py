@@ -107,9 +107,10 @@ def convert_yaml_to_json(ctx, yaml_name=None, json_name=None):
         json.dump(obj, f)
 
 
-def match_stdout_to_json_file(ctx, filename=None):
+def match_stdout_to_json_file_superset(ctx, filename=None):
     runcmd_get_stdout = globals()["runcmd_get_stdout"]
     assert_eq = globals()["assert_eq"]
+    assert_dict_eq = globals()["assert_dict_eq"]
 
     stdout = runcmd_get_stdout(ctx)
     stdout = json.loads(stdout.strip())
@@ -117,14 +118,37 @@ def match_stdout_to_json_file(ctx, filename=None):
     logging.debug(f"match_stdout_to_json_file: stdout={stdout!r}")
     logging.debug(f"match_stdout_to_json_file: file={obj!r}")
 
-    for key in obj:
-        if key not in stdout:
-            logging.error(f"{key} not in stdout")
-            assert key in stdout
+    if isinstance(obj, dict):
+        stdout = {key: value for key, value in stdout.items() if key in obj}
+        assert_dict_eq(obj, stdout)
+    elif isinstance(obj, list):
+        obj = {"key": obj}
+        stdout = {"key": stdout}
+        assert_dict_eq(obj, stdout)
+        assert_dict_eq(obj, stdout)
+    else:
+        assert_eq(obj, stdout)
 
-        if stdout[key] != obj[key]:
-            logging.error(f"stdout value for key is not what was exptected")
-            assert_eq(stdout[key], obj[key])
+
+def match_stdout_to_json_file_exactly(ctx, filename=None):
+    runcmd_get_stdout = globals()["runcmd_get_stdout"]
+    assert_eq = globals()["assert_eq"]
+    assert_dict_eq = globals()["assert_dict_eq"]
+
+    stdout = runcmd_get_stdout(ctx)
+    stdout = json.loads(stdout.strip())
+    obj = json.load(open(filename))
+    logging.debug(f"match_stdout_to_json_file: stdout={stdout!r}")
+    logging.debug(f"match_stdout_to_json_file: file={obj!r}")
+
+    if isinstance(obj, list):
+        obj = {"key": obj}
+        stdout = {"key": stdout}
+        assert_dict_eq(obj, stdout)
+    elif isinstance(obj, dict):
+        assert_dict_eq(obj, stdout)
+    else:
+        assert_eq(obj, stdout)
 
 
 def manifests_match(ctx, expected=None, actual=None):
