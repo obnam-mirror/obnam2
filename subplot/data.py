@@ -11,7 +11,8 @@ def create_file_with_given_data(ctx, filename=None, data=None):
     logging.debug(f"creating file {filename} with {data!r}")
     dirname = os.path.dirname(filename) or "."
     os.makedirs(dirname, exist_ok=True)
-    open(filename, "wb").write(data.encode("UTF-8"))
+    with open(filename, "wb") as f:
+        f.write(data.encode("UTF-8"))
 
 
 def create_file_with_random_data(ctx, filename=None):
@@ -33,7 +34,8 @@ def create_cachedir_tag_in(ctx, dirpath=None):
     filepath = f"{dirpath}/CACHEDIR.TAG"
     logging.debug(f"creating {filepath}")
     os.makedirs(dirpath, exist_ok=True)
-    open(filepath, "w").write("Signature: 8a477f597d28d172789f06886806bc55")
+    with open(filepath, "w") as f:
+        f.write("Signature: 8a477f597d28d172789f06886806bc55")
 
 
 def create_nonutf8_filename(ctx, dirname=None):
@@ -69,7 +71,8 @@ def _create_manifest_of_directory(ctx, dirname=None, manifest=None):
     runcmd_run(ctx, ["find", "-exec", "summain", "{}", "+"], cwd=dirname)
     assert runcmd_get_exit_code(ctx) == 0
     stdout = runcmd_get_stdout(ctx)
-    open(manifest, "w").write(stdout)
+    with open(manifest, "w") as f:
+        f.write(stdout)
 
 
 def file_is_restored(ctx, filename=None, restored=None):
