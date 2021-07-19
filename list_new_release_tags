@@ -41,7 +41,8 @@ def built_tags(filename):
 
 
 def save_built_tags(filename, tags):
-    return open(filename, "w").write("".join(f"{tag}\n" for tag in tags))
+    with open(filename, "w") as f:
+        f.write("".join(f"{tag}\n" for tag in tags))
 
 
 tags_filename = sys.argv[1]
