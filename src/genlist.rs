@@ -8,7 +8,7 @@ pub struct GenerationList {
 #[derive(Debug, thiserror::Error)]
 pub enum GenerationListError {
     #[error("Unknown generation: {0}")]
-    UnknownGeneration(String),
+    UnknownGeneration(ChunkId),
 }
 
 impl GenerationList {
@@ -42,7 +42,9 @@ impl GenerationList {
             }
         };
         match gen {
-            None => Err(GenerationListError::UnknownGeneration(genref.to_string())),
+            None => Err(GenerationListError::UnknownGeneration(ChunkId::recreate(
+                genref,
+            ))),
             Some(gen) => Ok(gen.id().to_string()),
         }
     }
