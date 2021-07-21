@@ -81,14 +81,12 @@ pub enum ClientError {
     FileWrite(PathBuf, std::io::Error),
 }
 
-pub type ClientResult<T> = Result<T, ClientError>;
-
 pub struct BackupClient {
     chunk_client: ChunkClient,
 }
 
 impl BackupClient {
-    pub fn new(config: &ClientConfig) -> ClientResult<Self> {
+    pub fn new(config: &ClientConfig) -> Result<Self, ClientError> {
         info!("creating backup client with config: {:#?}", config);
         Ok(Self {
             chunk_client: ChunkClient::new(config)?,
@@ -99,7 +97,7 @@ impl BackupClient {
         &self,
         e: &FilesystemEntry,
         size: usize,
-    ) -> ClientResult<Vec<ChunkId>> {
+    ) -> Result<Vec<ChunkId>, ClientError> {
         let path = e.pathbuf();
         info!("uploading {:?}", path);
         let ids = match e.kind() {
@@ -113,7 +111,7 @@ impl BackupClient {
         Ok(ids)
     }
 
-    pub fn upload_generation(&self, filename: &Path, size: usize) -> ClientResult<ChunkId> {
+    pub fn upload_generation(&self, filename: &Path, size: usize) -> Result<ChunkId, ClientError> {
         info!("upload SQLite {}", filename.display());
         let ids = self.read_file(filename, size)?;
         let gen = GenerationChunk::new(ids);
@@ -123,7 +121,7 @@ impl BackupClient {
         Ok(gen_id)
     }
 
-    fn read_file(&self, filename: &Path, size: usize) -> ClientResult<Vec<ChunkId>> {
+    fn read_file(&self, filename: &Path, size: usize) -> Result<Vec<ChunkId>, ClientError> {
         info!("upload file {}", filename.display());
         let file = std::fs::File::open(filename)
             .map_err(|err| ClientError::FileOpen(filename.to_path_buf(), err))?;
@@ -132,15 +130,15 @@ impl BackupClient {
         Ok(chunk_ids)
     }
 
-    pub fn has_chunk(&self, meta: &ChunkMeta) -> ClientResult<Option<ChunkId>> {
+    pub fn has_chunk(&self, meta: &ChunkMeta) -> Result<Option<ChunkId>, ClientError> {
         self.chunk_client.has_chunk(meta)
     }
 
-    pub fn upload_chunk(&self, chunk: DataChunk) -> ClientResult<ChunkId> {
+    pub fn upload_chunk(&self, chunk: DataChunk) -> Result<ChunkId, ClientError> {
         self.chunk_client.upload_chunk(chunk)
     }
 
-    pub fn upload_new_file_chunks(&self, chunker: Chunker) -> ClientResult<Vec<ChunkId>> {
+    pub fn upload_new_file_chunks(&self, chunker: Chunker) -> Result<Vec<ChunkId>, ClientError> {
         let mut chunk_ids = vec![];
         for item in chunker {
             let chunk = item?;
@@ -157,22 +155,26 @@ impl BackupClient {
         Ok(chunk_ids)
     }
 
-    pub fn list_generations(&self) -> ClientResult<GenerationList> {
+    pub fn list_generations(&self) -> Result<GenerationList, ClientError> {
         self.chunk_client.list_generations()
     }
 
-    pub fn fetch_chunk(&self, chunk_id: &ChunkId) -> ClientResult<DataChunk> {
+    pub fn fetch_chunk(&self, chunk_id: &ChunkId) -> Result<DataChunk, ClientError> {
         self.chunk_client.fetch_chunk(chunk_id)
     }
 
-    fn fetch_generation_chunk(&self, gen_id: &str) -> ClientResult<GenerationChunk> {
+    fn fetch_generation_chunk(&self, gen_id: &str) -> Result<GenerationChunk, ClientError> {
         let chunk_id = ChunkId::recreate(gen_id);
         let chunk = self.fetch_chunk(&chunk_id)?;
         let gen = GenerationChunk::from_data_chunk(&chunk)?;
         Ok(gen)
     }
 
-    pub fn fetch_generation(&self, gen_id: &str, dbname: &Path) -> ClientResult<LocalGeneration> {
+    pub fn fetch_generation(
+        &self,
+        gen_id: &str,
+        dbname: &Path,
+    ) -> Result<LocalGeneration, ClientError> {
         let gen = self.fetch_generation_chunk(gen_id)?;
 
         // Fetch the SQLite file, storing it in the named file.
@@ -198,7 +200,7 @@ pub struct ChunkClient {
 }
 
 impl ChunkClient {
-    pub fn new(config: &ClientConfig) -> ClientResult<Self> {
+    pub fn new(config: &ClientConfig) -> Result<Self, ClientError> {
         let pass = config.passwords()?;
 
         let client = Client::builder()
@@ -220,7 +222,7 @@ impl ChunkClient {
         format!("{}/chunks", self.base_url())
     }
 
-    pub fn has_chunk(&self, meta: &ChunkMeta) -> ClientResult<Option<ChunkId>> {
+    pub fn has_chunk(&self, meta: &ChunkMeta) -> Result<Option<ChunkId>, ClientError> {
         let body = match self.get("", &[("sha256", meta.sha256())]) {
             Ok((_, body)) => body,
             Err(err) => return Err(err),
@@ -238,7 +240,7 @@ impl ChunkClient {
         Ok(has)
     }
 
-    pub fn upload_chunk(&self, chunk: DataChunk) -> ClientResult<ChunkId> {
+    pub fn upload_chunk(&self, chunk: DataChunk) -> Result<ChunkId, ClientError> {
         let enc = self.cipher.encrypt_chunk(&chunk)?;
         let res = self
             .client
@@ -259,7 +261,7 @@ impl ChunkClient {
         Ok(chunk_id)
     }
 
-    pub fn list_generations(&self) -> ClientResult<GenerationList> {
+    pub fn list_generations(&self) -> Result<GenerationList, ClientError> {
         let (_, body) = self.get("", &[("generation", "true")])?;
 
         let map: HashMap<String, ChunkMeta> =
@@ -272,7 +274,7 @@ impl ChunkClient {
         Ok(GenerationList::new(finished))
     }
 
-    pub fn fetch_chunk(&self, chunk_id: &ChunkId) -> ClientResult<DataChunk> {
+    pub fn fetch_chunk(&self, chunk_id: &ChunkId) -> Result<DataChunk, ClientError> {
         let (headers, body) = self.get(&format!("/{}", chunk_id), &[])?;
         let meta = self.get_chunk_meta_header(chunk_id, &headers)?;
 
@@ -282,7 +284,7 @@ impl ChunkClient {
         Ok(chunk)
     }
 
-    fn get(&self, path: &str, query: &[(&str, &str)]) -> ClientResult<(HeaderMap, Vec<u8>)> {
+    fn get(&self, path: &str, query: &[(&str, &str)]) -> Result<(HeaderMap, Vec<u8>), ClientError> {
         let url = format!("{}{}", &self.chunks_url(), path);
         info!("GET {}", url);
 
@@ -316,7 +318,7 @@ impl ChunkClient {
         &self,
         chunk_id: &ChunkId,
         headers: &HeaderMap,
-    ) -> ClientResult<ChunkMeta> {
+    ) -> Result<ChunkMeta, ClientError> {
         let meta = headers.get("chunk-meta");
 
         if meta.is_none() {
