@@ -153,8 +153,6 @@ pub enum LocalGenerationError {
     IoError(#[from] std::io::Error),
 }
 
-pub type LocalGenerationResult<T> = Result<T, LocalGenerationError>;
-
 pub struct BackedUpFile {
     fileno: FileId,
     entry: FilesystemEntry,
@@ -185,7 +183,7 @@ impl BackedUpFile {
 }
 
 impl LocalGeneration {
-    pub fn open<P>(filename: P) -> LocalGenerationResult<Self>
+    pub fn open<P>(filename: P) -> Result<Self, LocalGenerationError>
     where
         P: AsRef<Path>,
     {
@@ -193,23 +191,29 @@ impl LocalGeneration {
         Ok(Self { conn })
     }
 
-    pub fn file_count(&self) -> LocalGenerationResult<i64> {
+    pub fn file_count(&self) -> Result<i64, LocalGenerationError> {
         sql::file_count(&self.conn)
     }
 
-    pub fn files(&self) -> LocalGenerationResult<sql::SqlResults<BackedUpFile>> {
+    pub fn files(&self) -> Result<sql::SqlResults<BackedUpFile>, LocalGenerationError> {
         sql::files(&self.conn)
     }
 
-    pub fn chunkids(&self, fileno: FileId) -> LocalGenerationResult<sql::SqlResults<ChunkId>> {
+    pub fn chunkids(
+        &self,
+        fileno: FileId,
+    ) -> Result<sql::SqlResults<ChunkId>, LocalGenerationError> {
         sql::chunkids(&self.conn, fileno)
     }
 
-    pub fn get_file(&self, filename: &Path) -> LocalGenerationResult<Option<FilesystemEntry>> {
+    pub fn get_file(
+        &self,
+        filename: &Path,
+    ) -> Result<Option<FilesystemEntry>, LocalGenerationError> {
         sql::get_file(&self.conn, filename)
     }
 
-    pub fn get_fileno(&self, filename: &Path) -> LocalGenerationResult<Option<FileId>> {
+    pub fn get_fileno(&self, filename: &Path) -> Result<Option<FileId>, LocalGenerationError> {
         sql::get_fileno(&self.conn, filename)
     }
 }
@@ -218,7 +222,6 @@ mod sql {
     use super::BackedUpFile;
     use super::FileId;
     use super::LocalGenerationError;
-    use super::LocalGenerationResult;
     use crate::backup_reason::Reason;
     use crate::chunkid::ChunkId;
     use crate::fsentry::FilesystemEntry;
@@ -227,7 +230,7 @@ mod sql {
     use std::os::unix::ffi::OsStrExt;
     use std::path::Path;
 
-    pub fn create_db(filename: &Path) -> LocalGenerationResult<Connection> {
+    pub fn create_db(filename: &Path) -> Result<Connection, LocalGenerationError> {
         let flags = OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.execute(
@@ -244,7 +247,7 @@ mod sql {
         Ok(conn)
     }
 
-    pub fn open_db(filename: &Path) -> LocalGenerationResult<Connection> {
+    pub fn open_db(filename: &Path) -> Result<Connection, LocalGenerationError> {
         let flags = OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.pragma_update(None, "journal_mode", &"WAL")?;
@@ -257,7 +260,7 @@ mod sql {
         fileno: FileId,
         ids: &[ChunkId],
         reason: Reason,
-    ) -> LocalGenerationResult<()> {
+    ) -> Result<(), LocalGenerationError> {
         let json = serde_json::to_string(&e)?;
         t.execute(
             "INSERT INTO files (fileno, filename, json, reason) VALUES (?1, ?2, ?3, ?4)",
@@ -283,7 +286,7 @@ mod sql {
         Ok((fileno, json, reason))
     }
 
-    pub fn file_count(conn: &Connection) -> LocalGenerationResult<FileId> {
+    pub fn file_count(conn: &Connection) -> Result<FileId, LocalGenerationError> {
         let mut stmt = conn.prepare("SELECT count(*) FROM files")?;
         let mut iter = stmt.query_map(params![], |row| row.get(0))?;
         let count = iter.next().expect("SQL count result (1)");
@@ -292,12 +295,13 @@ mod sql {
     }
 
     // A pointer to a "fallible iterator" over values of type `T`, which is to say it's an iterator
-    // over values of type `LocalGenerationResult<T>`. The iterator is only valid for the lifetime
-    // 'stmt.
+    // over values of type `Result<T, LocalGenerationError>`. The iterator is only valid for the
+    // lifetime 'stmt.
     //
     // The fact that it's a pointer (`Box<dyn ...>`) means we don't care what the actual type of
     // the iterator is, and who produces it.
-    type SqlResultsIterator<'stmt, T> = Box<dyn Iterator<Item = LocalGenerationResult<T>> + 'stmt>;
+    type SqlResultsIterator<'stmt, T> =
+        Box<dyn Iterator<Item = Result<T, LocalGenerationError>> + 'stmt>;
 
     // A pointer to a function which, when called on a prepared SQLite statement, would create
     // a "fallible iterator" over values of type `ItemT`. (See above for an explanation of what
@@ -321,7 +325,8 @@ mod sql {
     type CreateIterFn<'conn, ItemT> = Box<
         dyn for<'stmt> Fn(
             &'stmt mut Statement<'conn>,
-        ) -> LocalGenerationResult<SqlResultsIterator<'stmt, ItemT>>,
+        )
+            -> Result<SqlResultsIterator<'stmt, ItemT>, LocalGenerationError>,
     >;
 
     pub struct SqlResults<'conn, ItemT> {
@@ -334,17 +339,17 @@ mod sql {
             conn: &'conn Connection,
             statement: &str,
             create_iter: CreateIterFn<'conn, ItemT>,
-        ) -> LocalGenerationResult<Self> {
+        ) -> Result<Self, LocalGenerationError> {
             let stmt = conn.prepare(statement)?;
             Ok(Self { stmt, create_iter })
         }
 
-        pub fn iter(&'_ mut self) -> LocalGenerationResult<SqlResultsIterator<'_, ItemT>> {
+        pub fn iter(&'_ mut self) -> Result<SqlResultsIterator<'_, ItemT>, LocalGenerationError> {
             (self.create_iter)(&mut self.stmt)
         }
     }
 
-    pub fn files(conn: &Connection) -> LocalGenerationResult<SqlResults<BackedUpFile>> {
+    pub fn files(conn: &Connection) -> Result<SqlResults<BackedUpFile>, LocalGenerationError> {
         SqlResults::new(
             conn,
             "SELECT * FROM files",
@@ -364,7 +369,7 @@ mod sql {
     pub fn chunkids(
         conn: &Connection,
         fileno: FileId,
-    ) -> LocalGenerationResult<SqlResults<ChunkId>> {
+    ) -> Result<SqlResults<ChunkId>, LocalGenerationError> {
         SqlResults::new(
             conn,
             "SELECT chunkid FROM chunks WHERE fileno = ?1",
@@ -382,14 +387,17 @@ mod sql {
     pub fn get_file(
         conn: &Connection,
         filename: &Path,
-    ) -> LocalGenerationResult<Option<FilesystemEntry>> {
+    ) -> Result<Option<FilesystemEntry>, LocalGenerationError> {
         match get_file_and_fileno(conn, filename)? {
             None => Ok(None),
             Some((_, e, _)) => Ok(Some(e)),
         }
     }
 
-    pub fn get_fileno(conn: &Connection, filename: &Path) -> LocalGenerationResult<Option<FileId>> {
+    pub fn get_fileno(
+        conn: &Connection,
+        filename: &Path,
+    ) -> Result<Option<FileId>, LocalGenerationError> {
         match get_file_and_fileno(conn, filename)? {
             None => Ok(None),
             Some((id, _, _)) => Ok(Some(id)),
@@ -399,7 +407,7 @@ mod sql {
     fn get_file_and_fileno(
         conn: &Connection,
         filename: &Path,
-    ) -> LocalGenerationResult<Option<(FileId, FilesystemEntry, String)>> {
+    ) -> Result<Option<(FileId, FilesystemEntry, String)>, LocalGenerationError> {
         let mut stmt = conn.prepare("SELECT * FROM files WHERE filename = ?1")?;
         let mut iter =
             stmt.query_map(params![path_into_blob(filename)], |row| row_to_entry(row))?;
