@@ -1,5 +1,5 @@
 use crate::backup_reason::Reason;
-use crate::backup_run::BackupError;
+use crate::backup_run::{BackupError, FsEntryBackupOutcome};
 use crate::chunkid::ChunkId;
 use crate::fsentry::FilesystemEntry;
 use log::debug;
@@ -67,7 +67,7 @@ impl NascentGeneration {
 
     pub fn insert_iter(
         &mut self,
-        entries: impl Iterator<Item = Result<(FilesystemEntry, Vec<ChunkId>, Reason), BackupError>>,
+        entries: impl Iterator<Item = Result<FsEntryBackupOutcome, BackupError>>,
     ) -> NascentResult<Vec<BackupError>> {
         let t = self.conn.transaction().map_err(NascentError::Transaction)?;
         let mut warnings = vec![];
@@ -77,9 +77,9 @@ impl NascentGeneration {
                     debug!("ignoring backup error {}", err);
                     warnings.push(err);
                 }
-                Ok((e, ids, reason)) => {
+                Ok(FsEntryBackupOutcome { entry, ids, reason }) => {
                     self.fileno += 1;
-                    sql::insert_one(&t, e, self.fileno, &ids[..], reason)?;
+                    sql::insert_one(&t, entry, self.fileno, &ids[..], reason)?;
                 }
             }
         }

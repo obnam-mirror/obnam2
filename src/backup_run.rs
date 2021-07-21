@@ -30,6 +30,13 @@ pub enum BackupError {
     LocalGenerationError(#[from] LocalGenerationError),
 }
 
+#[derive(Debug)]
+pub struct FsEntryBackupOutcome {
+    pub entry: FilesystemEntry,
+    pub ids: Vec<ChunkId>,
+    pub reason: Reason,
+}
+
 impl<'a> BackupRun<'a> {
     pub fn initial(config: &ClientConfig, client: &'a BackupClient) -> Result<Self, BackupError> {
         Ok(Self {
@@ -108,11 +115,12 @@ impl<'a> BackupRun<'a> {
         self.finish();
         Ok((count, all_warnings))
     }
+
     pub fn backup(
         &self,
         entry: FsIterResult<FilesystemEntry>,
         old: &LocalGeneration,
-    ) -> Result<(FilesystemEntry, Vec<ChunkId>, Reason), BackupError> {
+    ) -> Result<FsEntryBackupOutcome, BackupError> {
         match entry {
             Err(err) => {
                 warn!("backup: {}", err);
@@ -146,7 +154,7 @@ impl<'a> BackupRun<'a> {
                         } else {
                             vec![]
                         };
-                        Ok((entry, ids, reason))
+                        Ok(FsEntryBackupOutcome { entry, ids, reason })
                     }
                 }
             }
@@ -168,13 +176,21 @@ fn backup_file(
     path: &Path,
     chunk_size: usize,
     reason: Reason,
-) -> (FilesystemEntry, Vec<ChunkId>, Reason) {
+) -> FsEntryBackupOutcome {
     let ids = client.upload_filesystem_entry(&entry, chunk_size);
     match ids {
         Err(err) => {
             warn!("error backing up {}, skipping it: {}", path.display(), err);
-            (entry.clone(), vec![], Reason::FileError)
+            FsEntryBackupOutcome {
+                entry: entry.clone(),
+                ids: vec![],
+                reason: Reason::FileError,
+            }
         }
-        Ok(ids) => (entry.clone(), ids, reason),
+        Ok(ids) => FsEntryBackupOutcome {
+            entry: entry.clone(),
+            ids,
+            reason,
+        },
     }
 }
