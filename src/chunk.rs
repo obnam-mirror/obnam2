@@ -51,15 +51,12 @@ pub enum GenerationChunkError {
     JsonGenerate(serde_json::Error),
 }
 
-/// A result from a chunk operation.
-pub type GenerationChunkResult<T> = Result<T, GenerationChunkError>;
-
 impl GenerationChunk {
     pub fn new(chunk_ids: Vec<ChunkId>) -> Self {
         Self { chunk_ids }
     }
 
-    pub fn from_data_chunk(chunk: &DataChunk) -> GenerationChunkResult<Self> {
+    pub fn from_data_chunk(chunk: &DataChunk) -> Result<Self, GenerationChunkError> {
         let data = chunk.data();
         let data = std::str::from_utf8(data)?;
         serde_json::from_str(data).map_err(GenerationChunkError::JsonParse)
@@ -77,7 +74,7 @@ impl GenerationChunk {
         self.chunk_ids.iter()
     }
 
-    pub fn to_data_chunk(&self, ended: &str) -> GenerationChunkResult<DataChunk> {
+    pub fn to_data_chunk(&self, ended: &str) -> Result<DataChunk, GenerationChunkError> {
         let json: String =
             serde_json::to_string(self).map_err(GenerationChunkError::JsonGenerate)?;
         let bytes = json.as_bytes().to_vec();
