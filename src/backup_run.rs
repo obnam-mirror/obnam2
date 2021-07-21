@@ -5,7 +5,7 @@ use crate::client::{BackupClient, ClientError};
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::FilesystemEntry;
-use crate::fsiter::{FsIterError, FsIterResult, FsIterator};
+use crate::fsiter::{FsIterError, FsIterator};
 use crate::generation::{LocalGeneration, LocalGenerationError, NascentError, NascentGeneration};
 use crate::policy::BackupPolicy;
 use log::{info, warn};
@@ -118,7 +118,7 @@ impl<'a> BackupRun<'a> {
 
     pub fn backup(
         &self,
-        entry: FsIterResult<FilesystemEntry>,
+        entry: Result<FilesystemEntry, FsIterError>,
         old: &LocalGeneration,
     ) -> Result<FsEntryBackupOutcome, BackupError> {
         match entry {
