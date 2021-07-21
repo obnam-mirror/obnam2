@@ -17,8 +17,6 @@ pub enum ChunkerError {
     FileRead(PathBuf, std::io::Error),
 }
 
-pub type ChunkerResult<T> = Result<T, ChunkerError>;
-
 impl Chunker {
     pub fn new(chunk_size: usize, handle: std::fs::File, filename: &Path) -> Self {
         let mut buf = vec![];
@@ -31,7 +29,7 @@ impl Chunker {
         }
     }
 
-    pub fn read_chunk(&mut self) -> ChunkerResult<Option<DataChunk>> {
+    pub fn read_chunk(&mut self) -> Result<Option<DataChunk>, ChunkerError> {
         let mut used = 0;
 
         loop {
@@ -58,9 +56,9 @@ impl Chunker {
 }
 
 impl Iterator for Chunker {
-    type Item = ChunkerResult<DataChunk>;
+    type Item = Result<DataChunk, ChunkerError>;
 
-    fn next(&mut self) -> Option<ChunkerResult<DataChunk>> {
+    fn next(&mut self) -> Option<Result<DataChunk, ChunkerError>> {
         match self.read_chunk() {
             Ok(None) => None,
             Ok(Some(chunk)) => Some(Ok(chunk)),
