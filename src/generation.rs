@@ -37,10 +37,8 @@ pub enum NascentError {
     TempFile(#[from] std::io::Error),
 }
 
-pub type NascentResult<T> = Result<T, NascentError>;
-
 impl NascentGeneration {
-    pub fn create<P>(filename: P) -> NascentResult<Self>
+    pub fn create<P>(filename: P) -> Result<Self, NascentError>
     where
         P: AsRef<Path>,
     {
@@ -57,7 +55,7 @@ impl NascentGeneration {
         e: FilesystemEntry,
         ids: &[ChunkId],
         reason: Reason,
-    ) -> NascentResult<()> {
+    ) -> Result<(), NascentError> {
         let t = self.conn.transaction().map_err(NascentError::Transaction)?;
         self.fileno += 1;
         sql::insert_one(&t, e, self.fileno, ids, reason)?;
@@ -68,7 +66,7 @@ impl NascentGeneration {
     pub fn insert_iter(
         &mut self,
         entries: impl Iterator<Item = Result<FsEntryBackupOutcome, BackupError>>,
-    ) -> NascentResult<Vec<BackupError>> {
+    ) -> Result<Vec<BackupError>, NascentError> {
         let t = self.conn.transaction().map_err(NascentError::Transaction)?;
         let mut warnings = vec![];
         for r in entries {
