@@ -30,10 +30,8 @@ pub enum BackupError {
     LocalGenerationError(#[from] LocalGenerationError),
 }
 
-pub type BackupResult<T> = Result<T, BackupError>;
-
 impl<'a> BackupRun<'a> {
-    pub fn initial(config: &ClientConfig, client: &'a BackupClient) -> BackupResult<Self> {
+    pub fn initial(config: &ClientConfig, client: &'a BackupClient) -> Result<Self, BackupError> {
         Ok(Self {
             client,
             policy: BackupPolicy::default(),
@@ -42,7 +40,10 @@ impl<'a> BackupRun<'a> {
         })
     }
 
-    pub fn incremental(config: &ClientConfig, client: &'a BackupClient) -> BackupResult<Self> {
+    pub fn incremental(
+        config: &ClientConfig,
+        client: &'a BackupClient,
+    ) -> Result<Self, BackupError> {
         Ok(Self {
             client,
             policy: BackupPolicy::default(),
@@ -111,7 +112,7 @@ impl<'a> BackupRun<'a> {
         &self,
         entry: FsIterResult<FilesystemEntry>,
         old: &LocalGeneration,
-    ) -> BackupResult<(FilesystemEntry, Vec<ChunkId>, Reason)> {
+    ) -> Result<(FilesystemEntry, Vec<ChunkId>, Reason), BackupError> {
         match entry {
             Err(err) => {
                 warn!("backup: {}", err);
