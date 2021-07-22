@@ -1,10 +1,11 @@
 use crate::backup_reason::Reason;
-use crate::client::BackupClient;
+use crate::client::AsyncBackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use structopt::StructOpt;
 use tempfile::NamedTempFile;
+use tokio::runtime::Runtime;
 
 #[derive(Debug, StructOpt)]
 pub struct ListFiles {
@@ -14,14 +15,19 @@ pub struct ListFiles {
 
 impl ListFiles {
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
+        let rt = Runtime::new()?;
+        rt.block_on(self.run_async(config))
+    }
+
+    async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let temp = NamedTempFile::new()?;
 
-        let client = BackupClient::new(config)?;
+        let client = AsyncBackupClient::new(config)?;
 
-        let genlist = client.list_generations()?;
+        let genlist = client.list_generations().await?;
         let gen_id: String = genlist.resolve(&self.gen_id)?;
 
-        let gen = client.fetch_generation(&gen_id, temp.path())?;
+        let gen = client.fetch_generation(&gen_id, temp.path()).await?;
         for file in gen.files()?.iter()? {
             let file = file?;
             println!("{}", format_entry(&file.entry(), file.reason()));

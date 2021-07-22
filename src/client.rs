@@ -100,6 +100,35 @@ impl AsyncBackupClient {
     pub async fn fetch_chunk(&self, chunk_id: &ChunkId) -> Result<DataChunk, ClientError> {
         self.chunk_client.fetch_chunk(chunk_id).await
     }
+
+    async fn fetch_generation_chunk(&self, gen_id: &str) -> Result<GenerationChunk, ClientError> {
+        let chunk_id = ChunkId::recreate(gen_id);
+        let chunk = self.fetch_chunk(&chunk_id).await?;
+        let gen = GenerationChunk::from_data_chunk(&chunk)?;
+        Ok(gen)
+    }
+
+    pub async fn fetch_generation(
+        &self,
+        gen_id: &str,
+        dbname: &Path,
+    ) -> Result<LocalGeneration, ClientError> {
+        let gen = self.fetch_generation_chunk(gen_id).await?;
+
+        // Fetch the SQLite file, storing it in the named file.
+        let mut dbfile = File::create(&dbname)
+            .map_err(|err| ClientError::FileCreate(dbname.to_path_buf(), err))?;
+        for id in gen.chunk_ids() {
+            let chunk = self.fetch_chunk(id).await?;
+            dbfile
+                .write_all(chunk.data())
+                .map_err(|err| ClientError::FileWrite(dbname.to_path_buf(), err))?;
+        }
+        info!("downloaded generation to {}", dbname.display());
+
+        let gen = LocalGeneration::open(dbname)?;
+        Ok(gen)
+    }
 }
 
 pub struct AsyncChunkClient {
