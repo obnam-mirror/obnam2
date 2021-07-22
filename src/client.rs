@@ -93,6 +93,10 @@ impl AsyncBackupClient {
         })
     }
 
+    pub async fn list_generations(&self) -> Result<GenerationList, ClientError> {
+        self.chunk_client.list_generations().await
+    }
+
     pub async fn fetch_chunk(&self, chunk_id: &ChunkId) -> Result<DataChunk, ClientError> {
         self.chunk_client.fetch_chunk(chunk_id).await
     }
@@ -125,6 +129,19 @@ impl AsyncChunkClient {
 
     fn chunks_url(&self) -> String {
         format!("{}/chunks", self.base_url())
+    }
+
+    pub async fn list_generations(&self) -> Result<GenerationList, ClientError> {
+        let (_, body) = self.get("", &[("generation", "true")]).await?;
+
+        let map: HashMap<String, ChunkMeta> =
+            serde_yaml::from_slice(&body).map_err(ClientError::YamlParse)?;
+        debug!("list_generations: map={:?}", map);
+        let finished = map
+            .iter()
+            .map(|(id, meta)| FinishedGeneration::new(id, meta.ended().map_or("", |s| s)))
+            .collect();
+        Ok(GenerationList::new(finished))
     }
 
     pub async fn fetch_chunk(&self, chunk_id: &ChunkId) -> Result<DataChunk, ClientError> {
