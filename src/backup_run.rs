@@ -5,7 +5,7 @@ use crate::client::{BackupClient, ClientError};
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::FilesystemEntry;
-use crate::fsiter::{FsIterError, FsIterResult, FsIterator};
+use crate::fsiter::{FsIterError, FsIterator};
 use crate::generation::{LocalGeneration, LocalGenerationError, NascentError, NascentGeneration};
 use crate::policy::BackupPolicy;
 use log::{info, warn};
@@ -30,10 +30,15 @@ pub enum BackupError {
     LocalGenerationError(#[from] LocalGenerationError),
 }
 
-pub type BackupResult<T> = Result<T, BackupError>;
+#[derive(Debug)]
+pub struct FsEntryBackupOutcome {
+    pub entry: FilesystemEntry,
+    pub ids: Vec<ChunkId>,
+    pub reason: Reason,
+}
 
 impl<'a> BackupRun<'a> {
-    pub fn initial(config: &ClientConfig, client: &'a BackupClient) -> BackupResult<Self> {
+    pub fn initial(config: &ClientConfig, client: &'a BackupClient) -> Result<Self, BackupError> {
         Ok(Self {
             client,
             policy: BackupPolicy::default(),
@@ -42,7 +47,10 @@ impl<'a> BackupRun<'a> {
         })
     }
 
-    pub fn incremental(config: &ClientConfig, client: &'a BackupClient) -> BackupResult<Self> {
+    pub fn incremental(
+        config: &ClientConfig,
+        client: &'a BackupClient,
+    ) -> Result<Self, BackupError> {
         Ok(Self {
             client,
             policy: BackupPolicy::default(),
@@ -107,11 +115,12 @@ impl<'a> BackupRun<'a> {
         self.finish();
         Ok((count, all_warnings))
     }
+
     pub fn backup(
         &self,
-        entry: FsIterResult<FilesystemEntry>,
+        entry: Result<FilesystemEntry, FsIterError>,
         old: &LocalGeneration,
-    ) -> BackupResult<(FilesystemEntry, Vec<ChunkId>, Reason)> {
+    ) -> Result<FsEntryBackupOutcome, BackupError> {
         match entry {
             Err(err) => {
                 warn!("backup: {}", err);
@@ -145,7 +154,7 @@ impl<'a> BackupRun<'a> {
                         } else {
                             vec![]
                         };
-                        Ok((entry, ids, reason))
+                        Ok(FsEntryBackupOutcome { entry, ids, reason })
                     }
                 }
             }
@@ -167,13 +176,21 @@ fn backup_file(
     path: &Path,
     chunk_size: usize,
     reason: Reason,
-) -> (FilesystemEntry, Vec<ChunkId>, Reason) {
+) -> FsEntryBackupOutcome {
     let ids = client.upload_filesystem_entry(&entry, chunk_size);
     match ids {
         Err(err) => {
             warn!("error backing up {}, skipping it: {}", path.display(), err);
-            (entry.clone(), vec![], Reason::FileError)
+            FsEntryBackupOutcome {
+                entry: entry.clone(),
+                ids: vec![],
+                reason: Reason::FileError,
+            }
         }
-        Ok(ids) => (entry.clone(), ids, reason),
+        Ok(ids) => FsEntryBackupOutcome {
+            entry: entry.clone(),
+            ids,
+            reason,
+        },
     }
 }

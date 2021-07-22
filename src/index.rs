@@ -33,11 +33,8 @@ pub enum IndexError {
     SqlError(#[from] rusqlite::Error),
 }
 
-/// A result from an `Index` operation.
-pub type IndexResult<T> = Result<T, IndexError>;
-
 impl Index {
-    pub fn new<P: AsRef<Path>>(dirname: P) -> IndexResult<Self> {
+    pub fn new<P: AsRef<Path>>(dirname: P) -> Result<Self, IndexError> {
         let filename = dirname.as_ref().join("meta.db");
         let conn = if filename.exists() {
             sql::open_db(&filename)?
@@ -53,30 +50,30 @@ impl Index {
         })
     }
 
-    pub fn insert_meta(&mut self, id: ChunkId, meta: ChunkMeta) -> IndexResult<()> {
+    pub fn insert_meta(&mut self, id: ChunkId, meta: ChunkMeta) -> Result<(), IndexError> {
         let t = self.conn.transaction()?;
         sql::insert(&t, &id, &meta)?;
         t.commit()?;
         Ok(())
     }
 
-    pub fn get_meta(&self, id: &ChunkId) -> IndexResult<ChunkMeta> {
+    pub fn get_meta(&self, id: &ChunkId) -> Result<ChunkMeta, IndexError> {
         sql::lookup(&self.conn, id)
     }
 
-    pub fn remove_meta(&mut self, id: &ChunkId) -> IndexResult<()> {
+    pub fn remove_meta(&mut self, id: &ChunkId) -> Result<(), IndexError> {
         sql::remove(&self.conn, id)
     }
 
-    pub fn find_by_sha256(&self, sha256: &str) -> IndexResult<Vec<ChunkId>> {
+    pub fn find_by_sha256(&self, sha256: &str) -> Result<Vec<ChunkId>, IndexError> {
         sql::find_by_256(&self.conn, sha256)
     }
 
-    pub fn find_generations(&self) -> IndexResult<Vec<ChunkId>> {
+    pub fn find_generations(&self) -> Result<Vec<ChunkId>, IndexError> {
         sql::find_generations(&self.conn)
     }
 
-    pub fn all_chunks(&self) -> IndexResult<Vec<ChunkId>> {
+    pub fn all_chunks(&self) -> Result<Vec<ChunkId>, IndexError> {
         sql::find_chunk_ids(&self.conn)
     }
 }
@@ -155,14 +152,14 @@ mod test {
 }
 
 mod sql {
-    use super::{IndexError, IndexResult};
+    use super::IndexError;
     use crate::chunkid::ChunkId;
     use crate::chunkmeta::ChunkMeta;
     use log::error;
     use rusqlite::{params, Connection, OpenFlags, Row, Transaction};
     use std::path::Path;
 
-    pub fn create_db(filename: &Path) -> IndexResult<Connection> {
+    pub fn create_db(filename: &Path) -> Result<Connection, IndexError> {
         let flags = OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.execute(
@@ -178,14 +175,14 @@ mod sql {
         Ok(conn)
     }
 
-    pub fn open_db(filename: &Path) -> IndexResult<Connection> {
+    pub fn open_db(filename: &Path) -> Result<Connection, IndexError> {
         let flags = OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.pragma_update(None, "journal_mode", &"WAL")?;
         Ok(conn)
     }
 
-    pub fn insert(t: &Transaction, chunkid: &ChunkId, meta: &ChunkMeta) -> IndexResult<()> {
+    pub fn insert(t: &Transaction, chunkid: &ChunkId, meta: &ChunkMeta) -> Result<(), IndexError> {
         let chunkid = format!("{}", chunkid);
         let sha256 = meta.sha256();
         let generation = if meta.is_generation() { 1 } else { 0 };
@@ -197,12 +194,12 @@ mod sql {
         Ok(())
     }
 
-    pub fn remove(conn: &Connection, chunkid: &ChunkId) -> IndexResult<()> {
+    pub fn remove(conn: &Connection, chunkid: &ChunkId) -> Result<(), IndexError> {
         conn.execute("DELETE FROM chunks WHERE id IS ?1", params![chunkid])?;
         Ok(())
     }
 
-    pub fn lookup(conn: &Connection, id: &ChunkId) -> IndexResult<ChunkMeta> {
+    pub fn lookup(conn: &Connection, id: &ChunkId) -> Result<ChunkMeta, IndexError> {
         let mut stmt = conn.prepare("SELECT * FROM chunks WHERE id IS ?1")?;
         let iter = stmt.query_map(params![id], |row| row_to_meta(row))?;
         let mut metas: Vec<ChunkMeta> = vec![];
@@ -225,7 +222,7 @@ mod sql {
         Ok(r)
     }
 
-    pub fn find_by_256(conn: &Connection, sha256: &str) -> IndexResult<Vec<ChunkId>> {
+    pub fn find_by_256(conn: &Connection, sha256: &str) -> Result<Vec<ChunkId>, IndexError> {
         let mut stmt = conn.prepare("SELECT id FROM chunks WHERE sha256 IS ?1")?;
         let iter = stmt.query_map(params![sha256], |row| row_to_id(row))?;
         let mut ids = vec![];
@@ -236,7 +233,7 @@ mod sql {
         Ok(ids)
     }
 
-    pub fn find_generations(conn: &Connection) -> IndexResult<Vec<ChunkId>> {
+    pub fn find_generations(conn: &Connection) -> Result<Vec<ChunkId>, IndexError> {
         let mut stmt = conn.prepare("SELECT id FROM chunks WHERE generation IS 1")?;
         let iter = stmt.query_map(params![], |row| row_to_id(row))?;
         let mut ids = vec![];
@@ -247,7 +244,7 @@ mod sql {
         Ok(ids)
     }
 
-    pub fn find_chunk_ids(conn: &Connection) -> IndexResult<Vec<ChunkId>> {
+    pub fn find_chunk_ids(conn: &Connection) -> Result<Vec<ChunkId>, IndexError> {
         let mut stmt = conn.prepare("SELECT id FROM chunks WHERE generation IS 0")?;
         let iter = stmt.query_map(params![], |row| row_to_id(row))?;
         let mut ids = vec![];

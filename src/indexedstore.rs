@@ -29,45 +29,42 @@ pub enum IndexedError {
     SqlError(#[from] StoreError),
 }
 
-/// A result from an `Index` operation.
-pub type IndexedResult<T> = Result<T, IndexedError>;
-
 impl IndexedStore {
-    pub fn new(dirname: &Path) -> IndexedResult<Self> {
+    pub fn new(dirname: &Path) -> Result<Self, IndexedError> {
         let store = Store::new(dirname);
         let index = Index::new(dirname)?;
         Ok(Self { store, index })
     }
 
-    pub fn save(&mut self, chunk: &DataChunk) -> IndexedResult<ChunkId> {
+    pub fn save(&mut self, chunk: &DataChunk) -> Result<ChunkId, IndexedError> {
         let id = ChunkId::new();
         self.store.save(&id, chunk)?;
         self.insert_meta(&id, chunk.meta())?;
         Ok(id)
     }
 
-    fn insert_meta(&mut self, id: &ChunkId, meta: &ChunkMeta) -> IndexedResult<()> {
+    fn insert_meta(&mut self, id: &ChunkId, meta: &ChunkMeta) -> Result<(), IndexedError> {
         self.index.insert_meta(id.clone(), meta.clone())?;
         Ok(())
     }
 
-    pub fn load(&self, id: &ChunkId) -> IndexedResult<(DataChunk, ChunkMeta)> {
+    pub fn load(&self, id: &ChunkId) -> Result<(DataChunk, ChunkMeta), IndexedError> {
         Ok((self.store.load(id)?, self.load_meta(id)?))
     }
 
-    pub fn load_meta(&self, id: &ChunkId) -> IndexedResult<ChunkMeta> {
+    pub fn load_meta(&self, id: &ChunkId) -> Result<ChunkMeta, IndexedError> {
         Ok(self.index.get_meta(id)?)
     }
 
-    pub fn find_by_sha256(&self, sha256: &str) -> IndexedResult<Vec<ChunkId>> {
+    pub fn find_by_sha256(&self, sha256: &str) -> Result<Vec<ChunkId>, IndexedError> {
         Ok(self.index.find_by_sha256(sha256)?)
     }
 
-    pub fn find_generations(&self) -> IndexedResult<Vec<ChunkId>> {
+    pub fn find_generations(&self) -> Result<Vec<ChunkId>, IndexedError> {
         Ok(self.index.find_generations()?)
     }
 
-    pub fn remove(&mut self, id: &ChunkId) -> IndexedResult<()> {
+    pub fn remove(&mut self, id: &ChunkId) -> Result<(), IndexedError> {
         self.index.remove_meta(id)?;
         self.store.delete(id)?;
         Ok(())

@@ -20,8 +20,6 @@ pub enum FsIterError {
     FsEntryError(#[from] FsEntryError),
 }
 
-pub type FsIterResult<T> = Result<T, FsIterError>;
-
 impl FsIterator {
     pub fn new(root: &Path, exclude_cache_tag_directories: bool) -> Self {
         Self {
@@ -34,7 +32,7 @@ impl FsIterator {
 }
 
 impl Iterator for FsIterator {
-    type Item = FsIterResult<FilesystemEntry>;
+    type Item = Result<FilesystemEntry, FsIterError>;
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next()
     }
@@ -47,7 +45,7 @@ struct SkipCachedirs {
     exclude_cache_tag_directories: bool,
     // This is the last tag we've found. `next()` will yield it before asking `iter` for more
     // entries.
-    cachedir_tag: Option<FsIterResult<FilesystemEntry>>,
+    cachedir_tag: Option<Result<FilesystemEntry, FsIterError>>,
 }
 
 impl SkipCachedirs {
@@ -102,7 +100,7 @@ impl SkipCachedirs {
 }
 
 impl Iterator for SkipCachedirs {
-    type Item = FsIterResult<FilesystemEntry>;
+    type Item = Result<FilesystemEntry, FsIterError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.cachedir_tag.take().or_else(|| {
@@ -120,7 +118,7 @@ impl Iterator for SkipCachedirs {
     }
 }
 
-fn new_entry(path: &Path) -> FsIterResult<FilesystemEntry> {
+fn new_entry(path: &Path) -> Result<FilesystemEntry, FsIterError> {
     let meta = std::fs::symlink_metadata(path);
     debug!("metadata for {:?}: {:?}", path, meta);
     let meta = match meta {

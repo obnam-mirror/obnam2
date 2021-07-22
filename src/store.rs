@@ -14,9 +14,6 @@ pub struct Store {
 /// An error from a `Store` operation.
 pub type StoreError = std::io::Error;
 
-/// A result from an `Store` operation.
-pub type StoreResult<T> = Result<T, StoreError>;
-
 impl Store {
     /// Create a new Store to represent on-disk storage of chunks.x
     pub fn new(dir: &Path) -> Self {
@@ -42,7 +39,7 @@ impl Store {
     }
 
     /// Save a chunk into a store.
-    pub fn save(&self, id: &ChunkId, chunk: &DataChunk) -> StoreResult<()> {
+    pub fn save(&self, id: &ChunkId, chunk: &DataChunk) -> Result<(), StoreError> {
         let (dir, metaname, dataname) = &self.filenames(id);
 
         if !dir.exists() {
@@ -55,7 +52,7 @@ impl Store {
     }
 
     /// Load a chunk from a store.
-    pub fn load(&self, id: &ChunkId) -> StoreResult<DataChunk> {
+    pub fn load(&self, id: &ChunkId) -> Result<DataChunk, StoreError> {
         let (_, metaname, dataname) = &self.filenames(id);
         let meta = std::fs::read(&metaname)?;
         let meta = serde_json::from_slice(&meta)?;
@@ -66,7 +63,7 @@ impl Store {
     }
 
     /// Delete a chunk from a store.
-    pub fn delete(&self, id: &ChunkId) -> StoreResult<()> {
+    pub fn delete(&self, id: &ChunkId) -> Result<(), StoreError> {
         let (_, metaname, dataname) = &self.filenames(id);
         std::fs::remove_file(&metaname)?;
         std::fs::remove_file(&dataname)?;

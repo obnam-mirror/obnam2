@@ -56,11 +56,9 @@ pub enum FsEntryError {
     ReadLink(PathBuf, std::io::Error),
 }
 
-pub type FsEntryResult<T> = Result<T, FsEntryError>;
-
 #[allow(clippy::len_without_is_empty)]
 impl FilesystemEntry {
-    pub fn from_metadata(path: &Path, meta: &Metadata) -> FsEntryResult<Self> {
+    pub fn from_metadata(path: &Path, meta: &Metadata) -> Result<Self, FsEntryError> {
         let kind = FilesystemKind::from_file_type(meta.file_type());
         let symlink_target = if kind == FilesystemKind::Symlink {
             debug!("reading symlink target for {:?}", path);
@@ -184,7 +182,7 @@ impl FilesystemKind {
         }
     }
 
-    pub fn from_code(code: u8) -> FsEntryResult<Self> {
+    pub fn from_code(code: u8) -> Result<Self, FsEntryError> {
         match code {
             0 => Ok(FilesystemKind::Regular),
             1 => Ok(FilesystemKind::Directory),

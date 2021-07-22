@@ -31,7 +31,7 @@ pub struct ClientConfig {
 }
 
 impl ClientConfig {
-    pub fn read(filename: &Path) -> ClientConfigResult<Self> {
+    pub fn read(filename: &Path) -> Result<Self, ClientConfigError> {
         trace!("read_config: filename={:?}", filename);
         let config = std::fs::read_to_string(filename)
             .map_err(|err| ClientConfigError::Read(filename.to_path_buf(), err))?;
@@ -101,8 +101,6 @@ pub enum ClientConfigError {
     #[error("failed to parse configuration file {0} as YAML: {1}")]
     YamlParse(PathBuf, serde_yaml::Error),
 }
-
-pub type ClientConfigResult<T> = Result<T, ClientConfigError>;
 
 fn expand_tilde(path: &Path) -> PathBuf {
     if path.starts_with("~/") {

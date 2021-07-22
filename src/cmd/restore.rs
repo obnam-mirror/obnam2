@@ -118,8 +118,6 @@ pub enum RestoreError {
     SetTimestamp(PathBuf, std::io::Error),
 }
 
-pub type RestoreResult<T> = Result<T, RestoreError>;
-
 fn restore_generation(
     client: &BackupClient,
     gen: &LocalGeneration,
@@ -127,7 +125,7 @@ fn restore_generation(
     entry: &FilesystemEntry,
     to: &Path,
     progress: &ProgressBar,
-) -> RestoreResult<()> {
+) -> Result<(), RestoreError> {
     info!("restoring {:?}", entry);
     progress.set_message(format!("{}", entry.pathbuf().display()));
     progress.inc(1);
@@ -143,14 +141,14 @@ fn restore_generation(
     Ok(())
 }
 
-fn restore_directory(path: &Path) -> RestoreResult<()> {
+fn restore_directory(path: &Path) -> Result<(), RestoreError> {
     debug!("restoring directory {}", path.display());
     std::fs::create_dir_all(path)
         .map_err(|err| RestoreError::CreateDirs(path.to_path_buf(), err))?;
     Ok(())
 }
 
-fn restore_directory_metadata(entry: &FilesystemEntry, to: &Path) -> RestoreResult<()> {
+fn restore_directory_metadata(entry: &FilesystemEntry, to: &Path) -> Result<(), RestoreError> {
     let to = restored_path(entry, to)?;
     match entry.kind() {
         FilesystemKind::Directory => restore_metadata(&to, entry)?,
@@ -162,7 +160,7 @@ fn restore_directory_metadata(entry: &FilesystemEntry, to: &Path) -> RestoreResu
     Ok(())
 }
 
-fn restored_path(entry: &FilesystemEntry, to: &Path) -> RestoreResult<PathBuf> {
+fn restored_path(entry: &FilesystemEntry, to: &Path) -> Result<PathBuf, RestoreError> {
     let path = &entry.pathbuf();
     let path = if path.is_absolute() {
         path.strip_prefix("/")?
@@ -178,7 +176,7 @@ fn restore_regular(
     path: &Path,
     fileid: i64,
     entry: &FilesystemEntry,
-) -> RestoreResult<()> {
+) -> Result<(), RestoreError> {
     debug!("restoring regular {}", path.display());
     let parent = path.parent().unwrap();
     debug!("  mkdir {}", parent.display());
@@ -199,7 +197,7 @@ fn restore_regular(
     Ok(())
 }
 
-fn restore_symlink(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
+fn restore_symlink(path: &Path, entry: &FilesystemEntry) -> Result<(), RestoreError> {
     debug!("restoring symlink {}", path.display());
     let parent = path.parent().unwrap();
     debug!("  mkdir {}", parent.display());
@@ -214,14 +212,14 @@ fn restore_symlink(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
     Ok(())
 }
 
-fn restore_socket(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
+fn restore_socket(path: &Path, entry: &FilesystemEntry) -> Result<(), RestoreError> {
     debug!("creating Unix domain socket {:?}", path);
     UnixListener::bind(path).map_err(|err| RestoreError::UnixBind(path.to_path_buf(), err))?;
     restore_metadata(path, entry)?;
     Ok(())
 }
 
-fn restore_fifo(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
+fn restore_fifo(path: &Path, entry: &FilesystemEntry) -> Result<(), RestoreError> {
     debug!("creating fifo {:?}", path);
     let filename = path_to_cstring(path);
     match unsafe { mkfifo(filename.as_ptr(), 0) } {
@@ -233,7 +231,7 @@ fn restore_fifo(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
     Ok(())
 }
 
-fn restore_metadata(path: &Path, entry: &FilesystemEntry) -> RestoreResult<()> {
+fn restore_metadata(path: &Path, entry: &FilesystemEntry) -> Result<(), RestoreError> {
     debug!("restoring metadata for {}", entry.pathbuf().display());
 
     debug!("restoring metadata for {:?}", path);
