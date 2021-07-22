@@ -27,10 +27,10 @@ pub enum ClientError {
     NotFound(String),
 
     #[error("Server does not have chunk {0}")]
-    ChunkNotFound(String),
+    ChunkNotFound(ChunkId),
 
     #[error("Server does not have generation {0}")]
-    GenerationNotFound(String),
+    GenerationNotFound(ChunkId),
 
     #[error("Server response did not have a 'chunk-meta' header for chunk {0}")]
     NoChunkMeta(ChunkId),
