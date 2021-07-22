@@ -1,5 +1,5 @@
 use crate::backup_reason::Reason;
-use crate::client::{BackupClient, ClientError};
+use crate::client::{AsyncBackupClient, ClientError};
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
@@ -17,6 +17,7 @@ use std::path::StripPrefixError;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use tempfile::NamedTempFile;
+use tokio::runtime::Runtime;
 
 #[derive(Debug, StructOpt)]
 pub struct Restore {
@@ -29,29 +30,37 @@ pub struct Restore {
 
 impl Restore {
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
+        let rt = Runtime::new()?;
+        rt.block_on(self.run_async(config))
+    }
+
+    async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let temp = NamedTempFile::new()?;
 
-        let client = BackupClient::new(config)?;
+        let client = AsyncBackupClient::new(config)?;
 
-        let genlist = client.list_generations()?;
+        let genlist = client.list_generations().await?;
         let gen_id: String = genlist.resolve(&self.gen_id)?;
         info!("generation id is {}", gen_id);
 
-        let gen = client.fetch_generation(&gen_id, temp.path())?;
+        let gen = client.fetch_generation(&gen_id, temp.path()).await?;
         info!("restoring {} files", gen.file_count()?);
         let progress = create_progress_bar(gen.file_count()?, true);
         for file in gen.files()?.iter()? {
             let file = file?;
             match file.reason() {
                 Reason::FileError => (),
-                _ => restore_generation(
-                    &client,
-                    &gen,
-                    file.fileno(),
-                    file.entry(),
-                    &self.to,
-                    &progress,
-                )?,
+                _ => {
+                    restore_generation(
+                        &client,
+                        &gen,
+                        file.fileno(),
+                        file.entry(),
+                        &self.to,
+                        &progress,
+                    )
+                    .await?
+                }
             }
         }
         for file in gen.files()?.iter()? {
@@ -118,8 +127,8 @@ pub enum RestoreError {
     SetTimestamp(PathBuf, std::io::Error),
 }
 
-fn restore_generation(
-    client: &BackupClient,
+async fn restore_generation(
+    client: &AsyncBackupClient,
     gen: &LocalGeneration,
     fileid: i64,
     entry: &FilesystemEntry,
@@ -132,7 +141,7 @@ fn restore_generation(
 
     let to = restored_path(entry, to)?;
     match entry.kind() {
-        FilesystemKind::Regular => restore_regular(client, &gen, &to, fileid, &entry)?,
+        FilesystemKind::Regular => restore_regular(client, &gen, &to, fileid, &entry).await?,
         FilesystemKind::Directory => restore_directory(&to)?,
         FilesystemKind::Symlink => restore_symlink(&to, &entry)?,
         FilesystemKind::Socket => restore_socket(&to, &entry)?,
@@ -170,8 +179,8 @@ fn restored_path(entry: &FilesystemEntry, to: &Path) -> Result<PathBuf, RestoreE
     Ok(to.join(path))
 }
 
-fn restore_regular(
-    client: &BackupClient,
+async fn restore_regular(
+    client: &AsyncBackupClient,
     gen: &LocalGeneration,
     path: &Path,
     fileid: i64,
@@ -187,7 +196,7 @@ fn restore_regular(
             .map_err(|err| RestoreError::CreateFile(path.to_path_buf(), err))?;
         for chunkid in gen.chunkids(fileid)?.iter()? {
             let chunkid = chunkid?;
-            let chunk = client.fetch_chunk(&chunkid)?;
+            let chunk = client.fetch_chunk(&chunkid).await?;
             file.write_all(chunk.data())
                 .map_err(|err| RestoreError::WriteFile(path.to_path_buf(), err))?;
         }
