@@ -12,7 +12,7 @@ import yaml
 urllib3.disable_warnings()
 
 
-def start_chunk_server(ctx):
+def start_chunk_server(ctx, env=None):
     daemon_start_on_port = globals()["daemon_start_on_port"]
     srcdir = globals()["srcdir"]
 
@@ -44,11 +44,12 @@ def start_chunk_server(ctx):
     ctx["server_url"] = f"https://{config['address']}"
 
     daemon_start_on_port(
-        ctx, name="obnam-server", path=server_binary, args=filename, port=port
+        ctx, name="obnam-server", path=server_binary, args=filename, port=port,
+        env=env
     )
 
 
-def stop_chunk_server(ctx):
+def stop_chunk_server(ctx, env=None):
     logging.debug("Stopping obnam-server")
     daemon_stop = globals()["daemon_stop"]
     daemon_stop(ctx, name="obnam-server")
@@ -145,6 +146,16 @@ def server_has_n_chunks(ctx, n=None):
     assert_eq(n, len(files))
 
 
+def server_stderr_contains(ctx, wanted=None):
+    assert_eq = globals()["assert_eq"]
+    assert_eq(_server_stderr_contains(ctx, wanted), True)
+
+
+def server_stderr_doesnt_contain(ctx, wanted=None):
+    assert_eq = globals()["assert_eq"]
+    assert_eq(_server_stderr_contains(ctx, wanted), False)
+
+
 def find_files(root):
     for dirname, _, names in os.walk(root):
         for name in names:
@@ -190,3 +201,16 @@ def _expand_vars(ctx, s):
         result.append(value)
         s = s[m.end() :]
     return "".join(result)
+
+def _server_stderr_contains(ctx, wanted):
+    daemon_get_stderr = globals()["daemon_get_stderr"]
+
+    wanted = _expand_vars(ctx, wanted)
+
+    stderr = daemon_get_stderr(ctx, "obnam-server")
+
+    logging.debug(f"_server_stderr_contains:")
+    logging.debug(f"  wanted: {wanted}")
+    logging.debug(f"  stderr: {stderr}")
+
+    return wanted in stderr

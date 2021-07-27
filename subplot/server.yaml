@@ -2,6 +2,10 @@
   function: start_chunk_server
   cleanup: stop_chunk_server
 
+- given: "a running chunk server with environment {env:text}"
+  function: start_chunk_server
+  cleanup: stop_chunk_server
+
 - when: "the chunk server is stopped"
   function: stop_chunk_server
 
@@ -46,3 +50,9 @@
 
 - then: "server has {n:int} chunks"
   function: server_has_n_chunks
+
+- then: chunk server's stderr contains "{wanted:text}"
+  function: server_stderr_contains
+
+- then: chunk server's stderr doesn't contain "{wanted:text}"
+  function: server_stderr_doesnt_contain
