@@ -49,7 +49,7 @@ impl Backup {
 
         if is_incremental && !outcome.new_cachedir_tags.is_empty() {
             println!("New CACHEDIR.TAG files since the last backup:");
-            for t in outcome.new_cachedir_tags {
+            for t in &outcome.new_cachedir_tags {
                 println!("- {:?}", t);
             }
             println!("You can configure Obnam to ignore all such files by setting `exclude_cache_tag_directories` to `false`.");
@@ -62,7 +62,11 @@ impl Backup {
             outcome.warnings.len(),
         )?;
 
-        Ok(())
+        if is_incremental && !outcome.new_cachedir_tags.is_empty() {
+            Err(ObnamError::NewCachedirTagsFound)
+        } else {
+            Ok(())
+        }
     }
 }
 
