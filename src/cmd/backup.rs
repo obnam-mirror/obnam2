@@ -26,18 +26,18 @@ impl Backup {
         let oldtemp = NamedTempFile::new()?;
         let newtemp = NamedTempFile::new()?;
 
-        let (count, warnings) = match genlist.resolve("latest") {
+        let (is_incremental, (count, warnings, new_tags)) = match genlist.resolve("latest") {
             Err(_) => {
                 info!("fresh backup without a previous generation");
                 let mut run = BackupRun::initial(config, &client)?;
                 let old = run.start(None, oldtemp.path())?;
-                run.backup_roots(config, &old, newtemp.path())?
+                (false, run.backup_roots(config, &old, newtemp.path())?)
             }
             Ok(old_id) => {
                 info!("incremental backup based on {}", old_id);
                 let mut run = BackupRun::incremental(config, &client)?;
                 let old = run.start(Some(&old_id), oldtemp.path())?;
-                run.backup_roots(config, &old, newtemp.path())?
+                (true, run.backup_roots(config, &old, newtemp.path())?)
             }
         };
 
@@ -45,6 +45,14 @@ impl Backup {
 
         for w in warnings.iter() {
             println!("warning: {}", w);
+        }
+
+        if is_incremental && !new_tags.is_empty() {
+            println!("New CACHEDIR.TAG files since the last backup:");
+            for t in new_tags {
+                println!("- {:?}", t);
+            }
+            println!("You can configure Obnam to ignore all such files by setting `exclude_cache_tag_directories` to `false`.");
         }
 
         report_stats(&runtime, count, &gen_id, warnings.len())?;

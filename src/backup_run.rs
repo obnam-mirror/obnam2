@@ -9,7 +9,7 @@ use crate::fsiter::{AnnotatedFsEntry, FsIterError, FsIterator};
 use crate::generation::{LocalGeneration, LocalGenerationError, NascentError, NascentGeneration};
 use crate::policy::BackupPolicy;
 use log::{info, warn};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub struct BackupRun<'a> {
     client: &'a BackupClient,
@@ -102,19 +102,30 @@ impl<'a> BackupRun<'a> {
         config: &ClientConfig,
         old: &LocalGeneration,
         newpath: &Path,
-    ) -> Result<(i64, Vec<BackupError>), NascentError> {
+        // TODO: turn this tuple into a struct for readability
+    ) -> Result<(i64, Vec<BackupError>, Vec<PathBuf>), NascentError> {
         let mut all_warnings = vec![];
+        let mut new_cachedir_tags = vec![];
         let count = {
             let mut new = NascentGeneration::create(newpath)?;
             for root in &config.roots {
                 let iter = FsIterator::new(root, config.exclude_cache_tag_directories);
-                let mut warnings = new.insert_iter(iter.map(|entry| self.backup(entry, &old)))?;
+                let entries = iter.map(|entry| {
+                    if let Ok(ref entry) = entry {
+                        let path = entry.inner.pathbuf();
+                        if entry.is_cachedir_tag && !old.is_cachedir_tag(&path)? {
+                            new_cachedir_tags.push(path);
+                        }
+                    };
+                    self.backup(entry, &old)
+                });
+                let mut warnings = new.insert_iter(entries)?;
                 all_warnings.append(&mut warnings);
             }
             new.file_count()
         };
         self.finish();
-        Ok((count, all_warnings))
+        Ok((count, all_warnings, new_cachedir_tags))
     }
 
     pub fn backup(
