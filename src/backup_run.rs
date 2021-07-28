@@ -38,6 +38,16 @@ pub struct FsEntryBackupOutcome {
     pub is_cachedir_tag: bool,
 }
 
+#[derive(Debug)]
+pub struct RootsBackupOutcome {
+    /// The number of backed up files.
+    pub files_count: i64,
+    /// The errors encountered while backing up files.
+    pub warnings: Vec<BackupError>,
+    /// CACHEDIR.TAG files that aren't present in in a previous generation.
+    pub new_cachedir_tags: Vec<PathBuf>,
+}
+
 impl<'a> BackupRun<'a> {
     pub fn initial(config: &ClientConfig, client: &'a BackupClient) -> Result<Self, BackupError> {
         Ok(Self {
@@ -102,11 +112,10 @@ impl<'a> BackupRun<'a> {
         config: &ClientConfig,
         old: &LocalGeneration,
         newpath: &Path,
-        // TODO: turn this tuple into a struct for readability
-    ) -> Result<(i64, Vec<BackupError>, Vec<PathBuf>), NascentError> {
-        let mut all_warnings = vec![];
+    ) -> Result<RootsBackupOutcome, NascentError> {
+        let mut warnings = vec![];
         let mut new_cachedir_tags = vec![];
-        let count = {
+        let files_count = {
             let mut new = NascentGeneration::create(newpath)?;
             for root in &config.roots {
                 let iter = FsIterator::new(root, config.exclude_cache_tag_directories);
@@ -119,13 +128,17 @@ impl<'a> BackupRun<'a> {
                     };
                     self.backup(entry, &old)
                 });
-                let mut warnings = new.insert_iter(entries)?;
-                all_warnings.append(&mut warnings);
+                let mut new_warnings = new.insert_iter(entries)?;
+                warnings.append(&mut new_warnings);
             }
             new.file_count()
         };
         self.finish();
-        Ok((count, all_warnings, new_cachedir_tags))
+        Ok(RootsBackupOutcome {
+            files_count,
+            warnings,
+            new_cachedir_tags,
+        })
     }
 
     pub fn backup(
