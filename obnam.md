@@ -141,9 +141,21 @@ itself says in the "Security Considerations" section:
 > than the outright deletion of that directory, for example, causing the
 > contents of that directory to be omitted from regular backups.
 
-For now, the only mitigation is a setting called
-`exclude_cache_tag_directories`, which users can disable if they want to avoid
-this threat.
+This is mitigated in two ways:
+
+1. if an incremental backup finds a tag which wasn't in the previous backup,
+   Obnam will show the path to the tag, and exit with a non-zero exit code. That
+   way, the user has a chance to notice the new tag. The backup itself is still
+   made, so if the tag is legitimate, the user doesn't need to re-run Obnam.
+
+   Error messages and non-zero exit are jarring, so this approach is not
+   user-friendly. Better than nothing though;
+
+2. users can set `exclude_cache_tag_directories` to `false`, which will make
+   Obnam ignore the tags, nullifying the threat.
+
+   This is a last-ditch solution, since it makes the backups larger and slower
+   (because Obnam has to back up more data).
 
 [CACHEDIR.TAG]: https://bford.info/cachedir/
 
@@ -1635,11 +1647,40 @@ roots:
 - live
 ~~~
 
-### Can ignore CACHEDIR.TAGs if told to do so
+### Incremental backup errors if it finds new CACHEDIR.TAGs
+
+To mitigate the risk described in the "Threat Model" chapter, Obnam should
+notify the user when it finds CACHEDIR.TAG files that aren't present in the
+previous backup. Notification is twofold: the path to the tag should be shown,
+and the client should exit with a non-zero code. This scenario runs backups the
+a directory (which shouldn't error), then adds a new tag and backups the
+directory again, expecting an error.
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a client config based on client.yaml
+and a file live/data1.dat containing some random data
+and a file live/data2.dat containing some random data
+when I run obnam backup
+then exit code is 0
+given a cache directory tag in live/
+when I try to run obnam backup
+then exit code is 1
+and stdout contains "live/CACHEDIR.TAG"
+when I run obnam list-files
+then exit code is 0
+then file live/CACHEDIR.TAG was backed up because it was new
+and stdout doesn't contain "live/data1.dat"
+and stdout doesn't contain "live/data2.dat"
+~~~
+
+### Ignore CACHEDIR.TAGs if `exclude_cache_tag_directories` is disabled
 
 This scenario verifies that when `exclude_cache_tag_directories` setting is
 disabled, Obnam client backs up directories even if they
-contain [CACHEDIR.TAG][].
+contain [CACHEDIR.TAG][]. It also verifies that incremental backups don't fail when
+new tags are added, i.e. the aforementioned mitigation is disabled too.
 
 [CACHEDIR.TAG]: https://bford.info/cachedir/
 
@@ -1656,6 +1697,10 @@ then backup generation is GEN
 when I invoke obnam restore <GEN> rest
 given a manifest of the directory live restored in rest in restored.yaml
 then manifests initial.yaml and restored.yaml match
+given a cache directory tag in live/not_ignored
+when I run obnam backup
+then exit code is 0
+and stdout doesn't contain "live/not_ignored/CACHEDIR.TAG"
 ~~~
 
 ~~~{#client_includes_cachedirs.yaml .file .yaml .numberLines}
