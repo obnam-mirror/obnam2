@@ -3,6 +3,13 @@ use log::{debug, warn};
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, IntoIter, WalkDir};
 
+/// Filesystem entry along with additional info about it.
+pub struct AnnotatedFsEntry {
+    pub inner: FilesystemEntry,
+    /// Is `entry` a valid CACHEDIR.TAG?
+    pub is_cachedir_tag: bool,
+}
+
 /// Iterator over file system entries in a directory tree.
 pub struct FsIterator {
     iter: SkipCachedirs,
@@ -32,7 +39,7 @@ impl FsIterator {
 }
 
 impl Iterator for FsIterator {
-    type Item = Result<FilesystemEntry, FsIterError>;
+    type Item = Result<AnnotatedFsEntry, FsIterError>;
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next()
     }
@@ -45,7 +52,7 @@ struct SkipCachedirs {
     exclude_cache_tag_directories: bool,
     // This is the last tag we've found. `next()` will yield it before asking `iter` for more
     // entries.
-    cachedir_tag: Option<Result<FilesystemEntry, FsIterError>>,
+    cachedir_tag: Option<Result<AnnotatedFsEntry, FsIterError>>,
 }
 
 impl SkipCachedirs {
@@ -94,13 +101,13 @@ impl SkipCachedirs {
 
         if content == CACHEDIR_TAG {
             self.iter.skip_current_dir();
-            self.cachedir_tag = Some(new_entry(&tag_path));
+            self.cachedir_tag = Some(new_entry(&tag_path, true));
         }
     }
 }
 
 impl Iterator for SkipCachedirs {
-    type Item = Result<FilesystemEntry, FsIterError>;
+    type Item = Result<AnnotatedFsEntry, FsIterError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.cachedir_tag.take().or_else(|| {
@@ -111,14 +118,14 @@ impl Iterator for SkipCachedirs {
                 Some(Err(err)) => Some(Err(FsIterError::WalkDir(err))),
                 Some(Ok(entry)) => {
                     self.try_enqueue_cachedir_tag(&entry);
-                    Some(new_entry(entry.path()))
+                    Some(new_entry(entry.path(), false))
                 }
             }
         })
     }
 }
 
-fn new_entry(path: &Path) -> Result<FilesystemEntry, FsIterError> {
+fn new_entry(path: &Path, is_cachedir_tag: bool) -> Result<AnnotatedFsEntry, FsIterError> {
     let meta = std::fs::symlink_metadata(path);
     debug!("metadata for {:?}: {:?}", path, meta);
     let meta = match meta {
@@ -130,5 +137,9 @@ fn new_entry(path: &Path) -> Result<FilesystemEntry, FsIterError> {
     };
     let entry = FilesystemEntry::from_metadata(path, &meta)?;
     debug!("FileSystemEntry for {:?}: {:?}", path, entry);
-    Ok(entry)
+    let annotated = AnnotatedFsEntry {
+        inner: entry,
+        is_cachedir_tag,
+    };
+    Ok(annotated)
 }

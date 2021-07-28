@@ -5,7 +5,7 @@ use crate::client::{BackupClient, ClientError};
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::FilesystemEntry;
-use crate::fsiter::{FsIterError, FsIterator};
+use crate::fsiter::{AnnotatedFsEntry, FsIterError, FsIterator};
 use crate::generation::{LocalGeneration, LocalGenerationError, NascentError, NascentGeneration};
 use crate::policy::BackupPolicy;
 use log::{info, warn};
@@ -119,7 +119,7 @@ impl<'a> BackupRun<'a> {
 
     pub fn backup(
         &self,
-        entry: Result<FilesystemEntry, FsIterError>,
+        entry: Result<AnnotatedFsEntry, FsIterError>,
         old: &LocalGeneration,
     ) -> Result<FsEntryBackupOutcome, BackupError> {
         match entry {
@@ -129,10 +129,10 @@ impl<'a> BackupRun<'a> {
                 Err(BackupError::FsIterError(err))
             }
             Ok(entry) => {
-                let path = &entry.pathbuf();
+                let path = &entry.inner.pathbuf();
                 info!("backup: {}", path.display());
                 self.found_live_file(path);
-                let reason = self.policy.needs_backup(&old, &entry);
+                let reason = self.policy.needs_backup(&old, &entry.inner);
                 match reason {
                     Reason::IsNew
                     | Reason::Changed
@@ -145,7 +145,7 @@ impl<'a> BackupRun<'a> {
                         reason,
                     )),
                     Reason::Unchanged | Reason::Skipped | Reason::FileError => {
-                        let fileno = old.get_fileno(&entry.pathbuf())?;
+                        let fileno = old.get_fileno(&entry.inner.pathbuf())?;
                         let ids = if let Some(fileno) = fileno {
                             let mut ids = vec![];
                             for id in old.chunkids(fileno)?.iter()? {
@@ -155,12 +155,11 @@ impl<'a> BackupRun<'a> {
                         } else {
                             vec![]
                         };
-                        // TODO: replace `false` with an actual value
                         Ok(FsEntryBackupOutcome {
-                            entry,
+                            entry: entry.inner,
                             ids,
                             reason,
-                            is_cachedir_tag: false,
+                            is_cachedir_tag: entry.is_cachedir_tag,
                         })
                     }
                 }
@@ -179,29 +178,27 @@ impl<'a> BackupRun<'a> {
 
 fn backup_file(
     client: &BackupClient,
-    entry: &FilesystemEntry,
+    entry: &AnnotatedFsEntry,
     path: &Path,
     chunk_size: usize,
     reason: Reason,
 ) -> FsEntryBackupOutcome {
-    let ids = client.upload_filesystem_entry(&entry, chunk_size);
+    let ids = client.upload_filesystem_entry(&entry.inner, chunk_size);
     match ids {
         Err(err) => {
             warn!("error backing up {}, skipping it: {}", path.display(), err);
             FsEntryBackupOutcome {
-                entry: entry.clone(),
+                entry: entry.inner.clone(),
                 ids: vec![],
                 reason: Reason::FileError,
-                // TODO: replace `false` with an actual value
-                is_cachedir_tag: false,
+                is_cachedir_tag: entry.is_cachedir_tag,
             }
         }
         Ok(ids) => FsEntryBackupOutcome {
-            entry: entry.clone(),
+            entry: entry.inner.clone(),
             ids,
             reason,
-            // TODO: replace `false` with an actual value
-            is_cachedir_tag: false,
+            is_cachedir_tag: entry.is_cachedir_tag,
         },
     }
 }
