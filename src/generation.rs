@@ -55,10 +55,11 @@ impl NascentGeneration {
         e: FilesystemEntry,
         ids: &[ChunkId],
         reason: Reason,
+        is_cachedir_tag: bool,
     ) -> Result<(), NascentError> {
         let t = self.conn.transaction().map_err(NascentError::Transaction)?;
         self.fileno += 1;
-        sql::insert_one(&t, e, self.fileno, ids, reason)?;
+        sql::insert_one(&t, e, self.fileno, ids, reason, is_cachedir_tag)?;
         t.commit().map_err(NascentError::Commit)?;
         Ok(())
     }
@@ -75,31 +76,19 @@ impl NascentGeneration {
                     debug!("ignoring backup error {}", err);
                     warnings.push(err);
                 }
-                Ok(FsEntryBackupOutcome { entry, ids, reason }) => {
+                Ok(FsEntryBackupOutcome {
+                    entry,
+                    ids,
+                    reason,
+                    is_cachedir_tag,
+                }) => {
                     self.fileno += 1;
-                    sql::insert_one(&t, entry, self.fileno, &ids[..], reason)?;
+                    sql::insert_one(&t, entry, self.fileno, &ids[..], reason, is_cachedir_tag)?;
                 }
             }
         }
         t.commit().map_err(NascentError::Commit)?;
         Ok(warnings)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::NascentGeneration;
-    use tempfile::NamedTempFile;
-
-    #[test]
-    fn empty() {
-        let filename = NamedTempFile::new().unwrap().path().to_path_buf();
-        {
-            let mut _gen = NascentGeneration::create(&filename).unwrap();
-            // _gen is dropped here; the connection is close; the file
-            // should not be removed.
-        }
-        assert!(filename.exists());
     }
 }
 
@@ -216,6 +205,10 @@ impl LocalGeneration {
     pub fn get_fileno(&self, filename: &Path) -> Result<Option<FileId>, LocalGenerationError> {
         sql::get_fileno(&self.conn, filename)
     }
+
+    pub fn is_cachedir_tag(&self, filename: &Path) -> Result<bool, LocalGenerationError> {
+        sql::is_cachedir_tag(&self.conn, filename)
+    }
 }
 
 mod sql {
@@ -234,7 +227,7 @@ mod sql {
         let flags = OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.execute(
-            "CREATE TABLE files (fileno INTEGER PRIMARY KEY, filename BLOB, json TEXT, reason TEXT)",
+            "CREATE TABLE files (fileno INTEGER PRIMARY KEY, filename BLOB, json TEXT, reason TEXT, is_cachedir_tag BOOLEAN)",
             params![],
         )?;
         conn.execute(
@@ -260,11 +253,12 @@ mod sql {
         fileno: FileId,
         ids: &[ChunkId],
         reason: Reason,
+        is_cachedir_tag: bool,
     ) -> Result<(), LocalGenerationError> {
         let json = serde_json::to_string(&e)?;
         t.execute(
-            "INSERT INTO files (fileno, filename, json, reason) VALUES (?1, ?2, ?3, ?4)",
-            params![fileno, path_into_blob(&e.pathbuf()), &json, reason,],
+            "INSERT INTO files (fileno, filename, json, reason, is_cachedir_tag) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![fileno, path_into_blob(&e.pathbuf()), &json, reason, is_cachedir_tag,],
         )?;
         for id in ids {
             t.execute(
@@ -427,5 +421,102 @@ mod sql {
                 }
             }
         }
+    }
+
+    pub fn is_cachedir_tag(
+        conn: &Connection,
+        filename: &Path,
+    ) -> Result<bool, LocalGenerationError> {
+        let mut stmt = conn.prepare("SELECT is_cachedir_tag FROM files WHERE filename = ?1")?;
+        let mut iter = stmt.query_map(params![path_into_blob(filename)], |row| row.get(0))?;
+        match iter.next() {
+            // File is missing, so it's definitely not a CACHEDIR.TAG
+            None => Ok(false),
+            Some(result) => Ok(result?),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{LocalGeneration, NascentGeneration};
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn empty() {
+        let filename = NamedTempFile::new().unwrap().path().to_path_buf();
+        {
+            let mut _gen = NascentGeneration::create(&filename).unwrap();
+            // _gen is dropped here; the connection is close; the file
+            // should not be removed.
+        }
+        assert!(filename.exists());
+    }
+
+    #[test]
+    fn remembers_cachedir_tags() {
+        use crate::{
+            backup_reason::Reason, backup_run::FsEntryBackupOutcome, fsentry::FilesystemEntry,
+        };
+        use std::{fs::metadata, mem::drop, path::Path};
+
+        // Create a `Metadata` structure to pass to other functions (we don't care about the
+        // contents)
+        let src_file = NamedTempFile::new().unwrap();
+        let metadata = metadata(src_file.path()).unwrap();
+
+        let dbfile = NamedTempFile::new().unwrap().path().to_path_buf();
+
+        let nontag_path1 = Path::new("/nontag1");
+        let nontag_path2 = Path::new("/dir/nontag2");
+        let tag_path1 = Path::new("/a_tag");
+        let tag_path2 = Path::new("/another_dir/a_tag");
+
+        let mut gen = NascentGeneration::create(&dbfile).unwrap();
+
+        gen.insert(
+            FilesystemEntry::from_metadata(&nontag_path1, &metadata).unwrap(),
+            &[],
+            Reason::IsNew,
+            false,
+        )
+        .unwrap();
+        gen.insert(
+            FilesystemEntry::from_metadata(&tag_path1, &metadata).unwrap(),
+            &[],
+            Reason::IsNew,
+            true,
+        )
+        .unwrap();
+
+        let entries = vec![
+            Ok(FsEntryBackupOutcome {
+                entry: FilesystemEntry::from_metadata(&nontag_path2, &metadata).unwrap(),
+                ids: vec![],
+                reason: Reason::IsNew,
+                is_cachedir_tag: false,
+            }),
+            Ok(FsEntryBackupOutcome {
+                entry: FilesystemEntry::from_metadata(&tag_path2, &metadata).unwrap(),
+                ids: vec![],
+                reason: Reason::IsNew,
+                is_cachedir_tag: true,
+            }),
+        ];
+        gen.insert_iter(entries.into_iter()).unwrap();
+
+        drop(gen);
+
+        let gen = LocalGeneration::open(dbfile).unwrap();
+        assert!(!gen.is_cachedir_tag(nontag_path1).unwrap());
+        assert!(!gen.is_cachedir_tag(nontag_path2).unwrap());
+        assert!(gen.is_cachedir_tag(tag_path1).unwrap());
+        assert!(gen.is_cachedir_tag(tag_path2).unwrap());
+
+        // Nonexistent files are not cachedir tags
+        assert!(!gen.is_cachedir_tag(Path::new("/hello/world")).unwrap());
+        assert!(!gen
+            .is_cachedir_tag(Path::new("/different path/to/another file.txt"))
+            .unwrap());
     }
 }

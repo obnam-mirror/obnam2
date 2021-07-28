@@ -35,6 +35,7 @@ pub struct FsEntryBackupOutcome {
     pub entry: FilesystemEntry,
     pub ids: Vec<ChunkId>,
     pub reason: Reason,
+    pub is_cachedir_tag: bool,
 }
 
 impl<'a> BackupRun<'a> {
@@ -154,7 +155,13 @@ impl<'a> BackupRun<'a> {
                         } else {
                             vec![]
                         };
-                        Ok(FsEntryBackupOutcome { entry, ids, reason })
+                        // TODO: replace `false` with an actual value
+                        Ok(FsEntryBackupOutcome {
+                            entry,
+                            ids,
+                            reason,
+                            is_cachedir_tag: false,
+                        })
                     }
                 }
             }
@@ -185,12 +192,16 @@ fn backup_file(
                 entry: entry.clone(),
                 ids: vec![],
                 reason: Reason::FileError,
+                // TODO: replace `false` with an actual value
+                is_cachedir_tag: false,
             }
         }
         Ok(ids) => FsEntryBackupOutcome {
             entry: entry.clone(),
             ids,
             reason,
+            // TODO: replace `false` with an actual value
+            is_cachedir_tag: false,
         },
     }
 }
