@@ -30,7 +30,7 @@ impl ListFiles {
         let gen = client.fetch_generation(&gen_id, temp.path()).await?;
         for file in gen.files()?.iter()? {
             let file = file?;
-            println!("{}", format_entry(&file.entry(), file.reason()));
+            println!("{}", format_entry(file.entry(), file.reason()));
         }
 
         Ok(())

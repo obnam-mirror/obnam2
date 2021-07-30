@@ -85,7 +85,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn load_config(filename: &Path) -> Result<ServerConfig, anyhow::Error> {
-    let config = ServerConfig::read_config(&filename).with_context(|| {
+    let config = ServerConfig::read_config(filename).with_context(|| {
         format!(
             "Couldn't read default configuration file {}",
             filename.display()

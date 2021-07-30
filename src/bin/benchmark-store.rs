@@ -21,7 +21,7 @@ fn main() -> anyhow::Result<()> {
 
     let store = Store::new(&opt.chunks);
     for (id, _, chunk) in gen {
-        store.save(&id, &&chunk)?;
+        store.save(&id, &chunk)?;
     }
 
     Ok(())

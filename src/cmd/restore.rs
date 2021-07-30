@@ -141,11 +141,11 @@ async fn restore_generation(
 
     let to = restored_path(entry, to)?;
     match entry.kind() {
-        FilesystemKind::Regular => restore_regular(client, &gen, &to, fileid, &entry).await?,
+        FilesystemKind::Regular => restore_regular(client, gen, &to, fileid, entry).await?,
         FilesystemKind::Directory => restore_directory(&to)?,
-        FilesystemKind::Symlink => restore_symlink(&to, &entry)?,
-        FilesystemKind::Socket => restore_socket(&to, &entry)?,
-        FilesystemKind::Fifo => restore_fifo(&to, &entry)?,
+        FilesystemKind::Symlink => restore_symlink(&to, entry)?,
+        FilesystemKind::Socket => restore_socket(&to, entry)?,
+        FilesystemKind::Fifo => restore_fifo(&to, entry)?,
     }
     Ok(())
 }
