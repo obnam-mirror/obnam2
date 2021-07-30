@@ -52,4 +52,9 @@ pub enum ObnamError {
 
     #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
+
+    #[error(
+        "found CACHEDIR.TAG files that aren't present in the previous backup, might be an attack"
+    )]
+    NewCachedirTagsFound,
 }

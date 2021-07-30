@@ -26,30 +26,47 @@ impl Backup {
         let oldtemp = NamedTempFile::new()?;
         let newtemp = NamedTempFile::new()?;
 
-        let (count, warnings) = match genlist.resolve("latest") {
+        let (is_incremental, outcome) = match genlist.resolve("latest") {
             Err(_) => {
                 info!("fresh backup without a previous generation");
                 let mut run = BackupRun::initial(config, &client)?;
                 let old = run.start(None, oldtemp.path())?;
-                run.backup_roots(config, &old, newtemp.path())?
+                (false, run.backup_roots(config, &old, newtemp.path())?)
             }
             Ok(old_id) => {
                 info!("incremental backup based on {}", old_id);
                 let mut run = BackupRun::incremental(config, &client)?;
                 let old = run.start(Some(&old_id), oldtemp.path())?;
-                run.backup_roots(config, &old, newtemp.path())?
+                (true, run.backup_roots(config, &old, newtemp.path())?)
             }
         };
 
         let gen_id = upload_nascent_generation(&client, newtemp.path())?;
 
-        for w in warnings.iter() {
+        for w in outcome.warnings.iter() {
             println!("warning: {}", w);
         }
 
-        report_stats(&runtime, count, &gen_id, warnings.len())?;
+        if is_incremental && !outcome.new_cachedir_tags.is_empty() {
+            println!("New CACHEDIR.TAG files since the last backup:");
+            for t in &outcome.new_cachedir_tags {
+                println!("- {:?}", t);
+            }
+            println!("You can configure Obnam to ignore all such files by setting `exclude_cache_tag_directories` to `false`.");
+        }
 
-        Ok(())
+        report_stats(
+            &runtime,
+            outcome.files_count,
+            &gen_id,
+            outcome.warnings.len(),
+        )?;
+
+        if is_incremental && !outcome.new_cachedir_tags.is_empty() {
+            Err(ObnamError::NewCachedirTagsFound)
+        } else {
+            Ok(())
+        }
     }
 }
 

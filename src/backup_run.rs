@@ -5,11 +5,11 @@ use crate::client::{BackupClient, ClientError};
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::FilesystemEntry;
-use crate::fsiter::{FsIterError, FsIterator};
+use crate::fsiter::{AnnotatedFsEntry, FsIterError, FsIterator};
 use crate::generation::{LocalGeneration, LocalGenerationError, NascentError, NascentGeneration};
 use crate::policy::BackupPolicy;
 use log::{info, warn};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub struct BackupRun<'a> {
     client: &'a BackupClient,
@@ -35,6 +35,17 @@ pub struct FsEntryBackupOutcome {
     pub entry: FilesystemEntry,
     pub ids: Vec<ChunkId>,
     pub reason: Reason,
+    pub is_cachedir_tag: bool,
+}
+
+#[derive(Debug)]
+pub struct RootsBackupOutcome {
+    /// The number of backed up files.
+    pub files_count: i64,
+    /// The errors encountered while backing up files.
+    pub warnings: Vec<BackupError>,
+    /// CACHEDIR.TAG files that aren't present in in a previous generation.
+    pub new_cachedir_tags: Vec<PathBuf>,
 }
 
 impl<'a> BackupRun<'a> {
@@ -101,24 +112,38 @@ impl<'a> BackupRun<'a> {
         config: &ClientConfig,
         old: &LocalGeneration,
         newpath: &Path,
-    ) -> Result<(i64, Vec<BackupError>), NascentError> {
-        let mut all_warnings = vec![];
-        let count = {
+    ) -> Result<RootsBackupOutcome, NascentError> {
+        let mut warnings = vec![];
+        let mut new_cachedir_tags = vec![];
+        let files_count = {
             let mut new = NascentGeneration::create(newpath)?;
             for root in &config.roots {
                 let iter = FsIterator::new(root, config.exclude_cache_tag_directories);
-                let mut warnings = new.insert_iter(iter.map(|entry| self.backup(entry, &old)))?;
-                all_warnings.append(&mut warnings);
+                let entries = iter.map(|entry| {
+                    if let Ok(ref entry) = entry {
+                        let path = entry.inner.pathbuf();
+                        if entry.is_cachedir_tag && !old.is_cachedir_tag(&path)? {
+                            new_cachedir_tags.push(path);
+                        }
+                    };
+                    self.backup(entry, &old)
+                });
+                let mut new_warnings = new.insert_iter(entries)?;
+                warnings.append(&mut new_warnings);
             }
             new.file_count()
         };
         self.finish();
-        Ok((count, all_warnings))
+        Ok(RootsBackupOutcome {
+            files_count,
+            warnings,
+            new_cachedir_tags,
+        })
     }
 
     pub fn backup(
         &self,
-        entry: Result<FilesystemEntry, FsIterError>,
+        entry: Result<AnnotatedFsEntry, FsIterError>,
         old: &LocalGeneration,
     ) -> Result<FsEntryBackupOutcome, BackupError> {
         match entry {
@@ -128,10 +153,10 @@ impl<'a> BackupRun<'a> {
                 Err(BackupError::FsIterError(err))
             }
             Ok(entry) => {
-                let path = &entry.pathbuf();
+                let path = &entry.inner.pathbuf();
                 info!("backup: {}", path.display());
                 self.found_live_file(path);
-                let reason = self.policy.needs_backup(&old, &entry);
+                let reason = self.policy.needs_backup(&old, &entry.inner);
                 match reason {
                     Reason::IsNew
                     | Reason::Changed
@@ -144,7 +169,7 @@ impl<'a> BackupRun<'a> {
                         reason,
                     )),
                     Reason::Unchanged | Reason::Skipped | Reason::FileError => {
-                        let fileno = old.get_fileno(&entry.pathbuf())?;
+                        let fileno = old.get_fileno(&entry.inner.pathbuf())?;
                         let ids = if let Some(fileno) = fileno {
                             let mut ids = vec![];
                             for id in old.chunkids(fileno)?.iter()? {
@@ -154,7 +179,12 @@ impl<'a> BackupRun<'a> {
                         } else {
                             vec![]
                         };
-                        Ok(FsEntryBackupOutcome { entry, ids, reason })
+                        Ok(FsEntryBackupOutcome {
+                            entry: entry.inner,
+                            ids,
+                            reason,
+                            is_cachedir_tag: entry.is_cachedir_tag,
+                        })
                     }
                 }
             }
@@ -172,25 +202,27 @@ impl<'a> BackupRun<'a> {
 
 fn backup_file(
     client: &BackupClient,
-    entry: &FilesystemEntry,
+    entry: &AnnotatedFsEntry,
     path: &Path,
     chunk_size: usize,
     reason: Reason,
 ) -> FsEntryBackupOutcome {
-    let ids = client.upload_filesystem_entry(&entry, chunk_size);
+    let ids = client.upload_filesystem_entry(&entry.inner, chunk_size);
     match ids {
         Err(err) => {
             warn!("error backing up {}, skipping it: {}", path.display(), err);
             FsEntryBackupOutcome {
-                entry: entry.clone(),
+                entry: entry.inner.clone(),
                 ids: vec![],
                 reason: Reason::FileError,
+                is_cachedir_tag: entry.is_cachedir_tag,
             }
         }
         Ok(ids) => FsEntryBackupOutcome {
-            entry: entry.clone(),
+            entry: entry.inner.clone(),
             ids,
             reason,
+            is_cachedir_tag: entry.is_cachedir_tag,
         },
     }
 }
