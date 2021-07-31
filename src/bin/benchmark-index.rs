@@ -84,7 +84,7 @@ fn lookup(index: &mut Index, num: u32) -> anyhow::Result<()> {
     loop {
         let gen = ChunkGenerator::new(num);
         for (_, _, chunk) in gen {
-            index.find_by_sha256(&chunk.meta().sha256())?;
+            index.find_by_sha256(chunk.meta().sha256())?;
             done += 1;
             if done >= num {
                 return Ok(());

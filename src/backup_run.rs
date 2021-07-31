@@ -98,7 +98,7 @@ impl<'a> BackupRun<'a> {
         oldname: &Path,
     ) -> Result<LocalGeneration, ObnamError> {
         let progress = BackupProgress::download_generation(genid);
-        let old = self.client.fetch_generation(genid, &oldname)?;
+        let old = self.client.fetch_generation(genid, oldname)?;
         progress.finish();
         Ok(old)
     }
@@ -126,7 +126,7 @@ impl<'a> BackupRun<'a> {
                             new_cachedir_tags.push(path);
                         }
                     };
-                    self.backup(entry, &old)
+                    self.backup(entry, old)
                 });
                 let mut new_warnings = new.insert_iter(entries)?;
                 warnings.append(&mut new_warnings);
@@ -156,15 +156,15 @@ impl<'a> BackupRun<'a> {
                 let path = &entry.inner.pathbuf();
                 info!("backup: {}", path.display());
                 self.found_live_file(path);
-                let reason = self.policy.needs_backup(&old, &entry.inner);
+                let reason = self.policy.needs_backup(old, &entry.inner);
                 match reason {
                     Reason::IsNew
                     | Reason::Changed
                     | Reason::GenerationLookupError
                     | Reason::Unknown => Ok(backup_file(
-                        &self.client,
+                        self.client,
                         &entry,
-                        &path,
+                        path,
                         self.buffer_size,
                         reason,
                     )),

@@ -95,7 +95,7 @@ impl CipherEngine {
         let payload = Payload::from(payload.as_slice());
 
         let meta = std::str::from_utf8(meta)?;
-        let meta = ChunkMeta::from_str(&meta)?;
+        let meta = ChunkMeta::from_str(meta)?;
 
         let chunk = DataChunk::new(payload.msg.to_vec(), meta);
 
