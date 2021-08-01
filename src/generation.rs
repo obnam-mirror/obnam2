@@ -4,13 +4,36 @@ use crate::chunkid::ChunkId;
 use crate::fsentry::FilesystemEntry;
 use log::debug;
 use rusqlite::Connection;
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 /// An identifier for a file in a generation.
 type FileId = i64;
 
 /// An identifier for a generation.
-pub type GenId = ChunkId;
+#[derive(Debug, Clone)]
+pub struct GenId {
+    id: ChunkId,
+}
+
+impl GenId {
+    pub fn from_chunk_id(id: ChunkId) -> Self {
+        Self { id }
+    }
+
+    pub fn as_chunk_id(&self) -> &ChunkId {
+        &self.id
+    }
+}
+
+impl fmt::Display for GenId {
+    /// Format an identifier for display.
+    ///
+    /// The output can be parsed to re-created an identical identifier.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.id)
+    }
+}
 
 /// A nascent backup generation.
 ///
@@ -100,21 +123,21 @@ impl NascentGeneration {
 /// A generation is finished when it's on the server. It can be restored.
 #[derive(Debug, Clone)]
 pub struct FinishedGeneration {
-    id: ChunkId,
+    id: GenId,
     ended: String,
 }
 
 impl FinishedGeneration {
     pub fn new(id: &str, ended: &str) -> Self {
-        let id = id.parse().unwrap(); // this never fails
+        let id = GenId::from_chunk_id(id.parse().unwrap()); // this never fails
         Self {
             id,
             ended: ended.to_string(),
         }
     }
 
-    pub fn id(&self) -> ChunkId {
-        self.id.clone()
+    pub fn id(&self) -> &GenId {
+        &self.id
     }
 
     pub fn ended(&self) -> &str {

@@ -102,7 +102,7 @@ impl AsyncBackupClient {
     }
 
     async fn fetch_generation_chunk(&self, gen_id: &GenId) -> Result<GenerationChunk, ClientError> {
-        let chunk = self.fetch_chunk(gen_id).await?;
+        let chunk = self.fetch_chunk(gen_id.as_chunk_id()).await?;
         let gen = GenerationChunk::from_data_chunk(&chunk)?;
         Ok(gen)
     }
@@ -323,7 +323,7 @@ impl BackupClient {
     }
 
     fn fetch_generation_chunk(&self, gen_id: &GenId) -> Result<GenerationChunk, ClientError> {
-        let chunk = self.fetch_chunk(gen_id)?;
+        let chunk = self.fetch_chunk(gen_id.as_chunk_id())?;
         let gen = GenerationChunk::from_data_chunk(&chunk)?;
         Ok(gen)
     }

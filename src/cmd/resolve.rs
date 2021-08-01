@@ -23,8 +23,8 @@ impl Resolve {
             Err(err) => {
                 return Err(err.into());
             }
-            Ok(old_id) => {
-                println!("{}", old_id);
+            Ok(gen_id) => {
+                println!("{}", gen_id.as_chunk_id());
             }
         };
 

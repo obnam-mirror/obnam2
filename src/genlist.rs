@@ -29,10 +29,10 @@ impl GenerationList {
             let i = self.list.len() - 1;
             Some(self.list[i].clone())
         } else {
-            let genref: ChunkId = genref.parse().unwrap();
+            let genref = GenId::from_chunk_id(genref.parse().unwrap());
             let hits: Vec<FinishedGeneration> = self
                 .iter()
-                .filter(|gen| gen.id() == genref)
+                .filter(|gen| gen.id().as_chunk_id() == genref.as_chunk_id())
                 .cloned()
                 .collect();
             if hits.len() == 1 {
@@ -45,7 +45,7 @@ impl GenerationList {
             None => Err(GenerationListError::UnknownGeneration(ChunkId::recreate(
                 genref,
             ))),
-            Some(gen) => Ok(gen.id()),
+            Some(gen) => Ok(gen.id().clone()),
         }
     }
 }
