@@ -9,6 +9,7 @@ use obnam::cmd::get_chunk::GetChunk;
 use obnam::cmd::init::Init;
 use obnam::cmd::list::List;
 use obnam::cmd::list_files::ListFiles;
+use obnam::cmd::resolve::Resolve;
 use obnam::cmd::restore::Restore;
 use obnam::cmd::show_config::ShowConfig;
 use obnam::cmd::show_gen::ShowGeneration;
@@ -44,6 +45,7 @@ fn main_program() -> anyhow::Result<()> {
         Command::List(x) => x.run(&config),
         Command::ShowGeneration(x) => x.run(&config),
         Command::ListFiles(x) => x.run(&config),
+        Command::Resolve(x) => x.run(&config),
         Command::Restore(x) => x.run(&config),
         Command::GetChunk(x) => x.run(&config),
         Command::Config(x) => x.run(&config),
@@ -102,6 +104,7 @@ enum Command {
     ListFiles(ListFiles),
     Restore(Restore),
     ShowGeneration(ShowGeneration),
+    Resolve(Resolve),
     GetChunk(GetChunk),
     Config(ShowConfig),
     EncryptChunk(EncryptChunk),
