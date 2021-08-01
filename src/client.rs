@@ -6,7 +6,7 @@ use crate::chunkmeta::ChunkMeta;
 use crate::cipher::{CipherEngine, CipherError};
 use crate::config::{ClientConfig, ClientConfigError};
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
-use crate::generation::{FinishedGeneration, LocalGeneration, LocalGenerationError};
+use crate::generation::{FinishedGeneration, GenId, LocalGeneration, LocalGenerationError};
 use crate::genlist::GenerationList;
 
 use chrono::{DateTime, Local};
@@ -101,16 +101,15 @@ impl AsyncBackupClient {
         self.chunk_client.fetch_chunk(chunk_id).await
     }
 
-    async fn fetch_generation_chunk(&self, gen_id: &str) -> Result<GenerationChunk, ClientError> {
-        let chunk_id = ChunkId::recreate(gen_id);
-        let chunk = self.fetch_chunk(&chunk_id).await?;
+    async fn fetch_generation_chunk(&self, gen_id: &GenId) -> Result<GenerationChunk, ClientError> {
+        let chunk = self.fetch_chunk(gen_id).await?;
         let gen = GenerationChunk::from_data_chunk(&chunk)?;
         Ok(gen)
     }
 
     pub async fn fetch_generation(
         &self,
-        gen_id: &str,
+        gen_id: &GenId,
         dbname: &Path,
     ) -> Result<LocalGeneration, ClientError> {
         let gen = self.fetch_generation_chunk(gen_id).await?;
@@ -323,16 +322,15 @@ impl BackupClient {
         self.chunk_client.fetch_chunk(chunk_id)
     }
 
-    fn fetch_generation_chunk(&self, gen_id: &str) -> Result<GenerationChunk, ClientError> {
-        let chunk_id = ChunkId::recreate(gen_id);
-        let chunk = self.fetch_chunk(&chunk_id)?;
+    fn fetch_generation_chunk(&self, gen_id: &GenId) -> Result<GenerationChunk, ClientError> {
+        let chunk = self.fetch_chunk(gen_id)?;
         let gen = GenerationChunk::from_data_chunk(&chunk)?;
         Ok(gen)
     }
 
     pub fn fetch_generation(
         &self,
-        gen_id: &str,
+        gen_id: &GenId,
         dbname: &Path,
     ) -> Result<LocalGeneration, ClientError> {
         let gen = self.fetch_generation_chunk(gen_id)?;

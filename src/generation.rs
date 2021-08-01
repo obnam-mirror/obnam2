@@ -9,6 +9,9 @@ use std::path::{Path, PathBuf};
 /// An identifier for a file in a generation.
 type FileId = i64;
 
+/// An identifier for a generation.
+pub type GenId = ChunkId;
+
 /// A nascent backup generation.
 ///
 /// A nascent generation is one that is being prepared. It isn't

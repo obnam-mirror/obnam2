@@ -1,3 +1,4 @@
+use crate::generation::GenId;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::path::Path;
 
@@ -58,7 +59,7 @@ impl BackupProgress {
         Self { progress }
     }
 
-    pub fn download_generation(gen_id: &str) -> Self {
+    pub fn download_generation(gen_id: &GenId) -> Self {
         let progress = ProgressBar::new(0);
         let parts = vec!["{msg}", "elapsed: {elapsed}", "{spinner}"];
         progress.set_style(ProgressStyle::default_bar().template(&parts.join("\n")));

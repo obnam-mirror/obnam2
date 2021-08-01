@@ -6,7 +6,9 @@ use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::FilesystemEntry;
 use crate::fsiter::{AnnotatedFsEntry, FsIterError, FsIterator};
-use crate::generation::{LocalGeneration, LocalGenerationError, NascentError, NascentGeneration};
+use crate::generation::{
+    GenId, LocalGeneration, LocalGenerationError, NascentError, NascentGeneration,
+};
 use crate::policy::BackupPolicy;
 use log::{info, warn};
 use std::path::{Path, PathBuf};
@@ -72,7 +74,7 @@ impl<'a> BackupRun<'a> {
 
     pub fn start(
         &mut self,
-        genid: Option<&str>,
+        genid: Option<&GenId>,
         oldname: &Path,
     ) -> Result<LocalGeneration, ObnamError> {
         match genid {
@@ -94,7 +96,7 @@ impl<'a> BackupRun<'a> {
 
     fn fetch_previous_generation(
         &self,
-        genid: &str,
+        genid: &GenId,
         oldname: &Path,
     ) -> Result<LocalGeneration, ObnamError> {
         let progress = BackupProgress::download_generation(genid);

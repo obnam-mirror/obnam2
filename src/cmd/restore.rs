@@ -40,7 +40,7 @@ impl Restore {
         let client = AsyncBackupClient::new(config)?;
 
         let genlist = client.list_generations().await?;
-        let gen_id: String = genlist.resolve(&self.gen_id)?;
+        let gen_id = genlist.resolve(&self.gen_id)?;
         info!("generation id is {}", gen_id);
 
         let gen = client.fetch_generation(&gen_id, temp.path()).await?;

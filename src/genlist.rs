@@ -1,5 +1,5 @@
 use crate::chunkid::ChunkId;
-use crate::generation::FinishedGeneration;
+use crate::generation::{FinishedGeneration, GenId};
 
 pub struct GenerationList {
     list: Vec<FinishedGeneration>,
@@ -22,7 +22,7 @@ impl GenerationList {
         self.list.iter()
     }
 
-    pub fn resolve(&self, genref: &str) -> Result<String, GenerationListError> {
+    pub fn resolve(&self, genref: &str) -> Result<GenId, GenerationListError> {
         let gen = if self.list.is_empty() {
             None
         } else if genref == "latest" {
@@ -45,7 +45,7 @@ impl GenerationList {
             None => Err(GenerationListError::UnknownGeneration(ChunkId::recreate(
                 genref,
             ))),
-            Some(gen) => Ok(gen.id().to_string()),
+            Some(gen) => Ok(gen.id()),
         }
     }
 }
