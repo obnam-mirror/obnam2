@@ -1278,6 +1278,8 @@ when I run obnam backup
 then backup generation is GEN
 when I run obnam list
 then generation list contains <GEN>
+when I run obnam resolve latest
+then generation list contains <GEN>
 when I invoke obnam restore <GEN> rest
 given a manifest of the directory live restored in rest in rest.yaml
 then manifests live.yaml and rest.yaml match
