@@ -1124,6 +1124,31 @@ and chunk-meta is {"sha256":"abc","generation":null,"ended":null}
 and the body matches file data.dat
 ~~~
 
+
+## Obeys `OBNAM_SERVER_LOG` environment variable
+
+The chunk server logs its actions to stderr. Verbosity of the log depends on the
+`OBNAM_SERVER_LOG` envvar. This scenario verifies that the variable can make the
+server more chatty.
+
+~~~scenario
+given an installed obnam
+and a running chunk server
+and a file data1.dat containing some random data
+when I POST data1.dat to /chunks, with chunk-meta: {"sha256":"qwerty"}
+then the JSON body has a field chunk_id, henceforth ID
+and chunk server's stderr doesn't contain "Obnam server starting up"
+and chunk server's stderr doesn't contain "created chunk <ID>"
+
+given a running chunk server with environment {"OBNAM_SERVER_LOG": "info"}
+and a file data2.dat containing some random data
+when I POST data2.dat to /chunks, with chunk-meta: {"sha256":"xyz"}
+then the JSON body has a field chunk_id, henceforth ID
+and chunk server's stderr contains "Obnam server starting up"
+and chunk server's stderr contains "created chunk <ID>"
+~~~
+
+
 # Acceptance criteria for the Obnam client
 
 The scenarios in chapter verify that the Obnam client works as it
