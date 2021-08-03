@@ -15,7 +15,7 @@ pub struct BackupRun<'a> {
     client: &'a BackupClient,
     policy: BackupPolicy,
     buffer_size: usize,
-    progress: BackupProgress,
+    progress: Option<BackupProgress>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -54,7 +54,7 @@ impl<'a> BackupRun<'a> {
             client,
             policy: BackupPolicy::default(),
             buffer_size: config.chunk_size,
-            progress: BackupProgress::initial(),
+            progress: Some(BackupProgress::initial()),
         })
     }
 
@@ -66,7 +66,7 @@ impl<'a> BackupRun<'a> {
             client,
             policy: BackupPolicy::default(),
             buffer_size: config.chunk_size,
-            progress: BackupProgress::incremental(),
+            progress: None,
         })
     }
 
@@ -85,8 +85,11 @@ impl<'a> BackupRun<'a> {
             }
             Some(genid) => {
                 let old = self.fetch_previous_generation(genid, oldname)?;
-                self.progress
-                    .files_in_previous_generation(old.file_count()? as u64);
+
+                let progress = BackupProgress::incremental();
+                progress.files_in_previous_generation(old.file_count()? as u64);
+                self.progress = Some(progress);
+
                 Ok(old)
             }
         }
@@ -104,7 +107,9 @@ impl<'a> BackupRun<'a> {
     }
 
     pub fn finish(&self) {
-        self.progress.finish();
+        if let Some(progress) = &self.progress {
+            progress.finish();
+        }
     }
 
     pub fn backup_roots(
@@ -192,11 +197,15 @@ impl<'a> BackupRun<'a> {
     }
 
     fn found_live_file(&self, path: &Path) {
-        self.progress.found_live_file(path);
+        if let Some(progress) = &self.progress {
+            progress.found_live_file(path);
+        }
     }
 
     fn found_problem(&self) {
-        self.progress.found_problem();
+        if let Some(progress) = &self.progress {
+            progress.found_problem();
+        }
     }
 }
 
