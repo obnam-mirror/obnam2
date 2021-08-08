@@ -50,9 +50,6 @@ pub enum NascentError {
     #[error(transparent)]
     LocalGenerationError(#[from] LocalGenerationError),
 
-    #[error(transparent)]
-    BackupError(#[from] BackupError),
-
     #[error("SQL transaction error: {0}")]
     Transaction(rusqlite::Error),
 

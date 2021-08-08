@@ -10,7 +10,7 @@ use crate::generation::{
     GenId, LocalGeneration, LocalGenerationError, NascentError, NascentGeneration,
 };
 use crate::policy::BackupPolicy;
-use log::{info, warn};
+use log::{debug, info, warn};
 use std::path::{Path, PathBuf};
 
 pub struct BackupRun<'a> {
@@ -27,6 +27,9 @@ pub enum BackupError {
 
     #[error(transparent)]
     FsIterError(#[from] FsIterError),
+
+    #[error(transparent)]
+    NascentError(#[from] NascentError),
 
     #[error(transparent)]
     LocalGenerationError(#[from] LocalGenerationError),
@@ -120,23 +123,43 @@ impl<'a> BackupRun<'a> {
         old: &LocalGeneration,
         newpath: &Path,
     ) -> Result<RootsBackupOutcome, NascentError> {
-        let mut warnings = vec![];
+        let mut warnings: Vec<BackupError> = vec![];
         let mut new_cachedir_tags = vec![];
         let files_count = {
             let mut new = NascentGeneration::create(newpath)?;
             for root in &config.roots {
                 let iter = FsIterator::new(root, config.exclude_cache_tag_directories);
-                let entries = iter.map(|entry| {
-                    if let Ok(ref entry) = entry {
-                        let path = entry.inner.pathbuf();
-                        if entry.is_cachedir_tag && !old.is_cachedir_tag(&path)? {
-                            new_cachedir_tags.push(path);
+                for entry in iter {
+                    match entry {
+                        Err(err) => {
+                            debug!("ignoring backup error {}", err);
+                            warnings.push(err.into());
+                            self.found_problem();
                         }
-                    };
-                    self.backup(entry, old)
-                });
-                let mut new_warnings = new.insert_iter(entries)?;
-                warnings.append(&mut new_warnings);
+                        Ok(entry) => {
+                            let path = entry.inner.pathbuf();
+                            if entry.is_cachedir_tag && !old.is_cachedir_tag(&path)? {
+                                new_cachedir_tags.push(path);
+                            }
+                            match self.backup(entry, old) {
+                                Err(err) => {
+                                    debug!("ignoring backup error {}", err);
+                                    warnings.push(err);
+                                    self.found_problem();
+                                }
+                                Ok(o) => {
+                                    if let Err(err) =
+                                        new.insert(o.entry, &o.ids, o.reason, o.is_cachedir_tag)
+                                    {
+                                        debug!("ignoring backup error {}", err);
+                                        warnings.push(err.into());
+                                        self.found_problem();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
             new.file_count()
         };
@@ -148,52 +171,42 @@ impl<'a> BackupRun<'a> {
         })
     }
 
-    pub fn backup(
+    fn backup(
         &self,
-        entry: Result<AnnotatedFsEntry, FsIterError>,
+        entry: AnnotatedFsEntry,
         old: &LocalGeneration,
     ) -> Result<FsEntryBackupOutcome, BackupError> {
-        match entry {
-            Err(err) => {
-                warn!("backup: {}", err);
-                self.found_problem();
-                Err(BackupError::FsIterError(err))
+        let path = &entry.inner.pathbuf();
+        info!("backup: {}", path.display());
+        self.found_live_file(path);
+        let reason = self.policy.needs_backup(old, &entry.inner);
+        match reason {
+            Reason::IsNew | Reason::Changed | Reason::GenerationLookupError | Reason::Unknown => {
+                Ok(backup_file(
+                    self.client,
+                    &entry,
+                    path,
+                    self.buffer_size,
+                    reason,
+                ))
             }
-            Ok(entry) => {
-                let path = &entry.inner.pathbuf();
-                info!("backup: {}", path.display());
-                self.found_live_file(path);
-                let reason = self.policy.needs_backup(old, &entry.inner);
-                match reason {
-                    Reason::IsNew
-                    | Reason::Changed
-                    | Reason::GenerationLookupError
-                    | Reason::Unknown => Ok(backup_file(
-                        self.client,
-                        &entry,
-                        path,
-                        self.buffer_size,
-                        reason,
-                    )),
-                    Reason::Unchanged | Reason::Skipped | Reason::FileError => {
-                        let fileno = old.get_fileno(&entry.inner.pathbuf())?;
-                        let ids = if let Some(fileno) = fileno {
-                            let mut ids = vec![];
-                            for id in old.chunkids(fileno)?.iter()? {
-                                ids.push(id?);
-                            }
-                            ids
-                        } else {
-                            vec![]
-                        };
-                        Ok(FsEntryBackupOutcome {
-                            entry: entry.inner,
-                            ids,
-                            reason,
-                            is_cachedir_tag: entry.is_cachedir_tag,
-                        })
+            Reason::Unchanged | Reason::Skipped | Reason::FileError => {
+                let fileno = old.get_fileno(&entry.inner.pathbuf())?;
+                let ids = if let Some(fileno) = fileno {
+                    let mut ids = vec![];
+                    for id in old.chunkids(fileno)?.iter()? {
+                        ids.push(id?);
                     }
-                }
+                    ids
+                } else {
+                    vec![]
+                };
+                Ok(FsEntryBackupOutcome {
+                    entry: entry.inner,
+                    ids,
+                    reason,
+                    is_cachedir_tag: entry.is_cachedir_tag,
+                })
             }
         }
     }
