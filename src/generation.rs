@@ -1,8 +1,6 @@
 use crate::backup_reason::Reason;
-use crate::backup_run::{BackupError, FsEntryBackupOutcome};
 use crate::chunkid::ChunkId;
 use crate::fsentry::FilesystemEntry;
-use log::debug;
 use rusqlite::Connection;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -85,30 +83,6 @@ impl NascentGeneration {
         sql::insert_one(&t, e, self.fileno, ids, reason, is_cachedir_tag)?;
         t.commit().map_err(NascentError::Commit)?;
         Ok(())
-    }
-
-    pub fn insert_iter(
-        &mut self,
-        entries: impl Iterator<Item = Result<FsEntryBackupOutcome, BackupError>>,
-    ) -> Result<Vec<BackupError>, NascentError> {
-        let mut warnings = vec![];
-        for r in entries {
-            match r {
-                Err(err) => {
-                    debug!("ignoring backup error {}", err);
-                    warnings.push(err);
-                }
-                Ok(FsEntryBackupOutcome {
-                    entry,
-                    ids,
-                    reason,
-                    is_cachedir_tag,
-                }) => {
-                    self.insert(entry, &ids, reason, is_cachedir_tag)?;
-                }
-            }
-        }
-        Ok(warnings)
     }
 }
 
@@ -473,6 +447,9 @@ mod test {
         assert!(filename.exists());
     }
 
+    // FIXME: This is way too complicated a test function. It should
+    // be simplified, possibly by re-thinking the abstractions of the
+    // code it calls.
     #[test]
     fn remembers_cachedir_tags() {
         use crate::{
@@ -510,20 +487,24 @@ mod test {
         .unwrap();
 
         let entries = vec![
-            Ok(FsEntryBackupOutcome {
+            FsEntryBackupOutcome {
                 entry: FilesystemEntry::from_metadata(nontag_path2, &metadata).unwrap(),
                 ids: vec![],
                 reason: Reason::IsNew,
                 is_cachedir_tag: false,
-            }),
-            Ok(FsEntryBackupOutcome {
+            },
+            FsEntryBackupOutcome {
                 entry: FilesystemEntry::from_metadata(tag_path2, &metadata).unwrap(),
                 ids: vec![],
                 reason: Reason::IsNew,
                 is_cachedir_tag: true,
-            }),
+            },
         ];
-        gen.insert_iter(entries.into_iter()).unwrap();
+
+        for o in entries {
+            gen.insert(o.entry, &o.ids, o.reason, o.is_cachedir_tag)
+                .unwrap();
+        }
 
         drop(gen);
 
