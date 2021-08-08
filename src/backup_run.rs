@@ -1,7 +1,7 @@
 use crate::backup_progress::BackupProgress;
 use crate::backup_reason::Reason;
 use crate::chunkid::ChunkId;
-use crate::client::{BackupClient, ClientError};
+use crate::client::{AsyncBackupClient, ClientError};
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::FilesystemEntry;
@@ -14,7 +14,7 @@ use log::{debug, info, warn};
 use std::path::{Path, PathBuf};
 
 pub struct BackupRun<'a> {
-    client: &'a BackupClient,
+    client: &'a AsyncBackupClient,
     policy: BackupPolicy,
     buffer_size: usize,
     progress: Option<BackupProgress>,
@@ -54,7 +54,10 @@ pub struct RootsBackupOutcome {
 }
 
 impl<'a> BackupRun<'a> {
-    pub fn initial(config: &ClientConfig, client: &'a BackupClient) -> Result<Self, BackupError> {
+    pub fn initial(
+        config: &ClientConfig,
+        client: &'a AsyncBackupClient,
+    ) -> Result<Self, BackupError> {
         Ok(Self {
             client,
             policy: BackupPolicy::default(),
@@ -65,7 +68,7 @@ impl<'a> BackupRun<'a> {
 
     pub fn incremental(
         config: &ClientConfig,
-        client: &'a BackupClient,
+        client: &'a AsyncBackupClient,
     ) -> Result<Self, BackupError> {
         Ok(Self {
             client,
@@ -75,7 +78,7 @@ impl<'a> BackupRun<'a> {
         })
     }
 
-    pub fn start(
+    pub async fn start(
         &mut self,
         genid: Option<&GenId>,
         oldname: &Path,
@@ -89,7 +92,7 @@ impl<'a> BackupRun<'a> {
                 Ok(LocalGeneration::open(oldname)?)
             }
             Some(genid) => {
-                let old = self.fetch_previous_generation(genid, oldname)?;
+                let old = self.fetch_previous_generation(genid, oldname).await?;
 
                 let progress = BackupProgress::incremental();
                 progress.files_in_previous_generation(old.file_count()? as u64);
@@ -100,13 +103,13 @@ impl<'a> BackupRun<'a> {
         }
     }
 
-    fn fetch_previous_generation(
+    async fn fetch_previous_generation(
         &self,
         genid: &GenId,
         oldname: &Path,
     ) -> Result<LocalGeneration, ObnamError> {
         let progress = BackupProgress::download_generation(genid);
-        let old = self.client.fetch_generation(genid, oldname)?;
+        let old = self.client.fetch_generation(genid, oldname).await?;
         progress.finish();
         Ok(old)
     }
@@ -117,7 +120,7 @@ impl<'a> BackupRun<'a> {
         }
     }
 
-    pub fn backup_roots(
+    pub async fn backup_roots(
         &self,
         config: &ClientConfig,
         old: &LocalGeneration,
@@ -141,7 +144,7 @@ impl<'a> BackupRun<'a> {
                             if entry.is_cachedir_tag && !old.is_cachedir_tag(&path)? {
                                 new_cachedir_tags.push(path);
                             }
-                            match self.backup(entry, old) {
+                            match self.backup(entry, old).await {
                                 Err(err) => {
                                     debug!("ignoring backup error {}", err);
                                     warnings.push(err);
@@ -171,7 +174,7 @@ impl<'a> BackupRun<'a> {
         })
     }
 
-    fn backup(
+    async fn backup(
         &self,
         entry: AnnotatedFsEntry,
         old: &LocalGeneration,
@@ -182,13 +185,7 @@ impl<'a> BackupRun<'a> {
         let reason = self.policy.needs_backup(old, &entry.inner);
         match reason {
             Reason::IsNew | Reason::Changed | Reason::GenerationLookupError | Reason::Unknown => {
-                Ok(backup_file(
-                    self.client,
-                    &entry,
-                    path,
-                    self.buffer_size,
-                    reason,
-                ))
+                Ok(backup_file(self.client, &entry, path, self.buffer_size, reason).await)
             }
             Reason::Unchanged | Reason::Skipped | Reason::FileError => {
                 let fileno = old.get_fileno(&entry.inner.pathbuf())?;
@@ -224,14 +221,16 @@ impl<'a> BackupRun<'a> {
     }
 }
 
-fn backup_file(
-    client: &BackupClient,
+async fn backup_file(
+    client: &AsyncBackupClient,
     entry: &AnnotatedFsEntry,
     path: &Path,
     chunk_size: usize,
     reason: Reason,
 ) -> FsEntryBackupOutcome {
-    let ids = client.upload_filesystem_entry(&entry.inner, chunk_size);
+    let ids = client
+        .upload_filesystem_entry(&entry.inner, chunk_size)
+        .await;
     match ids {
         Err(err) => {
             warn!("error backing up {}, skipping it: {}", path.display(), err);
