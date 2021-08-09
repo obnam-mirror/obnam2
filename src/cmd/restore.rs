@@ -264,7 +264,7 @@ fn restore_metadata(path: &Path, entry: &FilesystemEntry) -> Result<(), RestoreE
     unsafe {
         if entry.kind() != FilesystemKind::Symlink {
             debug!("chmod {:?}", path);
-            if chmod(path.as_ptr(), entry.mode()) == -1 {
+            if chmod(path.as_ptr(), entry.mode() as libc::mode_t) == -1 {
                 let error = Error::last_os_error();
                 error!("chmod failed on {:?}", path);
                 return Err(RestoreError::Chmod(pathbuf, error));

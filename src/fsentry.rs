@@ -3,10 +3,15 @@ use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::fs::read_link;
 use std::fs::{FileType, Metadata};
-use std::os::linux::fs::MetadataExt;
 use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::FileTypeExt;
 use std::path::{Path, PathBuf};
+
+#[cfg(target_os = "linux")]
+use std::os::linux::fs::MetadataExt;
+
+#[cfg(target_os = "macos")]
+use std::os::macos::fs::MetadataExt;
 
 /// A file system entry.
 ///
