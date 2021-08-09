@@ -80,6 +80,10 @@ impl BackupProgress {
         self.progress.inc(1);
     }
 
+    pub fn found_problems(&self, n: u64) {
+        self.progress.inc(n);
+    }
+
     pub fn found_live_file(&self, filename: &Path) {
         self.progress.inc(1);
         if self.progress.length() < self.progress.position() {

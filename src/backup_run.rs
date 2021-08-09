@@ -131,36 +131,18 @@ impl<'a> BackupRun<'a> {
         let files_count = {
             let mut new = NascentGeneration::create(newpath)?;
             for root in &config.roots {
-                let iter = FsIterator::new(root, config.exclude_cache_tag_directories);
-                for entry in iter {
-                    match entry {
-                        Err(err) => {
-                            debug!("ignoring backup error {}", err);
-                            warnings.push(err.into());
-                            self.found_problem();
+                match self.backup_one_root(config, old, &mut new, root).await {
+                    Ok(mut o) => {
+                        new_cachedir_tags.append(&mut o.new_cachedir_tags);
+                        if !o.warnings.is_empty() {
+                            warnings.append(&mut o.warnings);
+                            self.found_problems(o.warnings.len() as u64);
                         }
-                        Ok(entry) => {
-                            let path = entry.inner.pathbuf();
-                            if entry.is_cachedir_tag && !old.is_cachedir_tag(&path)? {
-                                new_cachedir_tags.push(path);
-                            }
-                            match self.backup(entry, old).await {
-                                Err(err) => {
-                                    debug!("ignoring backup error {}", err);
-                                    warnings.push(err);
-                                    self.found_problem();
-                                }
-                                Ok(o) => {
-                                    if let Err(err) =
-                                        new.insert(o.entry, &o.ids, o.reason, o.is_cachedir_tag)
-                                    {
-                                        debug!("ignoring backup error {}", err);
-                                        warnings.push(err.into());
-                                        self.found_problem();
-                                    }
-                                }
-                            }
-                        }
+                    }
+                    Err(err) => {
+                        debug!("ignoring backup error {}", err);
+                        warnings.push(err.into());
+                        self.found_problem();
                     }
                 }
             }
@@ -169,6 +151,55 @@ impl<'a> BackupRun<'a> {
         self.finish();
         Ok(RootsBackupOutcome {
             files_count,
+            warnings,
+            new_cachedir_tags,
+        })
+    }
+
+    async fn backup_one_root(
+        &self,
+        config: &ClientConfig,
+        old: &LocalGeneration,
+        new: &mut NascentGeneration,
+        root: &Path,
+    ) -> Result<RootsBackupOutcome, NascentError> {
+        let mut warnings: Vec<BackupError> = vec![];
+        let mut new_cachedir_tags = vec![];
+        let iter = FsIterator::new(root, config.exclude_cache_tag_directories);
+        for entry in iter {
+            match entry {
+                Err(err) => {
+                    debug!("ignoring backup error {}", err);
+                    warnings.push(err.into());
+                    self.found_problem();
+                }
+                Ok(entry) => {
+                    let path = entry.inner.pathbuf();
+                    if entry.is_cachedir_tag && !old.is_cachedir_tag(&path)? {
+                        new_cachedir_tags.push(path);
+                    }
+                    match self.backup(entry, old).await {
+                        Err(err) => {
+                            debug!("ignoring backup error {}", err);
+                            warnings.push(err);
+                            self.found_problem();
+                        }
+                        Ok(o) => {
+                            if let Err(err) =
+                                new.insert(o.entry, &o.ids, o.reason, o.is_cachedir_tag)
+                            {
+                                debug!("ignoring backup error {}", err);
+                                warnings.push(err.into());
+                                self.found_problem();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(RootsBackupOutcome {
+            files_count: 0, // Caller will get file count from new.
             warnings,
             new_cachedir_tags,
         })
@@ -217,6 +248,12 @@ impl<'a> BackupRun<'a> {
     fn found_problem(&self) {
         if let Some(progress) = &self.progress {
             progress.found_problem();
+        }
+    }
+
+    fn found_problems(&self, n: u64) {
+        if let Some(progress) = &self.progress {
+            progress.found_problems(n);
         }
     }
 }
