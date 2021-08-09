@@ -179,7 +179,7 @@ impl<'a> BackupRun<'a> {
                     if entry.is_cachedir_tag && !old.is_cachedir_tag(&path)? {
                         new_cachedir_tags.push(path);
                     }
-                    match self.backup_if_changed(entry, old).await {
+                    match self.backup_if_needed(entry, old).await {
                         Err(err) => {
                             warnings.push(err);
                         }
@@ -202,7 +202,7 @@ impl<'a> BackupRun<'a> {
         })
     }
 
-    async fn backup_if_changed(
+    async fn backup_if_needed(
         &self,
         entry: AnnotatedFsEntry,
         old: &LocalGeneration,
