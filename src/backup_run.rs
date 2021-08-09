@@ -179,7 +179,7 @@ impl<'a> BackupRun<'a> {
                     if entry.is_cachedir_tag && !old.is_cachedir_tag(&path)? {
                         new_cachedir_tags.push(path);
                     }
-                    match self.backup(entry, old).await {
+                    match self.backup_if_changed(entry, old).await {
                         Err(err) => {
                             warnings.push(err);
                         }
@@ -202,7 +202,7 @@ impl<'a> BackupRun<'a> {
         })
     }
 
-    async fn backup(
+    async fn backup_if_changed(
         &self,
         entry: AnnotatedFsEntry,
         old: &LocalGeneration,
@@ -213,7 +213,7 @@ impl<'a> BackupRun<'a> {
         let reason = self.policy.needs_backup(old, &entry.inner);
         match reason {
             Reason::IsNew | Reason::Changed | Reason::GenerationLookupError | Reason::Unknown => {
-                Ok(backup_file(self.client, &entry, path, self.buffer_size, reason).await)
+                Ok(backup_one_entry(self.client, &entry, path, self.buffer_size, reason).await)
             }
             Reason::Unchanged | Reason::Skipped | Reason::FileError => {
                 let fileno = old.get_fileno(&entry.inner.pathbuf())?;
@@ -249,7 +249,7 @@ impl<'a> BackupRun<'a> {
     }
 }
 
-async fn backup_file(
+async fn backup_one_entry(
     client: &AsyncBackupClient,
     entry: &AnnotatedFsEntry,
     path: &Path,
