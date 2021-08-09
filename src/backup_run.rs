@@ -135,8 +135,11 @@ impl<'a> BackupRun<'a> {
                     Ok(mut o) => {
                         new_cachedir_tags.append(&mut o.new_cachedir_tags);
                         if !o.warnings.is_empty() {
+                            for err in o.warnings.iter() {
+                                debug!("ignoring backup error {}", err);
+                                self.found_problem();
+                            }
                             warnings.append(&mut o.warnings);
-                            self.found_problems(o.warnings.len() as u64);
                         }
                     }
                     Err(err) => {
@@ -169,9 +172,7 @@ impl<'a> BackupRun<'a> {
         for entry in iter {
             match entry {
                 Err(err) => {
-                    debug!("ignoring backup error {}", err);
                     warnings.push(err.into());
-                    self.found_problem();
                 }
                 Ok(entry) => {
                     let path = entry.inner.pathbuf();
@@ -180,17 +181,13 @@ impl<'a> BackupRun<'a> {
                     }
                     match self.backup(entry, old).await {
                         Err(err) => {
-                            debug!("ignoring backup error {}", err);
                             warnings.push(err);
-                            self.found_problem();
                         }
                         Ok(o) => {
                             if let Err(err) =
                                 new.insert(o.entry, &o.ids, o.reason, o.is_cachedir_tag)
                             {
-                                debug!("ignoring backup error {}", err);
                                 warnings.push(err.into());
-                                self.found_problem();
                             }
                         }
                     }
@@ -248,12 +245,6 @@ impl<'a> BackupRun<'a> {
     fn found_problem(&self) {
         if let Some(progress) = &self.progress {
             progress.found_problem();
-        }
-    }
-
-    fn found_problems(&self, n: u64) {
-        if let Some(progress) = &self.progress {
-            progress.found_problems(n);
         }
     }
 }
