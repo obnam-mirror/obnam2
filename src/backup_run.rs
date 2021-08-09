@@ -213,7 +213,7 @@ impl<'a> BackupRun<'a> {
         let reason = self.policy.needs_backup(old, &entry.inner);
         match reason {
             Reason::IsNew | Reason::Changed | Reason::GenerationLookupError | Reason::Unknown => {
-                Ok(backup_one_entry(self.client, &entry, path, self.buffer_size, reason).await)
+                Ok(self.backup_one_entry(&entry, path, reason).await)
             }
             Reason::Unchanged | Reason::Skipped | Reason::FileError => {
                 let fileno = old.get_fileno(&entry.inner.pathbuf())?;
@@ -236,6 +236,35 @@ impl<'a> BackupRun<'a> {
         }
     }
 
+    async fn backup_one_entry(
+        &self,
+        entry: &AnnotatedFsEntry,
+        path: &Path,
+        reason: Reason,
+    ) -> FsEntryBackupOutcome {
+        let ids = self
+            .client
+            .upload_filesystem_entry(&entry.inner, self.buffer_size)
+            .await;
+        match ids {
+            Err(err) => {
+                warn!("error backing up {}, skipping it: {}", path.display(), err);
+                FsEntryBackupOutcome {
+                    entry: entry.inner.clone(),
+                    ids: vec![],
+                    reason: Reason::FileError,
+                    is_cachedir_tag: entry.is_cachedir_tag,
+                }
+            }
+            Ok(ids) => FsEntryBackupOutcome {
+                entry: entry.inner.clone(),
+                ids,
+                reason,
+                is_cachedir_tag: entry.is_cachedir_tag,
+            },
+        }
+    }
+
     fn found_live_file(&self, path: &Path) {
         if let Some(progress) = &self.progress {
             progress.found_live_file(path);
@@ -246,34 +275,5 @@ impl<'a> BackupRun<'a> {
         if let Some(progress) = &self.progress {
             progress.found_problem();
         }
-    }
-}
-
-async fn backup_one_entry(
-    client: &AsyncBackupClient,
-    entry: &AnnotatedFsEntry,
-    path: &Path,
-    chunk_size: usize,
-    reason: Reason,
-) -> FsEntryBackupOutcome {
-    let ids = client
-        .upload_filesystem_entry(&entry.inner, chunk_size)
-        .await;
-    match ids {
-        Err(err) => {
-            warn!("error backing up {}, skipping it: {}", path.display(), err);
-            FsEntryBackupOutcome {
-                entry: entry.inner.clone(),
-                ids: vec![],
-                reason: Reason::FileError,
-                is_cachedir_tag: entry.is_cachedir_tag,
-            }
-        }
-        Ok(ids) => FsEntryBackupOutcome {
-            entry: entry.inner.clone(),
-            ids,
-            reason,
-            is_cachedir_tag: entry.is_cachedir_tag,
-        },
     }
 }
