@@ -1,18 +1,14 @@
-use crate::backup_progress::BackupProgress;
 use crate::backup_run::BackupRun;
-use crate::chunkid::ChunkId;
 use crate::client::AsyncBackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
-use bytesize::MIB;
+use crate::generation::GenId;
+
 use log::info;
-use std::path::Path;
 use std::time::SystemTime;
 use structopt::StructOpt;
 use tempfile::NamedTempFile;
 use tokio::runtime::Runtime;
-
-const SQLITE_CHUNK_SIZE: usize = MIB as usize;
 
 #[derive(Debug, StructOpt)]
 pub struct Backup {}
@@ -47,8 +43,6 @@ impl Backup {
             }
         };
 
-        let gen_id = upload_nascent_generation(&client, newtemp.path()).await?;
-
         for w in outcome.warnings.iter() {
             println!("warning: {}", w);
         }
@@ -64,7 +58,7 @@ impl Backup {
         report_stats(
             &runtime,
             outcome.files_count,
-            &gen_id,
+            &outcome.gen_id,
             outcome.warnings.len(),
         )?;
 
@@ -79,7 +73,7 @@ impl Backup {
 fn report_stats(
     runtime: &SystemTime,
     file_count: i64,
-    gen_id: &ChunkId,
+    gen_id: &GenId,
     num_warnings: usize,
 ) -> Result<(), ObnamError> {
     println!("status: OK");
@@ -88,16 +82,4 @@ fn report_stats(
     println!("file-count: {}", file_count);
     println!("generation-id: {}", gen_id);
     Ok(())
-}
-
-async fn upload_nascent_generation(
-    client: &AsyncBackupClient,
-    filename: &Path,
-) -> Result<ChunkId, ObnamError> {
-    let progress = BackupProgress::upload_generation();
-    let gen_id = client
-        .upload_generation(filename, SQLITE_CHUNK_SIZE)
-        .await?;
-    progress.finish();
-    Ok(gen_id)
 }

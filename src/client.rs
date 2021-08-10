@@ -1,15 +1,11 @@
-use crate::chunk::DataChunk;
-use crate::chunk::{GenerationChunk, GenerationChunkError};
-use crate::chunker::{Chunker, ChunkerError};
+use crate::chunk::{DataChunk, GenerationChunk, GenerationChunkError};
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
 use crate::cipher::{CipherEngine, CipherError};
 use crate::config::{ClientConfig, ClientConfigError};
-use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::{FinishedGeneration, GenId, LocalGeneration, LocalGenerationError};
 use crate::genlist::GenerationList;
 
-use chrono::{DateTime, Local};
 use log::{debug, error, info};
 use reqwest::header::HeaderMap;
 use std::collections::HashMap;
@@ -48,9 +44,6 @@ pub enum ClientError {
 
     #[error(transparent)]
     LocalGenerationError(#[from] LocalGenerationError),
-
-    #[error(transparent)]
-    ChunkerError(#[from] ChunkerError),
 
     #[error("couldn't convert response chunk-meta header to string: {0}")]
     MetaHeaderToString(reqwest::header::ToStrError),
@@ -91,74 +84,12 @@ impl AsyncBackupClient {
             chunk_client: AsyncChunkClient::new(config)?,
         })
     }
-
-    pub async fn upload_filesystem_entry(
-        &self,
-        e: &FilesystemEntry,
-        size: usize,
-    ) -> Result<Vec<ChunkId>, ClientError> {
-        let path = e.pathbuf();
-        info!("uploading {:?}", path);
-        let ids = match e.kind() {
-            FilesystemKind::Regular => self.read_file(&path, size).await?,
-            FilesystemKind::Directory => vec![],
-            FilesystemKind::Symlink => vec![],
-            FilesystemKind::Socket => vec![],
-            FilesystemKind::Fifo => vec![],
-        };
-        info!("upload OK for {:?}", path);
-        Ok(ids)
-    }
-
-    pub async fn upload_generation(
-        &self,
-        filename: &Path,
-        size: usize,
-    ) -> Result<ChunkId, ClientError> {
-        info!("upload SQLite {}", filename.display());
-        let ids = self.read_file(filename, size).await?;
-        let gen = GenerationChunk::new(ids);
-        let data = gen.to_data_chunk(&current_timestamp())?;
-        let gen_id = self.upload_chunk(data).await?;
-        info!("uploaded generation {}", gen_id);
-        Ok(gen_id)
-    }
-
-    async fn read_file(&self, filename: &Path, size: usize) -> Result<Vec<ChunkId>, ClientError> {
-        info!("upload file {}", filename.display());
-        let file = std::fs::File::open(filename)
-            .map_err(|err| ClientError::FileOpen(filename.to_path_buf(), err))?;
-        let chunker = Chunker::new(size, file, filename);
-        let chunk_ids = self.upload_new_file_chunks(chunker).await?;
-        Ok(chunk_ids)
-    }
-
     pub async fn has_chunk(&self, meta: &ChunkMeta) -> Result<Option<ChunkId>, ClientError> {
         self.chunk_client.has_chunk(meta).await
     }
 
     pub async fn upload_chunk(&self, chunk: DataChunk) -> Result<ChunkId, ClientError> {
         self.chunk_client.upload_chunk(chunk).await
-    }
-
-    pub async fn upload_new_file_chunks(
-        &self,
-        chunker: Chunker,
-    ) -> Result<Vec<ChunkId>, ClientError> {
-        let mut chunk_ids = vec![];
-        for item in chunker {
-            let chunk = item?;
-            if let Some(chunk_id) = self.has_chunk(chunk.meta()).await? {
-                chunk_ids.push(chunk_id.clone());
-                info!("reusing existing chunk {}", chunk_id);
-            } else {
-                let chunk_id = self.upload_chunk(chunk).await?;
-                chunk_ids.push(chunk_id.clone());
-                info!("created new chunk {}", chunk_id);
-            }
-        }
-
-        Ok(chunk_ids)
     }
 
     pub async fn list_generations(&self) -> Result<GenerationList, ClientError> {
@@ -346,9 +277,4 @@ impl AsyncChunkClient {
 
         Ok(meta)
     }
-}
-
-fn current_timestamp() -> String {
-    let now: DateTime<Local> = Local::now();
-    format!("{}", now.format("%Y-%m-%d %H:%M:%S.%f %z"))
 }
