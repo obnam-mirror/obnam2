@@ -297,7 +297,7 @@ impl<'a> BackupRun<'a> {
         let path = e.pathbuf();
         info!("uploading {:?}", path);
         let ids = match e.kind() {
-            FilesystemKind::Regular => self.read_file(&path, size).await?,
+            FilesystemKind::Regular => self.upload_regular_file(&path, size).await?,
             FilesystemKind::Directory => vec![],
             FilesystemKind::Symlink => vec![],
             FilesystemKind::Socket => vec![],
@@ -313,7 +313,7 @@ impl<'a> BackupRun<'a> {
         size: usize,
     ) -> Result<ChunkId, BackupError> {
         info!("upload SQLite {}", filename.display());
-        let ids = self.read_file(filename, size).await?;
+        let ids = self.upload_regular_file(filename, size).await?;
         let gen = GenerationChunk::new(ids);
         let data = gen.to_data_chunk(&current_timestamp())?;
         let gen_id = self.client.upload_chunk(data).await?;
@@ -321,20 +321,16 @@ impl<'a> BackupRun<'a> {
         Ok(gen_id)
     }
 
-    async fn read_file(&self, filename: &Path, size: usize) -> Result<Vec<ChunkId>, BackupError> {
+    async fn upload_regular_file(
+        &self,
+        filename: &Path,
+        size: usize,
+    ) -> Result<Vec<ChunkId>, BackupError> {
         info!("upload file {}", filename.display());
+        let mut chunk_ids = vec![];
         let file = std::fs::File::open(filename)
             .map_err(|err| ClientError::FileOpen(filename.to_path_buf(), err))?;
         let chunker = Chunker::new(size, file, filename);
-        let chunk_ids = self.upload_new_file_chunks(chunker).await?;
-        Ok(chunk_ids)
-    }
-
-    pub async fn upload_new_file_chunks(
-        &self,
-        chunker: Chunker,
-    ) -> Result<Vec<ChunkId>, BackupError> {
-        let mut chunk_ids = vec![];
         for item in chunker {
             let chunk = item?;
             if let Some(chunk_id) = self.client.has_chunk(chunk.meta()).await? {
@@ -346,7 +342,6 @@ impl<'a> BackupRun<'a> {
                 info!("created new chunk {}", chunk_id);
             }
         }
-
         Ok(chunk_ids)
     }
 
