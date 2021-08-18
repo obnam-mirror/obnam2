@@ -1,27 +1,29 @@
-use crate::backup_progress::BackupProgress;
 use crate::backup_run::BackupRun;
-use crate::chunkid::ChunkId;
-use crate::client::BackupClient;
+use crate::client::AsyncBackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
-use bytesize::MIB;
+use crate::generation::GenId;
+
 use log::info;
-use std::path::Path;
 use std::time::SystemTime;
 use structopt::StructOpt;
 use tempfile::NamedTempFile;
-
-const SQLITE_CHUNK_SIZE: usize = MIB as usize;
+use tokio::runtime::Runtime;
 
 #[derive(Debug, StructOpt)]
 pub struct Backup {}
 
 impl Backup {
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
+        let rt = Runtime::new()?;
+        rt.block_on(self.run_async(config))
+    }
+
+    async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let runtime = SystemTime::now();
 
-        let client = BackupClient::new(config)?;
-        let genlist = client.list_generations()?;
+        let client = AsyncBackupClient::new(config)?;
+        let genlist = client.list_generations().await?;
 
         let oldtemp = NamedTempFile::new()?;
         let newtemp = NamedTempFile::new()?;
@@ -30,18 +32,16 @@ impl Backup {
             Err(_) => {
                 info!("fresh backup without a previous generation");
                 let mut run = BackupRun::initial(config, &client)?;
-                let old = run.start(None, oldtemp.path())?;
-                (false, run.backup_roots(config, &old, newtemp.path())?)
+                let old = run.start(None, oldtemp.path()).await?;
+                (false, run.backup_roots(config, &old, newtemp.path()).await?)
             }
             Ok(old_id) => {
                 info!("incremental backup based on {}", old_id);
                 let mut run = BackupRun::incremental(config, &client)?;
-                let old = run.start(Some(&old_id), oldtemp.path())?;
-                (true, run.backup_roots(config, &old, newtemp.path())?)
+                let old = run.start(Some(&old_id), oldtemp.path()).await?;
+                (true, run.backup_roots(config, &old, newtemp.path()).await?)
             }
         };
-
-        let gen_id = upload_nascent_generation(&client, newtemp.path())?;
 
         for w in outcome.warnings.iter() {
             println!("warning: {}", w);
@@ -58,7 +58,7 @@ impl Backup {
         report_stats(
             &runtime,
             outcome.files_count,
-            &gen_id,
+            &outcome.gen_id,
             outcome.warnings.len(),
         )?;
 
@@ -73,7 +73,7 @@ impl Backup {
 fn report_stats(
     runtime: &SystemTime,
     file_count: i64,
-    gen_id: &ChunkId,
+    gen_id: &GenId,
     num_warnings: usize,
 ) -> Result<(), ObnamError> {
     println!("status: OK");
@@ -82,14 +82,4 @@ fn report_stats(
     println!("file-count: {}", file_count);
     println!("generation-id: {}", gen_id);
     Ok(())
-}
-
-fn upload_nascent_generation(
-    client: &BackupClient,
-    filename: &Path,
-) -> Result<ChunkId, ObnamError> {
-    let progress = BackupProgress::upload_generation();
-    let gen_id = client.upload_generation(filename, SQLITE_CHUNK_SIZE)?;
-    progress.finish();
-    Ok(gen_id)
 }
