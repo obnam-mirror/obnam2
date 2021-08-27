@@ -58,7 +58,6 @@ pub struct FsEntryBackupOutcome {
 
 #[derive(Debug)]
 struct OneRootBackupOutcome {
-    pub files_count: i64,
     pub warnings: Vec<BackupError>,
     pub new_cachedir_tags: Vec<PathBuf>,
 }
@@ -221,7 +220,6 @@ impl<'a> BackupRun<'a> {
         }
 
         Ok(OneRootBackupOutcome {
-            files_count: 0, // Caller will get file count from new.
             warnings,
             new_cachedir_tags,
         })
