@@ -33,9 +33,7 @@ def start_chunk_server(ctx, env=None):
         "address": f"localhost:{port}",
     }
 
-    server_binary = os.path.abspath(
-        os.path.join(srcdir, "target", "debug", "obnam-server")
-    )
+    server_binary = ctx["server-binary"]
 
     filename = "config.yaml"
     yaml.safe_dump(config, stream=open(filename, "w"))
@@ -44,8 +42,7 @@ def start_chunk_server(ctx, env=None):
     ctx["server_url"] = f"https://{config['address']}"
 
     daemon_start_on_port(
-        ctx, name="obnam-server", path=server_binary, args=filename, port=port,
-        env=env
+        ctx, name="obnam-server", path=server_binary, args=filename, port=port, env=env
     )
 
 
@@ -201,6 +198,7 @@ def _expand_vars(ctx, s):
         result.append(value)
         s = s[m.end() :]
     return "".join(result)
+
 
 def _server_stderr_contains(ctx, wanted):
     daemon_get_stderr = globals()["daemon_get_stderr"]

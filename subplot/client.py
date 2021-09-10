@@ -8,7 +8,10 @@ def install_obnam(ctx):
     srcdir = globals()["srcdir"]
 
     # Add the directory with built Rust binaries to the path.
-    runcmd_prepend_to_path(ctx, dirname=os.path.join(srcdir, "target", "debug"))
+    default_target = os.path.join(srcdir, "target")
+    target = os.environ.get("CARGO_TARGET_DIR", default_target)
+    runcmd_prepend_to_path(ctx, dirname=os.path.join(target, "debug"))
+    ctx["server-binary"] = os.path.join(target, "debug", "obnam-server")
 
 
 def uninstall_obnam(ctx):
