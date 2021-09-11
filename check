@@ -5,28 +5,24 @@
 set -eu
 
 hideok=chronic
-if [ "$#" -gt 0 ]
-then
-    case "$1" in
+if [ "$#" -gt 0 ]; then
+	case "$1" in
 	verbose | -v | --verbose)
-	    hideok=
-	    shift
-	    ;;
-    esac
+		hideok=
+		shift
+		;;
+	esac
 fi
 
-require_cmd()
-{
-    if ! command -v "$1" > /dev/null
-    then
-        echo "Need to have $1 installed, but can't find it" 1>&2
-        return 1
-    fi
+require_cmd() {
+	if ! command -v "$1" >/dev/null; then
+		echo "Need to have $1 installed, but can't find it" 1>&2
+		return 1
+	fi
 }
 
-got_cargo_cmd()
-{
-    cargo "$1" --help > /dev/null
+got_cargo_cmd() {
+	cargo "$1" --help >/dev/null
 }
 
 require_cmd rustc
@@ -43,7 +39,7 @@ require_cmd pdflatex
 # daemonize installation location changed from Debian 10 to 11.
 require_cmd daemonize || require_cmd /usr/sbin/daemonize
 
-got_cargo_cmd clippy && cargo  clippy --all-targets -q
+got_cargo_cmd clippy && cargo clippy --all-targets -q
 $hideok cargo build --all-targets
 got_cargo_cmd fmt && $hideok cargo fmt -- --check
 $hideok cargo test
@@ -51,13 +47,13 @@ $hideok cargo test
 subplot docgen obnam.md -o obnam.html
 subplot docgen obnam.md -o obnam.pdf
 
+target="$(cargo metadata --format-version=1 | python3 -c 'import sys, json; o = json.load(sys.stdin); print(o["target_directory"])')"
 subplot codegen obnam.md -o test.py
 rm -f test.log
-if [ "$(id -un)" = root ]
-then
-    echo Not running tests as root.
+if [ "$(id -un)" = root ]; then
+	echo Not running tests as root.
 else
-    $hideok python3 test.py --log test.log "$@"
+	$hideok python3 test.py --log test.log --env "CARGO_TARGET_DIR=$target" "$@"
 fi
 
 echo "Everything seems to be in order."
