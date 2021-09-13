@@ -1,10 +1,10 @@
 ---
-title: Release checklist for Obnam2
+title: Release checklist for Obnam
 ...
 
-# Release checklist for Obnam2
+# Release checklist for Obnam
 
-Follow these steps to make a release of Obnam2.
+Follow these steps to make a release of Obnam.
 
 1. Create a `release` branch.
    - `git checkout -b release`
@@ -14,7 +14,7 @@ Follow these steps to make a release of Obnam2.
 3. Make sure everything still works.
    - `./check`
 4. Review changes in the crate (`git log vX.Y.Y..`). Update the `NEWS.md`
-   file with any changes that users of Subplot need to be aware of.
+   file with any changes that users of Obnam need to be aware of.
 5. Update the crate's `Cargo.toml` with the appropriate version number
    for the new release, following [semantic versioning][].
 6. Update `debian/changelog` with a summary of any changes to the
