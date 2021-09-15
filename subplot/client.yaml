@@ -1,36 +1,60 @@
 - given: "an installed obnam"
-  function: install_obnam
-  cleanup: uninstall_obnam
+  impl:
+    python:
+      function: install_obnam
+      cleanup: uninstall_obnam
 
 - given: "a client config based on {filename}"
-  function: configure_client_with_init
+  impl:
+    python:
+      function: configure_client_with_init
 
 - given: "a client config, without passphrase, based on {filename}"
-  function: configure_client_without_init
+  impl:
+    python:
+      function: configure_client_without_init
 
 - when: "I invoke obnam restore <{genid}> {todir}"
-  function: run_obnam_restore
+  impl:
+    python:
+      function: run_obnam_restore
 
 - when: "I invoke obnam get-chunk <{gen_id}>"
-  function: run_obnam_get_chunk
+  impl:
+    python:
+      function: run_obnam_get_chunk
 
 - then: "backup generation is {varname}"
-  function: capture_generation_id
+  impl:
+    python:
+      function: capture_generation_id
 
 - then: "generation list contains <{gen_id}>"
-  function: generation_list_contains
+  impl:
+    python:
+      function: generation_list_contains
 
 - then: "file {filename} was backed up because it was new"
-  function: file_was_new
+  impl:
+    python:
+      function: file_was_new
 
 - then: "file {filename} was backed up because it was changed"
-  function: file_was_changed
+  impl:
+    python:
+      function: file_was_changed
 
 - then: "file {filename} was not backed up because it was unchanged"
-  function: file_was_unchanged
+  impl:
+    python:
+      function: file_was_unchanged
 
 - then: "stdout matches file {filename}"
-  function: stdout_matches_file
+  impl:
+    python:
+      function: stdout_matches_file
 
 - then: "stdout contains home directory followed by {path}"
-  function: stdout_contains_home_dir_path
+  impl:
+    python:
+      function: stdout_contains_home_dir_path
