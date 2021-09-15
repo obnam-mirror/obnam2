@@ -78,7 +78,7 @@ in an automated way:
 * _Done:_ **Easy to install:** available as a Debian package in an APT
   repository. Other installation packages will also be provided,
   hopefully.
-* _Not done:_ **Easy to configure:** only need to configure things
+* _Ongoing:_ **Easy to configure:** only need to configure things
   that are inherently specific to a client, when sensible defaults are
   impossible.
 * _Not done:_ **Excellent documentation:** although software ideally
@@ -87,11 +87,11 @@ in an automated way:
   unambiguous, and well-liked.
 * _Done_: **Easy to run:** making a backup is a single command line
   that's always the same.
-* _Not done:_ **Detects corruption:** if a file in the repository is
+* _Ongoing:_ **Detects corruption:** if a file in the repository is
   modified or deleted, the software notices it automatically.
-* _Not done:_ **Repository is encrypted:** all data stored in the
+* _Ongoing:_ **Repository is encrypted:** all data stored in the
   repository is encrypted with a key known only to the client.
-* _Not done:_ **Fast backups and restores:** when a client and server
+* _Ongoing:_ **Fast backups and restores:** when a client and server
   both have sufficient CPU, RAM, and disk bandwidth, the software
   makes a backup or restores a backup over a gigabit Ethernet using at
   least 50% of the network bandwidth.
