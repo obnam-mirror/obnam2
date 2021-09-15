@@ -1,3 +1,33 @@
+---
+title: "Obnam2&mdash;a backup system"
+author: Lars Wirzenius
+documentclass: report
+bindings:
+  - subplot/server.yaml
+  - subplot/client.yaml
+  - subplot/data.yaml
+  - lib/files.yaml
+  - lib/runcmd.yaml
+template: python
+functions:
+  - subplot/server.py
+  - subplot/client.py
+  - subplot/data.py
+  - lib/daemon.py
+  - lib/files.py
+  - lib/runcmd.py
+classes:
+  - json
+abstract: |
+  Obnam is a backup system, consisting of a not very smart server for
+  storing chunks of backup data, and a client that splits the user's
+  data into chunks. They communicate via HTTP.
+
+  This document describes the architecture and acceptance criteria for
+  Obnam, as well as how the acceptance criteria are verified.
+...
+
+
 # Introduction
 
 Obnam2 is a backup system.
@@ -1803,39 +1833,3 @@ made, the passphrase is not stored in cleartext on the server.
 
 Verify that the backup repository does not contain the backed up data
 in cleartext.
-
-
-<!-- -------------------------------------------------------------------- -->
-
-# Colophon
-
-This manual is edited in Markdown and typeset using [Subplot][].
-
----
-title: "Obnam2&mdash;a backup system"
-author: Lars Wirzenius
-documentclass: report
-bindings:
-  - subplot/server.yaml
-  - subplot/client.yaml
-  - subplot/data.yaml
-  - lib/files.yaml
-  - lib/runcmd.yaml
-template: python
-functions:
-  - subplot/server.py
-  - subplot/client.py
-  - subplot/data.py
-  - lib/daemon.py
-  - lib/files.py
-  - lib/runcmd.py
-classes:
-  - json
-abstract: |
-  Obnam is a backup system, consisting of a not very smart server for
-  storing chunks of backup data, and a client that splits the user's
-  data into chunks. They communicate via HTTP.
-  
-  This document describes the architecture and acceptance criteria for
-  Obnam, as well as how the acceptance criteria are verified.
-...
