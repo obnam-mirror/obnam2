@@ -5,6 +5,10 @@
 set -eu
 
 hideok=chronic
+if ! command -v chronic >/dev/null; then
+	hideok=
+fi
+
 if [ "$#" -gt 0 ]; then
 	case "$1" in
 	verbose | -v | --verbose)
@@ -31,7 +35,6 @@ require_cmd cargo
 require_cmd python3
 require_cmd subplot
 require_cmd summain
-require_cmd chronic
 require_cmd pkg-config
 require_cmd pandoc
 require_cmd pdflatex
