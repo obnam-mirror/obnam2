@@ -1,4 +1,4 @@
-use crate::checksummer::sha256;
+use crate::checksummer::Checksum;
 use crate::chunk::DataChunk;
 use crate::chunkmeta::ChunkMeta;
 use std::io::prelude::*;
@@ -48,7 +48,7 @@ impl Chunker {
         }
 
         let buffer = &self.buf.as_slice()[..used];
-        let hash = sha256(buffer);
+        let hash = Checksum::sha256(buffer);
         let meta = ChunkMeta::new(&hash);
         let chunk = DataChunk::new(buffer.to_vec(), meta);
         Ok(Some(chunk))

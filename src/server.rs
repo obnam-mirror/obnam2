@@ -119,6 +119,7 @@ impl SearchHits {
 #[cfg(test)]
 mod test_search_hits {
     use super::{ChunkMeta, SearchHits};
+    use crate::checksummer::Checksum;
 
     #[test]
     fn no_search_hits() {
@@ -129,7 +130,8 @@ mod test_search_hits {
     #[test]
     fn one_search_hit() {
         let id = "abc".parse().unwrap();
-        let meta = ChunkMeta::new("123");
+        let sum = Checksum::sha256_from_str_unchecked("123");
+        let meta = ChunkMeta::new(&sum);
         let mut hits = SearchHits::default();
         hits.insert(id, meta);
         eprintln!("hits: {:?}", hits);

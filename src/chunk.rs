@@ -1,4 +1,4 @@
-use crate::checksummer::sha256;
+use crate::checksummer::Checksum;
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
 use serde::{Deserialize, Serialize};
@@ -78,7 +78,7 @@ impl GenerationChunk {
         let json: String =
             serde_json::to_string(self).map_err(GenerationChunkError::JsonGenerate)?;
         let bytes = json.as_bytes().to_vec();
-        let sha = sha256(&bytes);
+        let sha = Checksum::sha256(&bytes);
         let meta = ChunkMeta::new_generation(&sha, ended);
         Ok(DataChunk::new(bytes, meta))
     }

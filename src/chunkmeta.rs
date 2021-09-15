@@ -1,3 +1,4 @@
+use crate::checksummer::Checksum;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
 use std::str::FromStr;
@@ -48,7 +49,7 @@ impl ChunkMeta {
     /// Create a new data chunk.
     ///
     /// Data chunks are not for generations.
-    pub fn new(sha256: &str) -> Self {
+    pub fn new(sha256: &Checksum) -> Self {
         ChunkMeta {
             sha256: sha256.to_string(),
             generation: None,
@@ -57,7 +58,7 @@ impl ChunkMeta {
     }
 
     /// Create a new generation chunk.
-    pub fn new_generation(sha256: &str, ended: &str) -> Self {
+    pub fn new_generation(sha256: &Checksum, ended: &str) -> Self {
         ChunkMeta {
             sha256: sha256.to_string(),
             generation: Some(true),
@@ -107,11 +108,12 @@ impl FromStr for ChunkMeta {
 
 #[cfg(test)]
 mod test {
-    use super::ChunkMeta;
+    use super::{Checksum, ChunkMeta};
 
     #[test]
     fn new_creates_data_chunk() {
-        let meta = ChunkMeta::new("abcdef");
+        let sum = Checksum::sha256_from_str_unchecked("abcdef");
+        let meta = ChunkMeta::new(&sum);
         assert!(!meta.is_generation());
         assert_eq!(meta.ended(), None);
         assert_eq!(meta.sha256(), "abcdef");
@@ -119,7 +121,8 @@ mod test {
 
     #[test]
     fn new_generation_creates_generation_chunk() {
-        let meta = ChunkMeta::new_generation("abcdef", "2020-09-17T08:17:13+03:00");
+        let sum = Checksum::sha256_from_str_unchecked("abcdef");
+        let meta = ChunkMeta::new_generation(&sum, "2020-09-17T08:17:13+03:00");
         assert!(meta.is_generation());
         assert_eq!(meta.ended(), Some("2020-09-17T08:17:13+03:00"));
         assert_eq!(meta.sha256(), "abcdef");
@@ -146,7 +149,8 @@ mod test {
 
     #[test]
     fn generation_json_roundtrip() {
-        let meta = ChunkMeta::new_generation("abcdef", "2020-09-17T08:17:13+03:00");
+        let sum = Checksum::sha256_from_str_unchecked("abcdef");
+        let meta = ChunkMeta::new_generation(&sum, "2020-09-17T08:17:13+03:00");
         let json = serde_json::to_string(&meta).unwrap();
         let meta2 = serde_json::from_str(&json).unwrap();
         assert_eq!(meta, meta2);
@@ -154,7 +158,8 @@ mod test {
 
     #[test]
     fn data_json_roundtrip() {
-        let meta = ChunkMeta::new("abcdef");
+        let sum = Checksum::sha256_from_str_unchecked("abcdef");
+        let meta = ChunkMeta::new(&sum);
         let json = meta.to_json_vec();
         let meta2 = serde_json::from_slice(&json).unwrap();
         assert_eq!(meta, meta2);

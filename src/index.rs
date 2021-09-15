@@ -1,3 +1,4 @@
+use crate::checksummer::Checksum;
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
 use rusqlite::Connection;
@@ -80,6 +81,8 @@ impl Index {
 
 #[cfg(test)]
 mod test {
+    use crate::checksummer::Checksum;
+
     use super::{ChunkId, ChunkMeta, Index};
     use std::path::Path;
     use tempfile::tempdir;
@@ -91,7 +94,8 @@ mod test {
     #[test]
     fn remembers_inserted() {
         let id: ChunkId = "id001".parse().unwrap();
-        let meta = ChunkMeta::new("abc");
+        let sum = Checksum::sha256_from_str_unchecked("abc");
+        let meta = ChunkMeta::new(&sum);
         let dir = tempdir().unwrap();
         let mut idx = new_index(dir.path());
         idx.insert_meta(id.clone(), meta.clone()).unwrap();
@@ -103,7 +107,8 @@ mod test {
     #[test]
     fn does_not_find_uninserted() {
         let id: ChunkId = "id001".parse().unwrap();
-        let meta = ChunkMeta::new("abc");
+        let sum = Checksum::sha256_from_str_unchecked("abc");
+        let meta = ChunkMeta::new(&sum);
         let dir = tempdir().unwrap();
         let mut idx = new_index(dir.path());
         idx.insert_meta(id, meta).unwrap();
@@ -113,7 +118,8 @@ mod test {
     #[test]
     fn removes_inserted() {
         let id: ChunkId = "id001".parse().unwrap();
-        let meta = ChunkMeta::new("abc");
+        let sum = Checksum::sha256_from_str_unchecked("abc");
+        let meta = ChunkMeta::new(&sum);
         let dir = tempdir().unwrap();
         let mut idx = new_index(dir.path());
         idx.insert_meta(id.clone(), meta).unwrap();
@@ -132,7 +138,8 @@ mod test {
     #[test]
     fn remembers_generation() {
         let id: ChunkId = "id001".parse().unwrap();
-        let meta = ChunkMeta::new_generation("abc", "timestamp");
+        let sum = Checksum::sha256_from_str_unchecked("abc");
+        let meta = ChunkMeta::new_generation(&sum, "timestamp");
         let dir = tempdir().unwrap();
         let mut idx = new_index(dir.path());
         idx.insert_meta(id.clone(), meta).unwrap();
@@ -142,7 +149,8 @@ mod test {
     #[test]
     fn removes_generation() {
         let id: ChunkId = "id001".parse().unwrap();
-        let meta = ChunkMeta::new_generation("abc", "timestamp");
+        let sum = Checksum::sha256_from_str_unchecked("abc");
+        let meta = ChunkMeta::new_generation(&sum, "timestamp");
         let dir = tempdir().unwrap();
         let mut idx = new_index(dir.path());
         idx.insert_meta(id.clone(), meta).unwrap();
@@ -152,7 +160,7 @@ mod test {
 }
 
 mod sql {
-    use super::IndexError;
+    use super::{Checksum, IndexError};
     use crate::chunkid::ChunkId;
     use crate::chunkmeta::ChunkMeta;
     use log::error;
@@ -256,7 +264,8 @@ mod sql {
     }
 
     fn row_to_meta(row: &Row) -> rusqlite::Result<ChunkMeta> {
-        let sha256: String = row.get(row.column_index("sha256")?)?;
+        let hash: String = row.get(row.column_index("sha256")?)?;
+        let sha256 = Checksum::sha256_from_str_unchecked(&hash);
         let generation: i32 = row.get(row.column_index("generation")?)?;
         let meta = if generation == 0 {
             ChunkMeta::new(&sha256)
