@@ -1,58 +1,94 @@
 - given: "a running chunk server"
-  function: start_chunk_server
-  cleanup: stop_chunk_server
+  impl:
+    python:
+      function: start_chunk_server
+      cleanup: stop_chunk_server
 
 - given: "a running chunk server with environment {env:text}"
-  function: start_chunk_server
-  cleanup: stop_chunk_server
+  impl:
+    python:
+      function: start_chunk_server
+      cleanup: stop_chunk_server
 
 - when: "the chunk server is stopped"
-  function: stop_chunk_server
+  impl:
+    python:
+      function: stop_chunk_server
 
 - when: "I POST (?P<filename>\\S+) to (?P<path>\\S+), with (?P<header>\\S+): (?P<json>.*)"
   regex: true
-  function: post_file
+  impl:
+    python:
+      function: post_file
 
 - when: "I GET /chunks/<{var}>"
-  function: get_chunk_via_var
+  impl:
+    python:
+      function: get_chunk_via_var
 
 - when: "I try to GET /chunks/{chunk_id}"
-  function: get_chunk_by_id
+  impl:
+    python:
+      function: get_chunk_by_id
 
 - when: "I GET /chunks?sha256={sha}"
   regex: false
-  function: find_chunks_with_sha
+  impl:
+    python:
+      function: find_chunks_with_sha
 
 - when: "I DELETE /chunks/<{var}>"
-  function: delete_chunk_via_var
+  impl:
+    python:
+      function: delete_chunk_via_var
 
 - when: "I try to DELETE /chunks/{chunk_id}"
-  function: delete_chunk_by_id
+  impl:
+    python:
+      function: delete_chunk_by_id
 
 - when: "chunk <{chunk_id}> on chunk server is replaced by an empty file"
-  function: make_chunk_file_be_empty
+  impl:
+    python:
+      function: make_chunk_file_be_empty
 
 - then: "HTTP status code is {status}"
-  function: status_code_is
+  impl:
+    python:
+      function: status_code_is
 
 - then: "{header} is {value}"
-  function: header_is
+  impl:
+    python:
+      function: header_is
 
 - then: "the JSON body has a field {field}, henceforth {var}"
-  function: remember_json_field
+  impl:
+    python:
+      function: remember_json_field
 
 - then: "the JSON body matches (?P<wanted>.*)"
   regex: true
-  function: json_body_matches
+  impl:
+    python:
+      function: json_body_matches
 
 - then: "the body matches file {filename}"
-  function: body_matches_file
+  impl:
+    python:
+      function: body_matches_file
 
 - then: "server has {n:int} chunks"
-  function: server_has_n_chunks
+  impl:
+    python:
+      function: server_has_n_chunks
 
 - then: chunk server's stderr contains "{wanted:text}"
-  function: server_stderr_contains
+  impl:
+    python:
+      function: server_stderr_contains
 
 - then: chunk server's stderr doesn't contain "{wanted:text}"
-  function: server_stderr_doesnt_contain
+  impl:
+    python:
+      function: server_stderr_doesnt_contain

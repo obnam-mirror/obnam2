@@ -1,59 +1,99 @@
 - given: a file {filename} containing "{data:text}"
-  function: create_file_with_given_data
+  impl:
+    python:
+      function: create_file_with_given_data
 
 - given: "a file {filename} containing some random data"
-  function: create_file_with_random_data
+  impl:
+    python:
+      function: create_file_with_random_data
 
 - given: "a Unix socket {filename}"
-  function: create_unix_socket
+  impl:
+    python:
+      function: create_unix_socket
 
 - given: "a named pipe {filename}"
-  function: create_fifo
+  impl:
+    python:
+      function: create_fifo
 
 - given: a cache directory tag in {dirpath}
-  function: create_cachedir_tag_in
+  impl:
+    python:
+      function: create_cachedir_tag_in
 
 - given: "a file in {dirname} with a non-UTF8 filename"
-  function: create_nonutf8_filename
+  impl:
+    python:
+      function: create_nonutf8_filename
 
 - given: file {filename} has mode {mode}
-  function: chmod_file
+  impl:
+    python:
+      function: chmod_file
 
 - given: symbolink link {linkname} that points at {target}
-  function: create_symlink
+  impl:
+    python:
+      function: create_symlink
 
 - given: a manifest of the directory {dirname} in {manifest}
-  function: create_manifest_of_live
+  impl:
+    python:
+      function: create_manifest_of_live
 
 - given: a manifest of the directory {dirname} restored in {restored} in {manifest}
-  function: create_manifest_of_restored
+  impl:
+    python:
+      function: create_manifest_of_restored
 
 - given: "JSON file {json_name} converted from YAML file {yaml_name}"
-  function: convert_yaml_to_json
+  impl:
+    python:
+      function: convert_yaml_to_json
 
 - then: "stdout, as JSON, exactly matches file {filename}"
-  function: match_stdout_to_json_file_exactly
+  impl:
+    python:
+      function: match_stdout_to_json_file_exactly
 
 - then: "stdout, as JSON, has all the values in file {filename}"
-  function: match_stdout_to_json_file_superset
+  impl:
+    python:
+      function: match_stdout_to_json_file_superset
 
 - then: "file {filename} is restored to {restored}"
-  function: file_is_restored
+  impl:
+    python:
+      function: file_is_restored
 
 - then: "file {filename} is not restored to {restored}"
-  function: file_is_not_restored
+  impl:
+    python:
+      function: file_is_not_restored
 
 - then: "manifests {expected} and {actual} match"
-  function: manifests_match
+  impl:
+    python:
+      function: manifests_match
 
 - then: "file {filename} is only readable by owner"
-  function: file_is_readable_by_owner
+  impl:
+    python:
+      function: file_is_readable_by_owner
 
 - then: "file {filename} does not contain \"{pattern:text}\""
-  function: file_does_not_contain
+  impl:
+    python:
+      function: file_does_not_contain
 
 - then: "files {filename1} and {filename2} are different"
-  function: files_are_different
+  impl:
+    python:
+      function: files_are_different
 
 - then: "files {filename1} and {filename2} are identical"
-  function: files_are_identical
+  impl:
+    python:
+      function: files_are_identical
