@@ -49,7 +49,8 @@ merely for building Debian packages:
 
 * [moreutils](https://joeyh.name/code/moreutils/) &mdash; a collection
   of handy utilities, of which the Obnam test suite uses the `chronic`
-  tool to hide output of successful commands.
+  tool to hide output of successful commands. This is optional, but
+  nice to have.
 
 * [pkg-config](http://pkg-config.freedesktop.org) &mdash; a tool for
   managing compile and link time flags; needed so that the OpenSSL
