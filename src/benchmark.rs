@@ -1,3 +1,4 @@
+use crate::checksummer::Checksum;
 use crate::chunk::DataChunk;
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
@@ -15,7 +16,7 @@ impl ChunkGenerator {
 }
 
 impl Iterator for ChunkGenerator {
-    type Item = (ChunkId, String, DataChunk);
+    type Item = (ChunkId, Checksum, DataChunk);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.next >= self.goal {

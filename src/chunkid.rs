@@ -1,4 +1,4 @@
-use crate::checksummer::sha256;
+use crate::checksummer::Checksum;
 use rusqlite::types::ToSqlOutput;
 use rusqlite::ToSql;
 use serde::{Deserialize, Serialize};
@@ -46,8 +46,8 @@ impl ChunkId {
         self.id.as_bytes()
     }
 
-    pub fn sha256(&self) -> String {
-        sha256(self.id.as_bytes())
+    pub fn sha256(&self) -> Checksum {
+        Checksum::sha256(self.id.as_bytes())
     }
 }
 

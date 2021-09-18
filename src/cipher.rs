@@ -164,6 +164,7 @@ impl Nonce {
 
 #[cfg(test)]
 mod test {
+    use crate::checksummer::Checksum;
     use crate::chunk::DataChunk;
     use crate::chunkmeta::ChunkMeta;
     use crate::cipher::{CipherEngine, CipherError, CHUNK_V1, NONCE_SIZE};
@@ -171,7 +172,8 @@ mod test {
 
     #[test]
     fn metadata_as_aad() {
-        let meta = ChunkMeta::new("dummy-checksum");
+        let sum = Checksum::sha256_from_str_unchecked("dummy-checksum");
+        let meta = ChunkMeta::new(&sum);
         let meta_as_aad = meta.to_json_vec();
         let chunk = DataChunk::new("hello".as_bytes().to_vec(), meta);
         let pass = Passwords::new("secret");
@@ -183,7 +185,8 @@ mod test {
 
     #[test]
     fn round_trip() {
-        let meta = ChunkMeta::new("dummy-checksum");
+        let sum = Checksum::sha256_from_str_unchecked("dummy-checksum");
+        let meta = ChunkMeta::new(&sum);
         let chunk = DataChunk::new("hello".as_bytes().to_vec(), meta);
         let pass = Passwords::new("secret");
 
