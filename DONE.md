@@ -27,7 +27,7 @@ all be true:
 1. New functionality and bug fixes are verified by automated tests
    run by the `./check` script.
    - if this is not feasible for some reason, that reason is
-     documented commit messages, and an issue is opened so that the
+     documented in commit messages, and an issue is opened so that the
      tests can be added later
 2. The build and tests run by GitLab CI finish successfully.
 3. There has been sufficient time to review the change and for
