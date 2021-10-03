@@ -7,10 +7,12 @@ variables:
   # 1. https://gitlab.com/gitlab-org/gitlab-runner/-/issues/327
   CARGO_HOME: $CI_PROJECT_DIR/.cargo
 
-default:
-  image: registry.gitlab.com/obnam/container-images:main
-
 check:
+  parallel:
+    matrix:
+      - IMAGE: buster-main
+      - IMAGE: bullseye-main
+  image: registry.gitlab.com/obnam/container-images:$IMAGE
   script:
       # If any of the checks fail, print out the Subplot log and propagate the
       # error.
