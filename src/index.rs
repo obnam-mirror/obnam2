@@ -214,7 +214,6 @@ mod sql {
         for meta in iter {
             let meta = meta?;
             if metas.is_empty() {
-                eprintln!("lookup: meta={:?}", meta);
                 metas.push(meta);
             } else {
                 let err = IndexError::DuplicateChunk(id.clone());
@@ -223,7 +222,6 @@ mod sql {
             }
         }
         if metas.is_empty() {
-            eprintln!("lookup: no hits");
             return Err(IndexError::MissingChunk(id.clone()));
         }
         let r = metas[0].clone();
