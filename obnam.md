@@ -1768,6 +1768,34 @@ exclude_cache_tag_directories: false
 ~~~
 
 
+## Generation information
+
+This scenario verifies that the Obnam client can show metadata about a
+backup generation.
+
+~~~scenario
+given an installed obnam
+given a running chunk server
+given a client config based on smoke.yaml
+given a file live/data.dat containing some random data
+given a manifest of the directory live in live.yaml
+given file geninfo.json
+when I run obnam backup
+when I run obnam gen-info latest
+then stdout, as JSON, has all the values in file geninfo.json
+~~~
+
+~~~{#geninfo.json .file .json}
+{
+    "schema_version": {
+        "major": 0,
+        "minor": 0
+    },
+    "extras": {}
+}
+~~~
+
+
 # Acceptance criteria for backup encryption
 
 This chapter outlines scenarios, to be implemented later, for
