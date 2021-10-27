@@ -5,6 +5,7 @@ use log4rs::config::{Appender, Logger, Root};
 use obnam::cmd::backup::Backup;
 use obnam::cmd::chunk::{DecryptChunk, EncryptChunk};
 use obnam::cmd::chunkify::Chunkify;
+use obnam::cmd::gen_info::GenInfo;
 use obnam::cmd::get_chunk::GetChunk;
 use obnam::cmd::init::Init;
 use obnam::cmd::list::List;
@@ -47,6 +48,7 @@ fn main_program() -> anyhow::Result<()> {
         Command::ListFiles(x) => x.run(&config),
         Command::Resolve(x) => x.run(&config),
         Command::Restore(x) => x.run(&config),
+        Command::GenInfo(x) => x.run(&config),
         Command::GetChunk(x) => x.run(&config),
         Command::Config(x) => x.run(&config),
         Command::EncryptChunk(x) => x.run(&config),
@@ -103,6 +105,7 @@ enum Command {
     List(List),
     ListFiles(ListFiles),
     Restore(Restore),
+    GenInfo(GenInfo),
     ShowGeneration(ShowGeneration),
     Resolve(Resolve),
     GetChunk(GetChunk),

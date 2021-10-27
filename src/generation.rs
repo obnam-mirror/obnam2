@@ -2,8 +2,16 @@ use crate::backup_reason::Reason;
 use crate::chunkid::ChunkId;
 use crate::fsentry::FilesystemEntry;
 use rusqlite::Connection;
+use serde::Serialize;
+use std::collections::HashMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
+
+/// Current generation database schema major version.
+const SCHEMA_MAJOR: u32 = 0;
+
+/// Current generation database schema minor version.
+const SCHEMA_MINOR: u32 = 0;
 
 /// An identifier for a file in a generation.
 type FileId = i64;
@@ -126,6 +134,15 @@ pub enum LocalGenerationError {
     #[error("Generation has more than one file with the name {0}")]
     TooManyFiles(PathBuf),
 
+    #[error("Generation does not have a 'meta' table")]
+    NoMeta,
+
+    #[error("Generation 'meta' table does not have a row {0}")]
+    NoMetaKey(String),
+
+    #[error("Generation 'meta' row {0} has badly formed integer: {1}")]
+    BadMetaInteger(String, std::num::ParseIntError),
+
     #[error(transparent)]
     RusqliteError(#[from] rusqlite::Error),
 
@@ -174,6 +191,11 @@ impl LocalGeneration {
         Ok(Self { conn })
     }
 
+    pub fn meta(&self) -> Result<GenMeta, LocalGenerationError> {
+        let map = sql::meta(&self.conn)?;
+        GenMeta::from(map)
+    }
+
     pub fn file_count(&self) -> Result<i64, LocalGenerationError> {
         sql::file_count(&self.conn)
     }
@@ -205,6 +227,65 @@ impl LocalGeneration {
     }
 }
 
+/// Metadata about the generation.
+#[derive(Debug, Serialize)]
+pub struct GenMeta {
+    schema_version: SchemaVersion,
+    extras: HashMap<String, String>,
+}
+
+impl GenMeta {
+    fn from(mut map: HashMap<String, String>) -> Result<Self, LocalGenerationError> {
+        let major: u32 = metaint(&mut map, "schema_version_major")?;
+        let minor: u32 = metaint(&mut map, "schema_version_minor")?;
+        Ok(Self {
+            schema_version: SchemaVersion::new(major, minor),
+            extras: map,
+        })
+    }
+
+    pub fn schema_version(&self) -> SchemaVersion {
+        self.schema_version
+    }
+}
+
+fn metastr(map: &mut HashMap<String, String>, key: &str) -> Result<String, LocalGenerationError> {
+    if let Some(v) = map.remove(key) {
+        Ok(v)
+    } else {
+        Err(LocalGenerationError::NoMetaKey(key.to_string()))
+    }
+}
+
+fn metaint(map: &mut HashMap<String, String>, key: &str) -> Result<u32, LocalGenerationError> {
+    let v = metastr(map, key)?;
+    let v = v
+        .parse()
+        .map_err(|err| LocalGenerationError::BadMetaInteger(key.to_string(), err))?;
+    Ok(v)
+}
+
+/// Schema version of the database storing the generation.
+///
+/// An Obnam client can restore a generation using schema version
+/// (x,y), if the client supports a schema version (x,z). If z < y,
+/// the client knows it may not be able to the generation faithfully,
+/// and should warn the user about this. If z >= y, the client knows
+/// it can restore the generation faithfully. If the client does not
+/// support any schema version x, it knows it can't restore the backup
+/// at all.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct SchemaVersion {
+    pub major: u32,
+    pub minor: u32,
+}
+
+impl SchemaVersion {
+    fn new(major: u32, minor: u32) -> Self {
+        Self { major, minor }
+    }
+}
+
 mod sql {
     use super::BackedUpFile;
     use super::FileId;
@@ -212,14 +293,19 @@ mod sql {
     use crate::backup_reason::Reason;
     use crate::chunkid::ChunkId;
     use crate::fsentry::FilesystemEntry;
+    use crate::generation::SCHEMA_MAJOR;
+    use crate::generation::SCHEMA_MINOR;
     use log::debug;
     use rusqlite::{params, Connection, OpenFlags, Row, Statement, Transaction};
+    use std::collections::HashMap;
     use std::os::unix::ffi::OsStrExt;
     use std::path::Path;
 
     pub fn create_db(filename: &Path) -> Result<Connection, LocalGenerationError> {
         let flags = OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
+        conn.execute("CREATE TABLE meta (key TEXT, value TEXT)", params![])?;
+        init_meta(&conn)?;
         conn.execute(
             "CREATE TABLE files (fileno INTEGER PRIMARY KEY, filename BLOB, json TEXT, reason TEXT, is_cachedir_tag BOOLEAN)",
             params![],
@@ -234,11 +320,40 @@ mod sql {
         Ok(conn)
     }
 
+    fn init_meta(conn: &Connection) -> Result<(), LocalGenerationError> {
+        conn.execute(
+            "INSERT INTO meta (key, value) VALUES (?1, ?2)",
+            params!["schema_version_major", SCHEMA_MAJOR],
+        )?;
+        conn.execute(
+            "INSERT INTO meta (key, value) VALUES (?1, ?2)",
+            params!["schema_version_minor", SCHEMA_MINOR],
+        )?;
+        Ok(())
+    }
+
     pub fn open_db(filename: &Path) -> Result<Connection, LocalGenerationError> {
         let flags = OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.pragma_update(None, "journal_mode", &"WAL")?;
         Ok(conn)
+    }
+
+    pub fn meta(conn: &Connection) -> Result<HashMap<String, String>, LocalGenerationError> {
+        let mut stmt = conn.prepare("SELECT key, value FROM meta")?;
+        let iter = stmt.query_map(params![], |row| row_to_key_value(row))?;
+        let mut map = HashMap::new();
+        for r in iter {
+            let (key, value) = r?;
+            map.insert(key, value);
+        }
+        Ok(map)
+    }
+
+    fn row_to_key_value(row: &Row) -> rusqlite::Result<(String, String)> {
+        let key: String = row.get(row.column_index("key")?)?;
+        let value: String = row.get(row.column_index("value")?)?;
+        Ok((key, value))
     }
 
     pub fn insert_one(
