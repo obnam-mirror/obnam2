@@ -351,8 +351,8 @@ mod sql {
     }
 
     fn row_to_key_value(row: &Row) -> rusqlite::Result<(String, String)> {
-        let key: String = row.get(row.column_index("key")?)?;
-        let value: String = row.get(row.column_index("value")?)?;
+        let key: String = row.get("key")?;
+        let value: String = row.get("value")?;
         Ok((key, value))
     }
 
@@ -383,9 +383,9 @@ mod sql {
     }
 
     pub fn row_to_entry(row: &Row) -> rusqlite::Result<(FileId, String, String)> {
-        let fileno: FileId = row.get(row.column_index("fileno")?)?;
-        let json: String = row.get(row.column_index("json")?)?;
-        let reason: String = row.get(row.column_index("reason")?)?;
+        let fileno: FileId = row.get("fileno")?;
+        let json: String = row.get("json")?;
+        let reason: String = row.get("reason")?;
         Ok((fileno, json, reason))
     }
 
