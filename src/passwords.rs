@@ -70,7 +70,7 @@ fn derive_password(passphrase: &str) -> String {
     let salt = SaltString::generate(&mut OsRng);
 
     Pbkdf2
-        .hash_password_simple(passphrase.as_bytes(), salt.as_ref())
+        .hash_password(passphrase.as_bytes(), salt.as_ref())
         .unwrap()
         .to_string()
 }
