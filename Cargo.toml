@@ -1,6 +1,6 @@
 [package]
 name = "obnam"
-version ="0.4.0"
+version ="0.5.0"
 authors = ["Lars Wirzenius <liw@liw.fi>"]
 edition = "2018"
 description = "a backup program"

@@ -1,7 +1,8 @@
-obnam (0.4.0-1) unstable; urgency=medium
+obnam (0.5.0-1) unstable; urgency=medium
 
+  * New release.
 
- -- Lars Wirzenius <liw@liw.fi>  Sun, 06 Jun 2021 12:24:39 +0300
+ -- Lars Wirzenius <liw@liw.fi>  Sat, 20 Nov 2021 11:13:20 +0200
 
 obnam (0.4.0-1) unstable; urgency=medium
 
