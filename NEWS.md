@@ -8,6 +8,87 @@ of Obnam, the backup software. The software is technically called
 ended in 2017 with version number 1.22.
 
 
+# Version 0.5.0, released 2021-11-20
+
+## Experimental version
+
+This is an experimental release, and is not meant to be relied on for
+recovery of important data. The purpose of this release is to get new
+features into the hands of intrepid people who want to try out new
+things.
+
+## Breaking changes
+
+* Obnam is now licensed under the GNU Affero General Public License,
+  version 3 or later. This mainly affects the Obnam chunk server,
+  which has a network API.
+
+* The Obnam client now stores the version of the database schema in
+  the per-backup SQLite database. This allows the client to recognize
+  when a backup was made with an incompatible version of the client.
+  This, in turn, paves way for us to safely making changes that older
+  versions of the client do not understand.
+
+  As a result, the backups made with this version may silently break
+  older versions of the client. However, this should be the last time
+  such silent breakage happens.
+
+## New or changed features
+
+* Obnam now restore metadata of restored symlinks correctly.
+
+* Obnam's handling of `CACHEDIR.TAG` files is more secure against an
+  attacker adding such files in directories getting backed up.
+
+* Progress bars so bars for different phases of the backup do not
+  interfere with each other anymore.
+
+* The client now has the "obnam resolve" subcommand to resolve a
+  generation label (such as "latest") into a generation ID. The labels
+  may point at different commits over time, the IDs never change.
+
+* The client now has the "obnam chunkify" subcommand to compute
+  checksums of chunks of files. For now, this is for doing performance
+  benchmarks, but may eventually evolve into a way to experiment how
+  parameters affect sizes of chunks and the ability of the Obnam
+  client to find duplicate data.
+
+* A build problem on macOS, where `chmod` needs a different type of
+  integer, was fixed.
+
+## Internal changes
+
+* Obnam was migrated to using Docker in GitLab CI and using the new
+  Debian stable release (version 11, code name bullseye).
+
+* The Obnam client is now asynchronous code. This is a foundation for
+  making the client be faster in the future. This has temporarily made
+  the client slower in some cases.
+
+* There is now a simple policy on what is required for changes to be
+  merge, in the `DONE.md` file.
+
+* There have been updates to use newer versions of dependencies,
+  refactoring of code to be clearer and more tidy, as well as bug
+  fixes in the test suite.
+
+## Changes to documentation
+
+* The tutorial now explains the passphrases are ephemeral.
+
+## Thank you
+
+Several people have helped with this release, with changes or
+feedback.
+
+* Alexander Batischev
+* Daniel Silverstone
+* Lars Wirzenius
+* Ossi Herrala
+
+(Our apologies to anyone who's been forgotten.)
+
+
 # Version 0.4.0, released 2021-06-06
 
 ## Experimental version
