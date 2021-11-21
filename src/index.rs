@@ -262,20 +262,20 @@ mod sql {
     }
 
     fn row_to_meta(row: &Row) -> rusqlite::Result<ChunkMeta> {
-        let hash: String = row.get(row.column_index("sha256")?)?;
+        let hash: String = row.get("sha256")?;
         let sha256 = Checksum::sha256_from_str_unchecked(&hash);
-        let generation: i32 = row.get(row.column_index("generation")?)?;
+        let generation: i32 = row.get("generation")?;
         let meta = if generation == 0 {
             ChunkMeta::new(&sha256)
         } else {
-            let ended: String = row.get(row.column_index("ended")?)?;
+            let ended: String = row.get("ended")?;
             ChunkMeta::new_generation(&sha256, &ended)
         };
         Ok(meta)
     }
 
     fn row_to_id(row: &Row) -> rusqlite::Result<ChunkId> {
-        let id: String = row.get(row.column_index("id")?)?;
+        let id: String = row.get("id")?;
         Ok(ChunkId::recreate(&id))
     }
 }

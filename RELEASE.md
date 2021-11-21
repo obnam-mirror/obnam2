@@ -9,8 +9,9 @@ Follow these steps to make a release of Obnam.
 1. Create a `release` branch.
    - `git checkout -b release`
 2. Update dependencies for the crate, and make any needed changes.
+   - `cargo outdated -R`
    - `cargo update`
-   - `cargo outdated`
+   - `cargo deny check`
 3. Make sure everything still works.
    - `./check`
 4. Review changes in the crate (`git log vX.Y.Y..`). Update the `NEWS.md`
