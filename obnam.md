@@ -1030,8 +1030,7 @@ search, and delete it. This is needed so the client can manage the
 storage of backed up data.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a file data.dat containing some random data
 when I POST data.dat to /chunks, with chunk-meta: {"sha256":"abc"}
 then HTTP status code is 201
@@ -1081,8 +1080,7 @@ We must get the right error if we try to retrieve a chunk that does
 not exist.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 when I try to GET /chunks/any.random.string
 then HTTP status code is 404
 ~~~
@@ -1092,8 +1090,7 @@ then HTTP status code is 404
 We must get an empty result if searching for chunks that don't exist.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 when I GET /chunks?sha256=abc
 then HTTP status code is 200
 and content-type is application/json
@@ -1105,8 +1102,7 @@ and the JSON body matches {}
 We must get the right error when deleting a chunk that doesn't exist.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 when I try to DELETE /chunks/any.random.string
 then HTTP status code is 404
 ~~~
@@ -1120,8 +1116,7 @@ be persistent across restarts. This scenario verifies it is so.
 First, create a chunk.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a file data.dat containing some random data
 when I POST data.dat to /chunks, with chunk-meta: {"sha256":"abc"}
 then HTTP status code is 201
@@ -1163,8 +1158,7 @@ The chunk server logs its actions to stderr. Verbosity of the log depends on the
 server more chatty.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a file data1.dat containing some random data
 when I POST data1.dat to /chunks, with chunk-meta: {"sha256":"qwerty"}
 then the JSON body has a field chunk_id, henceforth ID
@@ -1256,8 +1250,7 @@ if the server's TLS certificate is self-signed. The test server set up
 by the scenario uses self-signed certificates.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on ca-required.yaml
 and a file live/data.dat containing some random data
 when I try to run obnam backup
@@ -1274,8 +1267,7 @@ roots: [live]
 ## Encrypt and decrypt chunk locally
 
 ~~~scenario
-given an installed obnam
-given a running chunk server
+given a working Obnam system
 given a client config based on smoke.yaml
 given a file cleartext.dat containing some random data
 when I run obnam encrypt-chunk cleartext.dat encrypted.dat '{"sha256":"fake"}'
@@ -1292,8 +1284,7 @@ each chunk. This scenario verifies that the command works at least in
 a simple case.
 
 ~~~scenario
-given an installed obnam
-given a running chunk server
+given a working Obnam system
 given a client config based on smoke.yaml
 given a file data.dat containing "hello, world"
 given file chunks.json
@@ -1325,8 +1316,7 @@ and their metadata are identical to the original. This is the simplest
 possible useful use case for a backup system.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
@@ -1366,8 +1356,7 @@ roots: [live]
 This scenario verifies that the modification time is restored correctly.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on metadata.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
@@ -1384,8 +1373,7 @@ This scenario verifies that the mode ("permission") bits are restored
 correctly.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on metadata.yaml
 and a file live/data.dat containing some random data
 and file live/data.dat has mode 464
@@ -1402,8 +1390,7 @@ then manifests live.yaml and rest.yaml match
 This scenario verifies that symbolic links are restored correctly.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on metadata.yaml
 and a file live/data.dat containing some random data
 and symbolink link live/link that points at data.dat
@@ -1428,8 +1415,7 @@ for the generation SQLite file (not split into chunks of one byte),
 plus a chunk for the generation itself. A total of five chunks.
 
 ~~~scenario
-given an installed obnam
-given a running chunk server
+given a working Obnam system
 given a client config based on tiny-chunk-size.yaml
 given a file live/data.dat containing "abc"
 when I run obnam backup
@@ -1455,8 +1441,7 @@ This scenario verifies that in the first backup all files are backed
 up because they were new.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
@@ -1471,8 +1456,7 @@ This scenario verifies that if a file hasn't been changed, it's not
 backed up.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
@@ -1488,8 +1472,7 @@ This scenario verifies that if a file has indeed been changed, it's
 backed up.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
@@ -1507,8 +1490,7 @@ scenario verifies that the client checks the contents hasn't been
 modified.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
 when I run obnam backup
@@ -1529,8 +1511,7 @@ character device nodes are not tested, as that would require running
 the test suite with `root` permissions and that would be awkward.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
 and a Unix socket live/socket
@@ -1550,8 +1531,7 @@ that consists on a single byte with its top bit set. This is not
 ASCII, and it's not UTF-8.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on metadata.yaml
 and a file in live with a non-UTF8 filename
 and a manifest of the directory live in live.yaml
@@ -1571,8 +1551,7 @@ prematurely.
 
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on smoke.yaml
 and a file live/data.dat containing some random data
 and a file live/bad.dat containing some random data
@@ -1590,8 +1569,7 @@ This scenario verifies that Obnam will skip a file in a directory it
 can't read. Obnam should warn about that, but not give an error.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on smoke.yaml
 and a file live/unreadable/data.dat containing some random data
 and file live/unreadable has mode 000
@@ -1609,8 +1587,7 @@ This scenario verifies that Obnam will skip a file in a directory it
 can't read. Obnam should warn about that, but not give an error.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on smoke.yaml
 and a file live/dir/data.dat containing some random data
 and file live/dir has mode 600
@@ -1629,8 +1606,7 @@ specified with literal string "latest". It makes two backups, which
 are different.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on metadata.yaml
 
 given a file live/data.dat containing some random data
@@ -1652,8 +1628,7 @@ at a time.
 
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on roots.yaml
 and a file live/one/data.dat containing some random data
 and a file live/two/data.dat containing some random data
@@ -1684,8 +1659,7 @@ contain [CACHEDIR.TAG][], but backs up the tag itself.
 [CACHEDIR.TAG]: https://bford.info/cachedir/
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on client.yaml
 and a file live/ignored/data.dat containing some random data
 and a cache directory tag in live/ignored
@@ -1715,8 +1689,7 @@ a directory (which shouldn't error), then adds a new tag and backups the
 directory again, expecting an error.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on client.yaml
 and a file live/data1.dat containing some random data
 and a file live/data2.dat containing some random data
@@ -1743,8 +1716,7 @@ new tags are added, i.e. the aforementioned mitigation is disabled too.
 [CACHEDIR.TAG]: https://bford.info/cachedir/
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config based on client_includes_cachedirs.yaml
 and a file live/ignored/data.dat containing some random data
 and a cache directory tag in live/ignored
@@ -1774,8 +1746,7 @@ This scenario verifies that the Obnam client can show metadata about a
 backup generation.
 
 ~~~scenario
-given an installed obnam
-given a running chunk server
+given a working Obnam system
 given a client config based on smoke.yaml
 given a file live/data.dat containing some random data
 given a manifest of the directory live in live.yaml
@@ -1809,8 +1780,7 @@ with an error message that clearly identifies the lack of a
 passphrase.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config, without passphrase, based on encryption.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
@@ -1830,8 +1800,7 @@ Set a passphrase. Verify that it's stored in a file that is only
 readable by it owner. Verify that a backup can be made.
 
 ~~~scenario
-given an installed obnam
-and a running chunk server
+given a working Obnam system
 and a client config, without passphrase, based on encryption.yaml
 and a file live/data.dat containing some random data
 and a manifest of the directory live in live.yaml
