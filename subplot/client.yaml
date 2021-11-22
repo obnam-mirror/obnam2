@@ -1,3 +1,9 @@
+- given: "a working Obnam system"
+  impl:
+    python:
+      function: start_obnam
+      cleanup: stop_obnam
+
 - given: "an installed obnam"
   impl:
     python:

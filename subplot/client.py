@@ -3,6 +3,18 @@ import os
 import yaml
 
 
+def start_obnam(ctx):
+    start_chunk_server = globals()["start_chunk_server"]
+    install_obnam(ctx)
+    start_chunk_server(ctx)
+
+
+def stop_obnam(ctx):
+    stop_chunk_server = globals()["stop_chunk_server"]
+    stop_chunk_server(ctx)
+    uninstall_obnam(ctx)
+
+
 def install_obnam(ctx):
     runcmd_prepend_to_path = globals()["runcmd_prepend_to_path"]
     srcdir = globals()["srcdir"]
