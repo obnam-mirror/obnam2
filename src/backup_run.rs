@@ -164,9 +164,8 @@ impl<'a> BackupRun<'a> {
                         }
                     }
                     Err(err) => {
-                        debug!("ignoring backup error {}", err);
-                        warnings.push(err.into());
                         self.found_problem();
+                        return Err(err.into());
                     }
                 }
             }
@@ -193,9 +192,16 @@ impl<'a> BackupRun<'a> {
         let mut warnings: Vec<BackupError> = vec![];
         let mut new_cachedir_tags = vec![];
         let iter = FsIterator::new(root, config.exclude_cache_tag_directories);
+        let mut first_entry = true;
         for entry in iter {
             match entry {
                 Err(err) => {
+                    if first_entry {
+                        // Only the first entry (the backup root)
+                        // failing is an error. Everything else is a
+                        // warning.
+                        return Err(NascentError::BackupRootFailed(root.to_path_buf(), err));
+                    }
                     warnings.push(err.into());
                 }
                 Ok(entry) => {
@@ -217,6 +223,7 @@ impl<'a> BackupRun<'a> {
                     }
                 }
             }
+            first_entry = false;
         }
 
         Ok(OneRootBackupOutcome {

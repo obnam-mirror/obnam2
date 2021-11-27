@@ -1337,6 +1337,26 @@ roots: [live]
 ~~~
 
 
+## Backup root must exist
+
+This scenario verifies that Obnam correctly reports an error if a
+backup root directory doesn't exist.
+
+~~~scenario
+given a working Obnam system
+and a client config based on missingroot.yaml
+and a file live/data.dat containing some random data
+when I try to run obnam backup
+then command fails
+then stderr contains "does-not-exist"
+~~~
+
+~~~{#missingroot.yaml .file .yaml .numberLines}
+verify_tls_cert: false
+roots: [live, does-not-exist]
+~~~
+
+
 ## Back up regular file
 
 The scenarios in this section back up a single regular file each, and
