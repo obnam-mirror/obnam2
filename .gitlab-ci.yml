@@ -10,7 +10,6 @@ variables:
 check:
   parallel:
     matrix:
-      - IMAGE: buster-main
       - IMAGE: bullseye-main
   image: registry.gitlab.com/obnam/container-images:$IMAGE
   script:
