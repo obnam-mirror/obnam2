@@ -8,8 +8,8 @@ bindings:
   - subplot/data.yaml
   - lib/files.yaml
   - lib/runcmd.yaml
-template: python
-functions:
+impls:
+  python:
   - subplot/server.py
   - subplot/client.py
   - subplot/data.py
