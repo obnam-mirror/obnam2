@@ -53,6 +53,9 @@ pub struct NascentGeneration {
 
 #[derive(Debug, thiserror::Error)]
 pub enum NascentError {
+    #[error("Could not back up a backup root directory: {0}: {1}")]
+    BackupRootFailed(PathBuf, crate::fsiter::FsIterError),
+
     #[error(transparent)]
     LocalGenerationError(#[from] LocalGenerationError),
 
