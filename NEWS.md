@@ -8,6 +8,41 @@ of Obnam, the backup software. The software is technically called
 ended in 2017 with version number 1.22.
 
 
+# Version 0.6.0, released 2021-11-20
+
+## Breaking changes
+
+* We no longer test Obnam with Debian 10 (buster) in our continuous
+  integration system. The current Debian stable release, Debian 11
+  (bullseye), is tested.
+
+## New or changed features
+
+* It is now an error if the backup root directory doesn't exist or
+  can't be read. This applies only to the backup roots. Other files
+  and directories may go missing or be unreadable, and Obnam only
+  warns about that, to allow making backups of live systems where
+  files change during the backup.
+
+## Internal changes
+
+* There is now a new "many files" benchmark.
+
+## Changes to documentation
+
+* We've started a decision log for big, important project decisions.
+
+## Thank you
+
+Several people have helped with this release, with changes or
+feedback.
+
+* Alexander Batischev
+* Lars Wirzenius
+
+(Our apologies to anyone who's been forgotten.)
+
+
 # Version 0.5.0, released 2021-11-20
 
 ## Experimental version
