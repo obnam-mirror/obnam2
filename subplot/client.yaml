@@ -14,11 +14,15 @@
   impl:
     python:
       function: configure_client_with_init
+  types:
+    filename: file
 
 - given: "a client config, without passphrase, based on {filename}"
   impl:
     python:
       function: configure_client_without_init
+  types:
+    filename: file
 
 - when: "I invoke obnam restore <{genid}> {todir}"
   impl:
