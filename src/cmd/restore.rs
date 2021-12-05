@@ -75,22 +75,6 @@ impl Restore {
     }
 }
 
-#[derive(Debug, StructOpt)]
-#[structopt(name = "obnam-backup", about = "Simplistic backup client")]
-struct Opt {
-    #[structopt(parse(from_os_str))]
-    config: PathBuf,
-
-    #[structopt()]
-    gen_id: String,
-
-    #[structopt(parse(from_os_str))]
-    dbname: PathBuf,
-
-    #[structopt(parse(from_os_str))]
-    to: PathBuf,
-}
-
 #[derive(Debug, thiserror::Error)]
 pub enum RestoreError {
     #[error("Could not create named pipe (FIFO) {0}")]

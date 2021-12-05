@@ -209,7 +209,7 @@ mod sql {
 
     pub fn lookup(conn: &Connection, id: &ChunkId) -> Result<ChunkMeta, IndexError> {
         let mut stmt = conn.prepare("SELECT * FROM chunks WHERE id IS ?1")?;
-        let iter = stmt.query_map(params![id], |row| row_to_meta(row))?;
+        let iter = stmt.query_map(params![id], row_to_meta)?;
         let mut metas: Vec<ChunkMeta> = vec![];
         for meta in iter {
             let meta = meta?;
@@ -230,7 +230,7 @@ mod sql {
 
     pub fn find_by_256(conn: &Connection, sha256: &str) -> Result<Vec<ChunkId>, IndexError> {
         let mut stmt = conn.prepare("SELECT id FROM chunks WHERE sha256 IS ?1")?;
-        let iter = stmt.query_map(params![sha256], |row| row_to_id(row))?;
+        let iter = stmt.query_map(params![sha256], row_to_id)?;
         let mut ids = vec![];
         for x in iter {
             let x = x?;
@@ -241,7 +241,7 @@ mod sql {
 
     pub fn find_generations(conn: &Connection) -> Result<Vec<ChunkId>, IndexError> {
         let mut stmt = conn.prepare("SELECT id FROM chunks WHERE generation IS 1")?;
-        let iter = stmt.query_map(params![], |row| row_to_id(row))?;
+        let iter = stmt.query_map(params![], row_to_id)?;
         let mut ids = vec![];
         for x in iter {
             let x = x?;
@@ -252,7 +252,7 @@ mod sql {
 
     pub fn find_chunk_ids(conn: &Connection) -> Result<Vec<ChunkId>, IndexError> {
         let mut stmt = conn.prepare("SELECT id FROM chunks WHERE generation IS 0")?;
-        let iter = stmt.query_map(params![], |row| row_to_id(row))?;
+        let iter = stmt.query_map(params![], row_to_id)?;
         let mut ids = vec![];
         for x in iter {
             let x = x?;

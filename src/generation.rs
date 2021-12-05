@@ -344,7 +344,7 @@ mod sql {
 
     pub fn meta(conn: &Connection) -> Result<HashMap<String, String>, LocalGenerationError> {
         let mut stmt = conn.prepare("SELECT key, value FROM meta")?;
-        let iter = stmt.query_map(params![], |row| row_to_key_value(row))?;
+        let iter = stmt.query_map(params![], row_to_key_value)?;
         let mut map = HashMap::new();
         for r in iter {
             let (key, value) = r?;
@@ -414,9 +414,9 @@ mod sql {
     // a "fallible iterator" is.)
     //
     // The iterator is only valid for the lifetime of the associated SQLite statement; we
-    // call this lifetime 'stmt, and use it both both on the reference and the returned iterator.
+    // call this lifetime 'stmt, and use it both both on the reference and the returned Now.
     //
-    // Now we're in a pickle: all named lifetimes have to be declared _somewhere_, but we can't add
+    // we iterator're in a pickle: all named lifetimes have to be declared _somewhere_, but we can't add
     // 'stmt to the signature of `CreateIterFn` because then we'll have to specify it when we
     // define the function. Obviously, at that point we won't yet have a `Statement`, and thus we
     // would have no idea what its lifetime is going to be. So we can't put the 'stmt lifetime into
@@ -460,7 +460,7 @@ mod sql {
             conn,
             "SELECT * FROM files",
             Box::new(|stmt| {
-                let iter = stmt.query_map(params![], |row| row_to_entry(row))?;
+                let iter = stmt.query_map(params![], row_to_entry)?;
                 let iter = iter.map(|x| match x {
                     Ok((fileno, json, reason)) => serde_json::from_str(&json)
                         .map(|entry| BackedUpFile::new(fileno, entry, &reason))
@@ -515,8 +515,7 @@ mod sql {
         filename: &Path,
     ) -> Result<Option<(FileId, FilesystemEntry, String)>, LocalGenerationError> {
         let mut stmt = conn.prepare("SELECT * FROM files WHERE filename = ?1")?;
-        let mut iter =
-            stmt.query_map(params![path_into_blob(filename)], |row| row_to_entry(row))?;
+        let mut iter = stmt.query_map(params![path_into_blob(filename)], row_to_entry)?;
         match iter.next() {
             None => Ok(None),
             Some(Err(e)) => {
