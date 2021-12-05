@@ -2,8 +2,7 @@ use crate::checksummer::Checksum;
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
 use rusqlite::Connection;
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// A chunk index.
 ///
@@ -11,11 +10,7 @@ use std::path::{Path, PathBuf};
 /// string key/value pair, or whether they are generations.
 #[derive(Debug)]
 pub struct Index {
-    filename: PathBuf,
     conn: Connection,
-    map: HashMap<(String, String), Vec<ChunkId>>,
-    generations: Vec<ChunkId>,
-    metas: HashMap<ChunkId, ChunkMeta>,
 }
 
 /// All the errors that may be returned for `Index`.
@@ -42,13 +37,7 @@ impl Index {
         } else {
             sql::create_db(&filename)?
         };
-        Ok(Self {
-            filename,
-            conn,
-            map: HashMap::new(),
-            generations: vec![],
-            metas: HashMap::new(),
-        })
+        Ok(Self { conn })
     }
 
     pub fn insert_meta(&mut self, id: ChunkId, meta: ChunkMeta) -> Result<(), IndexError> {
