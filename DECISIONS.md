@@ -12,6 +12,16 @@ Each decision should have its own heading. Newest decision should come
 first. Updated or overturned decisions should have their section
 updated to note their status, without moving them.
 
+## Support at least the version of Rust in Debian "bookworm"
+
+Date: 2021-12-06
+
+What: See discussion in <https://gitlab.com/obnam/obnam/-/issues/137>.
+Obnam aims to work in various Linux distributions and other operating
+systems. One of these is Debian. At the time of writing, Debian's next
+major version (code name bookworm) will have at least Rust 1.56. The
+decision for Obnam is that a minimum support Rust version in bookworm.
+
 ## Start a decision log
 
 Date: 2021-11-30
