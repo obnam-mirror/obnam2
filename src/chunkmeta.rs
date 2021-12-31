@@ -1,3 +1,5 @@
+//! Metadata about a chunk.
+
 use crate::checksummer::Checksum;
 use serde::{Deserialize, Serialize};
 use std::default::Default;

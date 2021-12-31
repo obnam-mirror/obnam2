@@ -1,3 +1,5 @@
+//! Run one backup.
+
 use crate::backup_progress::BackupProgress;
 use crate::backup_reason::Reason;
 use crate::chunk::{GenerationChunk, GenerationChunkError};
@@ -20,6 +22,7 @@ use std::path::{Path, PathBuf};
 
 const SQLITE_CHUNK_SIZE: usize = MIB as usize;
 
+/// A running backup.
 pub struct BackupRun<'a> {
     client: &'a AsyncBackupClient,
     policy: BackupPolicy,
@@ -27,41 +30,57 @@ pub struct BackupRun<'a> {
     progress: Option<BackupProgress>,
 }
 
+/// Possible errors that can occur during a backup.
 #[derive(Debug, thiserror::Error)]
 pub enum BackupError {
+    /// An error from communicating with the server.
     #[error(transparent)]
     ClientError(#[from] ClientError),
 
+    /// An error iterating over a directory tree.
     #[error(transparent)]
     FsIterError(#[from] FsIterError),
 
+    /// An error from creating a new backup's metadata.
     #[error(transparent)]
     NascentError(#[from] NascentError),
 
+    /// An error using an existing backup's metadata.
     #[error(transparent)]
     LocalGenerationError(#[from] LocalGenerationError),
 
+    /// An error splitting data into chunks.
     #[error(transparent)]
     ChunkerError(#[from] ChunkerError),
 
+    /// A error splitting backup metadata into chunks.
     #[error(transparent)]
     GenerationChunkError(#[from] GenerationChunkError),
 }
 
+/// The outcome of backing up a file system entry.
 #[derive(Debug)]
 pub struct FsEntryBackupOutcome {
+    /// The file system entry.
     pub entry: FilesystemEntry,
+    /// The chunk identifiers for the file's content.
     pub ids: Vec<ChunkId>,
+    /// Why this entry is added to the new backup.
     pub reason: Reason,
+    /// Does this entry represent a cache directory?
     pub is_cachedir_tag: bool,
 }
 
+/// The outcome of backing up a backup root.
 #[derive(Debug)]
 struct OneRootBackupOutcome {
+    /// Any warnings (non-fatal errors) from backing up the backup root.
     pub warnings: Vec<BackupError>,
+    /// New cache directories in this root.
     pub new_cachedir_tags: Vec<PathBuf>,
 }
 
+/// The outcome of a backup run.
 #[derive(Debug)]
 pub struct RootsBackupOutcome {
     /// The number of backed up files.
@@ -75,6 +94,7 @@ pub struct RootsBackupOutcome {
 }
 
 impl<'a> BackupRun<'a> {
+    /// Create a new run for an initial backup.
     pub fn initial(
         config: &ClientConfig,
         client: &'a AsyncBackupClient,
@@ -87,6 +107,7 @@ impl<'a> BackupRun<'a> {
         })
     }
 
+    /// Create a new run for an incremental backup.
     pub fn incremental(
         config: &ClientConfig,
         client: &'a AsyncBackupClient,
@@ -99,6 +120,7 @@ impl<'a> BackupRun<'a> {
         })
     }
 
+    /// Start the backup run.
     pub async fn start(
         &mut self,
         genid: Option<&GenId>,
@@ -135,12 +157,14 @@ impl<'a> BackupRun<'a> {
         Ok(old)
     }
 
+    /// Finish this backup run.
     pub fn finish(&self) {
         if let Some(progress) = &self.progress {
             progress.finish();
         }
     }
 
+    /// Back up all the roots for this run.
     pub async fn backup_roots(
         &self,
         config: &ClientConfig,
@@ -294,6 +318,7 @@ impl<'a> BackupRun<'a> {
         }
     }
 
+    /// Upload any file content for a file system entry.
     pub async fn upload_filesystem_entry(
         &self,
         e: &FilesystemEntry,
@@ -312,6 +337,7 @@ impl<'a> BackupRun<'a> {
         Ok(ids)
     }
 
+    /// Upload the metadata for the backup of this run.
     pub async fn upload_generation(
         &self,
         filename: &Path,

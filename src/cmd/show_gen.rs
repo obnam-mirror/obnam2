@@ -1,3 +1,5 @@
+//! The `show-generation` subcommand.
+
 use crate::client::AsyncBackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
@@ -7,13 +9,16 @@ use structopt::StructOpt;
 use tempfile::NamedTempFile;
 use tokio::runtime::Runtime;
 
+/// Show information about a generation.
 #[derive(Debug, StructOpt)]
 pub struct ShowGeneration {
+    /// Reference to the generation. Defaults to latest.
     #[structopt(default_value = "latest")]
     gen_id: String,
 }
 
 impl ShowGeneration {
+    /// Run the command.
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let rt = Runtime::new()?;
         rt.block_on(self.run_async(config))

@@ -1,3 +1,5 @@
+//! Encryption cipher algorithms.
+
 use crate::chunk::DataChunk;
 use crate::chunkmeta::ChunkMeta;
 use crate::passwords::Passwords;
@@ -10,30 +12,43 @@ use std::str::FromStr;
 
 const CHUNK_V1: &[u8] = b"0001";
 
+/// An encrypted chunk.
+///
+/// This consists of encrypted ciphertext, and un-encrypted (or
+/// cleartext) additional associated data, which could be the metadata
+/// of the chunk, and be used to, for example, find chunks.
+///
+/// Encrypted chunks are the only chunks that can be uploaded to the
+/// server.
 pub struct EncryptedChunk {
     ciphertext: Vec<u8>,
     aad: Vec<u8>,
 }
 
 impl EncryptedChunk {
+    /// Create an encrypted chunk.
     fn new(ciphertext: Vec<u8>, aad: Vec<u8>) -> Self {
         Self { ciphertext, aad }
     }
 
+    /// Return the encrypted data.
     pub fn ciphertext(&self) -> &[u8] {
         &self.ciphertext
     }
 
+    /// Return the cleartext associated additional data.
     pub fn aad(&self) -> &[u8] {
         &self.aad
     }
 }
 
+/// An engine for encrypting and decrypting chunks.
 pub struct CipherEngine {
     cipher: Aes256Gcm,
 }
 
 impl CipherEngine {
+    /// Create a new cipher engine using cleartext passwords.
     pub fn new(pass: &Passwords) -> Self {
         let key = GenericArray::from_slice(pass.encryption_key());
         Self {
@@ -41,6 +56,7 @@ impl CipherEngine {
         }
     }
 
+    /// Encrypt a chunk.
     pub fn encrypt_chunk(&self, chunk: &DataChunk) -> Result<EncryptedChunk, CipherError> {
         // Payload with metadata as associated data, to be encrypted.
         //
@@ -70,6 +86,7 @@ impl CipherEngine {
         Ok(EncryptedChunk::new(vec, aad))
     }
 
+    /// Decrypt a chunk.
     pub fn decrypt_chunk(&self, bytes: &[u8], meta: &[u8]) -> Result<DataChunk, CipherError> {
         // Does encrypted chunk start with the right version?
         if !bytes.starts_with(CHUNK_V1) {
@@ -109,26 +126,36 @@ fn push_bytes(vec: &mut Vec<u8>, bytes: &[u8]) {
     }
 }
 
+/// Possible errors when encrypting or decrypting chunks.
 #[derive(Debug, thiserror::Error)]
 pub enum CipherError {
+    /// Encryption failed.
     #[error("failed to encrypt with AES-GEM: {0}")]
     EncryptError(aes_gcm::Error),
 
+    /// The encrypted chunk has an unsupported version or is
+    /// corrupted.
     #[error("encrypted chunk does not start with correct version")]
     UnknownChunkVersion,
 
+    /// The encrypted chunk lacks a complete nonce value, and is
+    /// probably corrupted.
     #[error("encrypted chunk does not have a complete nonce")]
     NoNonce,
 
+    /// Decryption failed.
     #[error("failed to decrypt with AES-GEM: {0}")]
     DecryptError(aes_gcm::Error),
 
+    /// The decryption succeeded, by data isn't valid YAML.
     #[error("failed to parse decrypted data as a DataChunk: {0}")]
     Parse(serde_yaml::Error),
 
+    /// Error parsing UTF8 data.
     #[error(transparent)]
     Utf8Error(#[from] std::str::Utf8Error),
 
+    /// Error parsing JSON data.
     #[error("failed to parse JSON: {0}")]
     JsonParse(#[from] serde_json::Error),
 }

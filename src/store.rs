@@ -1,3 +1,5 @@
+//! Store chunks on-disk on server.
+
 use crate::chunk::DataChunk;
 use crate::chunkid::ChunkId;
 use std::path::{Path, PathBuf};

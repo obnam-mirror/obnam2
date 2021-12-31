@@ -1,3 +1,5 @@
+//! The `chunkify` subcommand.
+
 use crate::config::ClientConfig;
 use crate::engine::Engine;
 use crate::error::ObnamError;
@@ -15,18 +17,21 @@ use tokio::sync::mpsc;
 // checksums.
 const Q: usize = 8;
 
+/// Split files into chunks and show their metadata.
 #[derive(Debug, StructOpt)]
 pub struct Chunkify {
+    /// Names of files to split into chunks.
     filenames: Vec<PathBuf>,
 }
 
 impl Chunkify {
+    /// Run the command.
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let rt = Runtime::new()?;
         rt.block_on(self.run_async(config))
     }
 
-    pub async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
+    async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let mut q = WorkQueue::new(Q);
         for filename in self.filenames.iter() {
             tokio::spawn(split_file(
@@ -51,21 +56,21 @@ impl Chunkify {
 }
 
 #[derive(Debug, Clone)]
-pub struct Chunk {
+struct Chunk {
     filename: PathBuf,
     offset: u64,
     data: Vec<u8>,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct Checksum {
+struct Checksum {
     filename: PathBuf,
     offset: u64,
     pub len: u64,
     checksum: String,
 }
 
-pub async fn split_file(filename: PathBuf, chunk_size: usize, tx: mpsc::Sender<Chunk>) {
+async fn split_file(filename: PathBuf, chunk_size: usize, tx: mpsc::Sender<Chunk>) {
     // println!("split_file {}", filename.display());
     let mut file = BufReader::new(File::open(&*filename).await.unwrap());
 

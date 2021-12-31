@@ -1,3 +1,5 @@
+//! The `get-chunk` subcommand.
+
 use crate::chunkid::ChunkId;
 use crate::client::AsyncBackupClient;
 use crate::config::ClientConfig;
@@ -6,13 +8,16 @@ use std::io::{stdout, Write};
 use structopt::StructOpt;
 use tokio::runtime::Runtime;
 
+/// Fetch a chunk from the server.
 #[derive(Debug, StructOpt)]
 pub struct GetChunk {
+    /// Identifier of chunk to fetch.
     #[structopt()]
     chunk_id: String,
 }
 
 impl GetChunk {
+    /// Run the command.
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let rt = Runtime::new()?;
         rt.block_on(self.run_async(config))

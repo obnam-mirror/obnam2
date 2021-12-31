@@ -1,14 +1,18 @@
+//! Policy for what gets backed up.
+
 use crate::backup_reason::Reason;
 use crate::fsentry::FilesystemEntry;
 use crate::generation::LocalGeneration;
 use log::{debug, warn};
 
+/// Policy for what gets backed up.
 pub struct BackupPolicy {
     new: bool,
     old_if_changed: bool,
 }
 
 impl BackupPolicy {
+    /// Create a default policy.
     pub fn default() -> Self {
         Self {
             new: true,
@@ -16,6 +20,7 @@ impl BackupPolicy {
         }
     }
 
+    /// Does a given file need to be backed up?
     pub fn needs_backup(&self, old: &LocalGeneration, new_entry: &FilesystemEntry) -> Reason {
         let new_name = new_entry.pathbuf();
         let reason = match old.get_file(&new_name) {

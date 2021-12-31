@@ -1,3 +1,5 @@
+//! The `list-files` subcommand.
+
 use crate::backup_reason::Reason;
 use crate::client::AsyncBackupClient;
 use crate::config::ClientConfig;
@@ -7,13 +9,16 @@ use structopt::StructOpt;
 use tempfile::NamedTempFile;
 use tokio::runtime::Runtime;
 
+/// List files in a backup.
 #[derive(Debug, StructOpt)]
 pub struct ListFiles {
+    /// Reference to backup to list files in.
     #[structopt(default_value = "latest")]
     gen_id: String,
 }
 
 impl ListFiles {
+    /// Run the command.
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let rt = Runtime::new()?;
         rt.block_on(self.run_async(config))

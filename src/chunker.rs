@@ -1,9 +1,12 @@
+//! Split file data into chunks.
+
 use crate::checksummer::Checksum;
 use crate::chunk::DataChunk;
 use crate::chunkmeta::ChunkMeta;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
+/// Iterator over chunks in a file.
 pub struct Chunker {
     chunk_size: usize,
     buf: Vec<u8>,
@@ -11,13 +14,16 @@ pub struct Chunker {
     handle: std::fs::File,
 }
 
+/// Possible errors from data chunking.
 #[derive(Debug, thiserror::Error)]
 pub enum ChunkerError {
+    /// Error reading from a file.
     #[error("failed to read file {0}: {1}")]
     FileRead(PathBuf, std::io::Error),
 }
 
 impl Chunker {
+    /// Create new iterator.
     pub fn new(chunk_size: usize, handle: std::fs::File, filename: &Path) -> Self {
         let mut buf = vec![];
         buf.resize(chunk_size, 0);
@@ -29,7 +35,7 @@ impl Chunker {
         }
     }
 
-    pub fn read_chunk(&mut self) -> Result<Option<DataChunk>, ChunkerError> {
+    fn read_chunk(&mut self) -> Result<Option<DataChunk>, ChunkerError> {
         let mut used = 0;
 
         loop {
@@ -58,6 +64,7 @@ impl Chunker {
 impl Iterator for Chunker {
     type Item = Result<DataChunk, ChunkerError>;
 
+    /// Return the next chunk, if any, or an error.
     fn next(&mut self) -> Option<Result<DataChunk, ChunkerError>> {
         match self.read_chunk() {
             Ok(None) => None,

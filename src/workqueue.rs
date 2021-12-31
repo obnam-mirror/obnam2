@@ -1,3 +1,5 @@
+//! A queue of work for [`crate::engine::Engine`].
+
 use tokio::sync::mpsc;
 
 /// A queue of work items.

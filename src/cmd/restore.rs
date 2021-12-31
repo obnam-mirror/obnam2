@@ -1,3 +1,5 @@
+//! The `restore` subcommand.
+
 use crate::backup_reason::Reason;
 use crate::client::{AsyncBackupClient, ClientError};
 use crate::config::ClientConfig;
@@ -19,16 +21,20 @@ use structopt::StructOpt;
 use tempfile::NamedTempFile;
 use tokio::runtime::Runtime;
 
+/// Restore a backup.
 #[derive(Debug, StructOpt)]
 pub struct Restore {
+    /// Reference to generation to restore.
     #[structopt()]
     gen_id: String,
 
+    /// Path to directory where restored files are written.
     #[structopt(parse(from_os_str))]
     to: PathBuf,
 }
 
 impl Restore {
+    /// Run the command.
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let rt = Runtime::new()?;
         rt.block_on(self.run_async(config))
@@ -75,38 +81,50 @@ impl Restore {
     }
 }
 
+/// Possible errors from restoring.
 #[derive(Debug, thiserror::Error)]
 pub enum RestoreError {
+    /// Failed to create a name pipe.
     #[error("Could not create named pipe (FIFO) {0}")]
     NamedPipeCreationError(PathBuf),
 
+    /// Error from HTTP client.
     #[error(transparent)]
     ClientError(#[from] ClientError),
 
+    /// Error from local generation.
     #[error(transparent)]
     LocalGenerationError(#[from] LocalGenerationError),
 
+    /// Error removing a prefix.
     #[error(transparent)]
     StripPrefixError(#[from] StripPrefixError),
 
+    /// Error creating a directory.
     #[error("failed to create directory {0}: {1}")]
     CreateDirs(PathBuf, std::io::Error),
 
+    /// Error creating a file.
     #[error("failed to create file {0}: {1}")]
     CreateFile(PathBuf, std::io::Error),
 
+    /// Error writing a file.
     #[error("failed to write file {0}: {1}")]
     WriteFile(PathBuf, std::io::Error),
 
+    /// Error creating a symbolic link.
     #[error("failed to create symbolic link {0}: {1}")]
     Symlink(PathBuf, std::io::Error),
 
+    /// Error creating a UNIX domain socket.
     #[error("failed to create UNIX domain socket {0}: {1}")]
     UnixBind(PathBuf, std::io::Error),
 
+    /// Error setting permissions.
     #[error("failed to set permissions for {0}: {1}")]
     Chmod(PathBuf, std::io::Error),
 
+    /// Error settting timestamp.
     #[error("failed to set timestamp for {0}: {1}")]
     SetTimestamp(PathBuf, std::io::Error),
 }

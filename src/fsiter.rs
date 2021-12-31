@@ -1,3 +1,5 @@
+//! Iterate over directory tree.
+
 use crate::fsentry::{FilesystemEntry, FsEntryError};
 use log::{debug, warn};
 use std::path::{Path, PathBuf};
@@ -5,6 +7,7 @@ use walkdir::{DirEntry, IntoIter, WalkDir};
 
 /// Filesystem entry along with additional info about it.
 pub struct AnnotatedFsEntry {
+    /// The file system entry being annotated.
     pub inner: FilesystemEntry,
     /// Is `entry` a valid CACHEDIR.TAG?
     pub is_cachedir_tag: bool,
@@ -15,19 +18,24 @@ pub struct FsIterator {
     iter: SkipCachedirs,
 }
 
+/// Possible errors from iterating over a directory tree.
 #[derive(Debug, thiserror::Error)]
 pub enum FsIterError {
+    /// Error from the walkdir crate.
     #[error("walkdir failed: {0}")]
     WalkDir(walkdir::Error),
 
+    /// Error reading a file's metadata.
     #[error("failed to get file system metadata for {0}: {1}")]
     Metadata(PathBuf, std::io::Error),
 
+    /// Error related to file system entries.
     #[error(transparent)]
     FsEntryError(#[from] FsEntryError),
 }
 
 impl FsIterator {
+    /// Create a new iterator.
     pub fn new(root: &Path, exclude_cache_tag_directories: bool) -> Self {
         Self {
             iter: SkipCachedirs::new(

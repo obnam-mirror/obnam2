@@ -1,3 +1,5 @@
+//! An entry in the file system.
+
 use log::{debug, error};
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
@@ -52,17 +54,21 @@ pub struct FilesystemEntry {
     group: String,
 }
 
+/// Possible errors related to file system entries.
 #[derive(Debug, thiserror::Error)]
 pub enum FsEntryError {
+    /// File kind numeric representation is unknown.
     #[error("Unknown file kind {0}")]
     UnknownFileKindCode(u8),
 
+    /// Failed to read a symbolic link's target.
     #[error("failed to read symbolic link target {0}: {1}")]
     ReadLink(PathBuf, std::io::Error),
 }
 
 #[allow(clippy::len_without_is_empty)]
 impl FilesystemEntry {
+    /// Create an `FsEntry` from a file's metadata.
     pub fn from_metadata(path: &Path, meta: &Metadata) -> Result<Self, FsEntryError> {
         let kind = FilesystemKind::from_file_type(meta.file_type());
         let symlink_target = if kind == FilesystemKind::Symlink {
@@ -94,43 +100,53 @@ impl FilesystemEntry {
         })
     }
 
+    /// Return the kind of file the entry refers to.
     pub fn kind(&self) -> FilesystemKind {
         self.kind
     }
 
+    /// Return full path to the entry.
     pub fn pathbuf(&self) -> PathBuf {
         let path = self.path.clone();
         PathBuf::from(OsString::from_vec(path))
     }
 
+    /// Return number of bytes for the entity represented by the entry.
     pub fn len(&self) -> u64 {
         self.len
     }
 
+    /// Return the entry's mode bits.
     pub fn mode(&self) -> u32 {
         self.mode
     }
 
+    /// Return the entry's access time, whole seconds.
     pub fn atime(&self) -> i64 {
         self.atime
     }
 
+    /// Return the entry's access time, nanoseconds since the last full second.
     pub fn atime_ns(&self) -> i64 {
         self.atime_ns
     }
 
+    /// Return the entry's modification time, whole seconds.
     pub fn mtime(&self) -> i64 {
         self.mtime
     }
 
+    /// Return the entry's modification time, nanoseconds since the last full second.
     pub fn mtime_ns(&self) -> i64 {
         self.mtime_ns
     }
 
+    /// Does the entry represent a directory?
     pub fn is_dir(&self) -> bool {
         self.kind() == FilesystemKind::Directory
     }
 
+    /// Return target of the symlink the entry represents.
     pub fn symlink_target(&self) -> Option<PathBuf> {
         self.symlink_target.clone()
     }
@@ -153,14 +169,20 @@ fn get_groupname(gid: u32) -> String {
 /// Different types of file system entries.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FilesystemKind {
+    /// Regular file, including a hard link to one.
     Regular,
+    /// A directory.
     Directory,
+    /// A symbolic link.
     Symlink,
+    /// A UNIX domain socket.
     Socket,
+    /// A UNIX named pipe.
     Fifo,
 }
 
 impl FilesystemKind {
+    /// Create a kind from a file type.
     pub fn from_file_type(file_type: FileType) -> Self {
         if file_type.is_file() {
             FilesystemKind::Regular
@@ -177,6 +199,7 @@ impl FilesystemKind {
         }
     }
 
+    /// Represent a kind as a numeric code.
     pub fn as_code(&self) -> u8 {
         match self {
             FilesystemKind::Regular => 0,
@@ -187,6 +210,7 @@ impl FilesystemKind {
         }
     }
 
+    /// Create a kind from a numeric code.
     pub fn from_code(code: u8) -> Result<Self, FsEntryError> {
         match code {
             0 => Ok(FilesystemKind::Regular),
@@ -199,8 +223,10 @@ impl FilesystemKind {
     }
 }
 
+/// Possible errors from FileKind conversions.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    /// The code was unknown.
     #[error("unknown file kind code {0}")]
     UnknownFileKindCode(u8),
 }

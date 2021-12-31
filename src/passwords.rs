@@ -1,3 +1,5 @@
+//! Passwords for encryption.
+
 use pbkdf2::{
     password_hash::{PasswordHasher, SaltString},
     Pbkdf2,
@@ -10,12 +12,14 @@ use std::path::{Path, PathBuf};
 
 const KEY_LEN: usize = 32; // Only size accepted by aead crate?
 
+/// Encryption password.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Passwords {
     encryption: String,
 }
 
 impl Passwords {
+    /// Create a new encryption password from a user-supplied passphrase.
     pub fn new(passphrase: &str) -> Self {
         let mut key = derive_password(passphrase);
         let _ = key.split_off(KEY_LEN);
@@ -23,10 +27,12 @@ impl Passwords {
         Self { encryption: key }
     }
 
+    /// Get encryption key.
     pub fn encryption_key(&self) -> &[u8] {
         self.encryption.as_bytes()
     }
 
+    /// Load passwords from file.
     pub fn load(filename: &Path) -> Result<Self, PasswordError> {
         let data = std::fs::read(filename)
             .map_err(|err| PasswordError::Read(filename.to_path_buf(), err))?;
@@ -34,6 +40,7 @@ impl Passwords {
             .map_err(|err| PasswordError::Parse(filename.to_path_buf(), err))
     }
 
+    /// Save passwords to file.
     pub fn save(&self, filename: &Path) -> Result<(), PasswordError> {
         eprintln!("saving passwords to {:?}", filename);
 
@@ -60,6 +67,7 @@ impl Passwords {
     }
 }
 
+/// Return name of password file, relative to configuration file.
 pub fn passwords_filename(config_filename: &Path) -> PathBuf {
     let mut filename = config_filename.to_path_buf();
     filename.set_file_name("passwords.yaml");
@@ -75,17 +83,22 @@ fn derive_password(passphrase: &str) -> String {
         .to_string()
 }
 
+/// Possible errors from passwords.
 #[derive(Debug, thiserror::Error)]
 pub enum PasswordError {
+    /// Failed to make YAML when saving passwords.
     #[error("failed to serialize passwords for saving: {0}")]
     Serialize(serde_yaml::Error),
 
+    /// Failed to save to file.
     #[error("failed to save passwords to {0}: {1}")]
     Write(PathBuf, std::io::Error),
 
+    /// Failed read passwords file.
     #[error("failed to read passwords from {0}: {1}")]
     Read(PathBuf, std::io::Error),
 
+    /// Failed to parse passwords file.
     #[error("failed to parse saved passwords from {0}: {1}")]
     Parse(PathBuf, serde_yaml::Error),
 }

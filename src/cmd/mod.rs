@@ -1,3 +1,5 @@
+//! Subcommand implementations.
+
 pub mod backup;
 pub mod chunk;
 pub mod chunkify;

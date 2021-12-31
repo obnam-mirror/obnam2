@@ -1,3 +1,10 @@
+//! Encrypted backups.
+//!
+//! Obnam is a backup program that encrypts the backups. This crate
+//! provides access to all the functionality of Obnam as a library.
+
+#![deny(missing_docs)]
+
 pub mod backup_progress;
 pub mod backup_reason;
 pub mod backup_run;
