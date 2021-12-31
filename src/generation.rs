@@ -168,6 +168,11 @@ pub enum LocalGenerationError {
     #[error("Generation 'meta' row {0} has badly formed integer: {1}")]
     BadMetaInteger(String, std::num::ParseIntError),
 
+    /// Local generation uses a schema version that this version of
+    /// Obnam isn't compatible with.
+    #[error("Backup is not compatible with this version of Obnam: {0}.{1}")]
+    Incompatible(u32, u32),
+
     /// Error from SQL.
     #[error(transparent)]
     RusqliteError(#[from] rusqlite::Error),
@@ -216,13 +221,26 @@ impl BackedUpFile {
 }
 
 impl LocalGeneration {
+    fn new(conn: Connection) -> Self {
+        Self { conn }
+    }
+
     /// Open a local file as a local generation.
     pub fn open<P>(filename: P) -> Result<Self, LocalGenerationError>
     where
         P: AsRef<Path>,
     {
         let conn = sql::open_db(filename.as_ref())?;
-        Ok(Self { conn })
+        let gen = Self::new(conn);
+        let schema = gen.meta()?.schema_version();
+        let our_schema = SchemaVersion::new(SCHEMA_MAJOR, SCHEMA_MINOR);
+        if !our_schema.is_compatible_with(&schema) {
+            return Err(LocalGenerationError::Incompatible(
+                schema.major,
+                schema.minor,
+            ));
+        }
+        Ok(gen)
     }
 
     /// Return generation metadata for local generation.
@@ -328,6 +346,50 @@ pub struct SchemaVersion {
 impl SchemaVersion {
     fn new(major: u32, minor: u32) -> Self {
         Self { major, minor }
+    }
+
+    /// Is this schema version compatible with another schema version?
+    pub fn is_compatible_with(&self, other: &Self) -> bool {
+        self.major == other.major && self.minor >= other.minor
+    }
+}
+
+#[cfg(test)]
+mod test_schema {
+    use super::*;
+
+    #[test]
+    fn compatible_with_self() {
+        let v = SchemaVersion::new(1, 2);
+        assert!(v.is_compatible_with(&v));
+    }
+
+    #[test]
+    fn compatible_with_older_minor_version() {
+        let old = SchemaVersion::new(1, 2);
+        let new = SchemaVersion::new(1, 3);
+        assert!(new.is_compatible_with(&old));
+    }
+
+    #[test]
+    fn not_compatible_with_newer_minor_version() {
+        let old = SchemaVersion::new(1, 2);
+        let new = SchemaVersion::new(1, 3);
+        assert!(!old.is_compatible_with(&new));
+    }
+
+    #[test]
+    fn not_compatible_with_older_major_version() {
+        let old = SchemaVersion::new(1, 2);
+        let new = SchemaVersion::new(2, 0);
+        assert!(!new.is_compatible_with(&old));
+    }
+
+    #[test]
+    fn not_compatible_with_newer_major_version() {
+        let old = SchemaVersion::new(1, 2);
+        let new = SchemaVersion::new(2, 0);
+        assert!(!old.is_compatible_with(&new));
     }
 }
 
