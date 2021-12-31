@@ -1,15 +1,20 @@
+//! The `resolve` subcommand.
+
 use crate::client::AsyncBackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use structopt::StructOpt;
 use tokio::runtime::Runtime;
 
+/// Resolve a generation reference into a generation id.
 #[derive(Debug, StructOpt)]
 pub struct Resolve {
+    /// The generation reference.
     generation: String,
 }
 
 impl Resolve {
+    /// Run the command.
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let rt = Runtime::new()?;
         rt.block_on(self.run_async(config))

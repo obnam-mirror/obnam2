@@ -1,3 +1,5 @@
+//! Engine for doing CPU heavy work in the background.
+
 use crate::workqueue::WorkQueue;
 use futures::stream::{FuturesOrdered, StreamExt};
 use tokio::select;

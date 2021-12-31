@@ -1,3 +1,5 @@
+//! The `encrypt-chunk` and `decrypt-chunk` subcommands.
+
 use crate::chunk::DataChunk;
 use crate::chunkmeta::ChunkMeta;
 use crate::cipher::CipherEngine;
@@ -6,19 +8,24 @@ use crate::error::ObnamError;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
+/// Encrypt a chunk.
 #[derive(Debug, StructOpt)]
 pub struct EncryptChunk {
+    /// The name of the file containing the cleartext chunk.
     #[structopt(parse(from_os_str))]
     filename: PathBuf,
 
+    /// Name of file where to write the encrypted chunk.
     #[structopt(parse(from_os_str))]
     output: PathBuf,
 
+    /// Chunk metadata as JSON.
     #[structopt()]
     json: String,
 }
 
 impl EncryptChunk {
+    /// Run the command.
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let pass = config.passwords()?;
         let cipher = CipherEngine::new(&pass);
@@ -35,19 +42,24 @@ impl EncryptChunk {
     }
 }
 
+/// Decrypt a chunk.
 #[derive(Debug, StructOpt)]
 pub struct DecryptChunk {
+    /// Name of file containing encrypted chunk.
     #[structopt(parse(from_os_str))]
     filename: PathBuf,
 
+    /// Name of file where to write the cleartext chunk.
     #[structopt(parse(from_os_str))]
     output: PathBuf,
 
+    /// Chunk metadata as JSON.
     #[structopt()]
     json: String,
 }
 
 impl DecryptChunk {
+    /// Run the command.
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let pass = config.passwords()?;
         let cipher = CipherEngine::new(&pass);

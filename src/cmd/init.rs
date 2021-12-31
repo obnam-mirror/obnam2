@@ -1,3 +1,5 @@
+//! The `init` subcommand.
+
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::passwords::{passwords_filename, Passwords};
@@ -5,13 +7,16 @@ use structopt::StructOpt;
 
 const PROMPT: &str = "Obnam passphrase: ";
 
+/// Initialize client by setting passwords.
 #[derive(Debug, StructOpt)]
 pub struct Init {
+    /// Only for testing.
     #[structopt(long)]
     insecure_passphrase: Option<String>,
 }
 
 impl Init {
+    /// Run the command.
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let passphrase = match &self.insecure_passphrase {
             Some(x) => x.to_string(),

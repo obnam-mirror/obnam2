@@ -1,3 +1,5 @@
+//! An indexed, on-disk store for chunks on the server.
+
 use crate::chunk::{DataChunk, GenerationChunkError};
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
@@ -21,6 +23,7 @@ pub enum IndexedError {
     #[error(transparent)]
     IndexError(#[from] IndexError),
 
+    /// Error regarding generation chunks.
     #[error(transparent)]
     GenerationChunkError(#[from] GenerationChunkError),
 
@@ -30,12 +33,14 @@ pub enum IndexedError {
 }
 
 impl IndexedStore {
+    /// Create a new indexed store.
     pub fn new(dirname: &Path) -> Result<Self, IndexedError> {
         let store = Store::new(dirname);
         let index = Index::new(dirname)?;
         Ok(Self { store, index })
     }
 
+    /// Save a chunk in the store.
     pub fn save(&mut self, chunk: &DataChunk) -> Result<ChunkId, IndexedError> {
         let id = ChunkId::new();
         self.store.save(&id, chunk)?;
@@ -48,22 +53,27 @@ impl IndexedStore {
         Ok(())
     }
 
+    /// Get a chunk from the store, given its id.
     pub fn load(&self, id: &ChunkId) -> Result<(DataChunk, ChunkMeta), IndexedError> {
         Ok((self.store.load(id)?, self.load_meta(id)?))
     }
 
+    /// Get a chunk's metadata form the store, given its id.
     pub fn load_meta(&self, id: &ChunkId) -> Result<ChunkMeta, IndexedError> {
         Ok(self.index.get_meta(id)?)
     }
 
+    /// Find chunks with a given checksum.
     pub fn find_by_sha256(&self, sha256: &str) -> Result<Vec<ChunkId>, IndexedError> {
         Ok(self.index.find_by_sha256(sha256)?)
     }
 
+    /// Find all generations.
     pub fn find_generations(&self) -> Result<Vec<ChunkId>, IndexedError> {
         Ok(self.index.find_generations()?)
     }
 
+    /// Remove a chunk from the store.
     pub fn remove(&mut self, id: &ChunkId) -> Result<(), IndexedError> {
         self.index.remove_meta(id)?;
         self.store.delete(id)?;

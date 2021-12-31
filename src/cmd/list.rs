@@ -1,13 +1,17 @@
+//! The `list` subcommand.
+
 use crate::client::AsyncBackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use structopt::StructOpt;
 use tokio::runtime::Runtime;
 
+/// List generations on the server.
 #[derive(Debug, StructOpt)]
 pub struct List {}
 
 impl List {
+    /// Run the command.
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let rt = Runtime::new()?;
         rt.block_on(self.run_async(config))

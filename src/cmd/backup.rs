@@ -1,3 +1,5 @@
+//! The `backup` subcommand.
+
 use crate::backup_run::BackupRun;
 use crate::client::AsyncBackupClient;
 use crate::config::ClientConfig;
@@ -10,10 +12,12 @@ use structopt::StructOpt;
 use tempfile::NamedTempFile;
 use tokio::runtime::Runtime;
 
+/// Make a backup.
 #[derive(Debug, StructOpt)]
 pub struct Backup {}
 
 impl Backup {
+    /// Run the command.
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let rt = Runtime::new()?;
         rt.block_on(self.run_async(config))

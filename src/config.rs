@@ -1,3 +1,5 @@
+//! Client configuration.
+
 use crate::passwords::{passwords_filename, PasswordError, Passwords};
 
 use bytesize::MIB;
@@ -19,18 +21,29 @@ struct TentativeClientConfig {
     exclude_cache_tag_directories: Option<bool>,
 }
 
+/// Configuration for the Obnam client.
 #[derive(Debug, Serialize, Clone)]
 pub struct ClientConfig {
+    /// Name of configuration file.
     pub filename: PathBuf,
+    /// URL of Obnam server.
     pub server_url: String,
+    /// Should server's TLS certificate be verified using CA
+    /// signatures? Set to false, for self-signed certificates.
     pub verify_tls_cert: bool,
+    /// Size of chunks when splitting files for backup.
     pub chunk_size: usize,
+    /// Backup root directories.
     pub roots: Vec<PathBuf>,
+    /// File where logs should be written.
     pub log: PathBuf,
+    /// Should cache directories be excluded? Cache directories
+    /// contain a specially formatted CACHEDIR.TAG file.
     pub exclude_cache_tag_directories: bool,
 }
 
 impl ClientConfig {
+    /// Read a client configuration from a file.
     pub fn read(filename: &Path) -> Result<Self, ClientConfigError> {
         trace!("read_config: filename={:?}", filename);
         let config = std::fs::read_to_string(filename)
@@ -75,29 +88,39 @@ impl ClientConfig {
         Ok(())
     }
 
+    /// Read encryption passwords from a file.
+    ///
+    /// The password file is expected to be next to the configuration file.
     pub fn passwords(&self) -> Result<Passwords, ClientConfigError> {
         Passwords::load(&passwords_filename(&self.filename))
             .map_err(ClientConfigError::PasswordsMissing)
     }
 }
 
+/// Possible errors from configuration files.
 #[derive(Debug, thiserror::Error)]
 pub enum ClientConfigError {
+    /// The configuration specifies the server URL as an empty string.
     #[error("server_url is empty")]
     ServerUrlIsEmpty,
 
+    /// The configuration does not specify any backup root directories.
     #[error("No backup roots in config; at least one is needed")]
     NoBackupRoot,
 
+    /// The server URL is not an https: one.
     #[error("server URL doesn't use https: {0}")]
     NotHttps(String),
 
+    /// There are no passwords stored.
     #[error("No passwords are set: you may need to run 'obnam init': {0}")]
     PasswordsMissing(PasswordError),
 
+    /// Error reading a configuation file.
     #[error("failed to read configuration file {0}: {1}")]
     Read(PathBuf, std::io::Error),
 
+    /// Error parsing configuration file as YAML.
     #[error("failed to parse configuration file {0} as YAML: {1}")]
     YamlParse(PathBuf, serde_yaml::Error),
 }

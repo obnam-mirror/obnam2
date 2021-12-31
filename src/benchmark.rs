@@ -1,15 +1,20 @@
+//! Benchmark chunk generation.
+//!
+//! This is only for development.
+
 use crate::checksummer::Checksum;
 use crate::chunk::DataChunk;
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
 
-// Generate a desired number of empty data chunks with id and metadata.
+/// Generate a desired number of empty data chunks with id and metadata.
 pub struct ChunkGenerator {
     goal: u32,
     next: u32,
 }
 
 impl ChunkGenerator {
+    /// Create a new ChunkGenerator.
     pub fn new(goal: u32) -> Self {
         Self { goal, next: 0 }
     }

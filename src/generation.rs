@@ -1,3 +1,5 @@
+//! Backup generations of various kinds.
+
 use crate::backup_reason::Reason;
 use crate::chunkid::ChunkId;
 use crate::fsentry::FilesystemEntry;
@@ -23,10 +25,12 @@ pub struct GenId {
 }
 
 impl GenId {
+    /// Create a generation identifier from a chunk identifier.
     pub fn from_chunk_id(id: ChunkId) -> Self {
         Self { id }
     }
 
+    /// Convert a generation identifier into a chunk identifier.
     pub fn as_chunk_id(&self) -> &ChunkId {
         &self.id
     }
@@ -51,25 +55,32 @@ pub struct NascentGeneration {
     fileno: FileId,
 }
 
+/// Possible errors from nascent backup generations.
 #[derive(Debug, thiserror::Error)]
 pub enum NascentError {
+    /// Error backing up a backup root.
     #[error("Could not back up a backup root directory: {0}: {1}")]
     BackupRootFailed(PathBuf, crate::fsiter::FsIterError),
 
+    /// Error using a local generation.
     #[error(transparent)]
     LocalGenerationError(#[from] LocalGenerationError),
 
+    /// Error from an SQL transaction.
     #[error("SQL transaction error: {0}")]
     Transaction(rusqlite::Error),
 
+    /// Error from committing an SQL transaction.
     #[error("SQL commit error: {0}")]
     Commit(rusqlite::Error),
 
+    /// Error creating a temporary file.
     #[error("Failed to create temporary file: {0}")]
     TempFile(#[from] std::io::Error),
 }
 
 impl NascentGeneration {
+    /// Create a new nascent generation.
     pub fn create<P>(filename: P) -> Result<Self, NascentError>
     where
         P: AsRef<Path>,
@@ -78,10 +89,12 @@ impl NascentGeneration {
         Ok(Self { conn, fileno: 0 })
     }
 
+    /// How many files are there now in the nascent generation?
     pub fn file_count(&self) -> FileId {
         self.fileno
     }
 
+    /// Insert a new file system entry into a nascent generation.
     pub fn insert(
         &mut self,
         e: FilesystemEntry,
@@ -97,9 +110,10 @@ impl NascentGeneration {
     }
 }
 
-/// A finished generation.
+/// A finished generation on the server.
 ///
-/// A generation is finished when it's on the server. It can be restored.
+/// A generation is finished when it's on the server. It can be
+/// fetched so it can be used as a [`LocalGeneration`].
 #[derive(Debug, Clone)]
 pub struct FinishedGeneration {
     id: GenId,
@@ -107,6 +121,7 @@ pub struct FinishedGeneration {
 }
 
 impl FinishedGeneration {
+    /// Create a new finished generation.
     pub fn new(id: &str, ended: &str) -> Self {
         let id = GenId::from_chunk_id(id.parse().unwrap()); // this never fails
         Self {
@@ -115,10 +130,12 @@ impl FinishedGeneration {
         }
     }
 
+    /// Get the generation's identifier.
     pub fn id(&self) -> &GenId {
         &self.id
     }
 
+    /// When was generation finished?
     pub fn ended(&self) -> &str {
         &self.ended
     }
@@ -132,30 +149,39 @@ pub struct LocalGeneration {
     conn: Connection,
 }
 
+/// Possible errors from using local generations.
 #[derive(Debug, thiserror::Error)]
 pub enum LocalGenerationError {
+    /// Duplicate file names.
     #[error("Generation has more than one file with the name {0}")]
     TooManyFiles(PathBuf),
 
+    /// No 'meta' table in generation.
     #[error("Generation does not have a 'meta' table")]
     NoMeta,
 
+    /// Missing from from 'meta' table.
     #[error("Generation 'meta' table does not have a row {0}")]
     NoMetaKey(String),
 
+    /// Bad data in 'meta' table.
     #[error("Generation 'meta' row {0} has badly formed integer: {1}")]
     BadMetaInteger(String, std::num::ParseIntError),
 
+    /// Error from SQL.
     #[error(transparent)]
     RusqliteError(#[from] rusqlite::Error),
 
+    /// Error from JSON.
     #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
 
+    /// Error from I/O.
     #[error(transparent)]
     IoError(#[from] std::io::Error),
 }
 
+/// A backed up file in a local generation.
 pub struct BackedUpFile {
     fileno: FileId,
     entry: FilesystemEntry,
@@ -163,6 +189,7 @@ pub struct BackedUpFile {
 }
 
 impl BackedUpFile {
+    /// Create a new `BackedUpFile`.
     pub fn new(fileno: FileId, entry: FilesystemEntry, reason: &str) -> Self {
         let reason = Reason::from(reason);
         Self {
@@ -172,20 +199,24 @@ impl BackedUpFile {
         }
     }
 
+    /// Return id for file in its local generation.
     pub fn fileno(&self) -> FileId {
         self.fileno
     }
 
+    /// Return file system entry for file.
     pub fn entry(&self) -> &FilesystemEntry {
         &self.entry
     }
 
+    /// Return reason why file is in its local generation.
     pub fn reason(&self) -> Reason {
         self.reason
     }
 }
 
 impl LocalGeneration {
+    /// Open a local file as a local generation.
     pub fn open<P>(filename: P) -> Result<Self, LocalGenerationError>
     where
         P: AsRef<Path>,
@@ -194,19 +225,23 @@ impl LocalGeneration {
         Ok(Self { conn })
     }
 
+    /// Return generation metadata for local generation.
     pub fn meta(&self) -> Result<GenMeta, LocalGenerationError> {
         let map = sql::meta(&self.conn)?;
         GenMeta::from(map)
     }
 
+    /// How many files are there in the local generation?
     pub fn file_count(&self) -> Result<i64, LocalGenerationError> {
         sql::file_count(&self.conn)
     }
 
+    /// Return all files in the local generation.
     pub fn files(&self) -> Result<sql::SqlResults<BackedUpFile>, LocalGenerationError> {
         sql::files(&self.conn)
     }
 
+    /// Return ids for all chunks in local generation.
     pub fn chunkids(
         &self,
         fileno: FileId,
@@ -214,6 +249,7 @@ impl LocalGeneration {
         sql::chunkids(&self.conn, fileno)
     }
 
+    /// Return entry for a file, given its pathname.
     pub fn get_file(
         &self,
         filename: &Path,
@@ -221,16 +257,18 @@ impl LocalGeneration {
         sql::get_file(&self.conn, filename)
     }
 
+    /// Get the id in the local generation of a file, given its pathname.
     pub fn get_fileno(&self, filename: &Path) -> Result<Option<FileId>, LocalGenerationError> {
         sql::get_fileno(&self.conn, filename)
     }
 
+    /// Does a pathname refer to a cache directory?
     pub fn is_cachedir_tag(&self, filename: &Path) -> Result<bool, LocalGenerationError> {
         sql::is_cachedir_tag(&self.conn, filename)
     }
 }
 
-/// Metadata about the generation.
+/// Metadata about the local generation.
 #[derive(Debug, Serialize)]
 pub struct GenMeta {
     schema_version: SchemaVersion,
@@ -238,6 +276,7 @@ pub struct GenMeta {
 }
 
 impl GenMeta {
+    /// Create from a hash map.
     fn from(mut map: HashMap<String, String>) -> Result<Self, LocalGenerationError> {
         let major: u32 = metaint(&mut map, "schema_version_major")?;
         let minor: u32 = metaint(&mut map, "schema_version_minor")?;
@@ -247,6 +286,7 @@ impl GenMeta {
         })
     }
 
+    /// Return schema version of local generation.
     pub fn schema_version(&self) -> SchemaVersion {
         self.schema_version
     }
@@ -279,7 +319,9 @@ fn metaint(map: &mut HashMap<String, String>, key: &str) -> Result<u32, LocalGen
 /// at all.
 #[derive(Debug, Clone, Copy, Serialize)]
 pub struct SchemaVersion {
+    /// Major version.
     pub major: u32,
+    /// Minor version.
     pub minor: u32,
 }
 
@@ -304,6 +346,7 @@ mod sql {
     use std::os::unix::ffi::OsStrExt;
     use std::path::Path;
 
+    /// Create a new database in a file.
     pub fn create_db(filename: &Path) -> Result<Connection, LocalGenerationError> {
         let flags = OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
@@ -335,6 +378,7 @@ mod sql {
         Ok(())
     }
 
+    /// Open an existing database in a file.
     pub fn open_db(filename: &Path) -> Result<Connection, LocalGenerationError> {
         let flags = OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
@@ -342,6 +386,7 @@ mod sql {
         Ok(conn)
     }
 
+    /// Return generation metadata from a database.
     pub fn meta(conn: &Connection) -> Result<HashMap<String, String>, LocalGenerationError> {
         let mut stmt = conn.prepare("SELECT key, value FROM meta")?;
         let iter = stmt.query_map(params![], row_to_key_value)?;
@@ -359,6 +404,7 @@ mod sql {
         Ok((key, value))
     }
 
+    /// Insert one file system entry into the database.
     pub fn insert_one(
         t: &Transaction,
         e: FilesystemEntry,
@@ -385,6 +431,7 @@ mod sql {
         path.as_os_str().as_bytes().to_vec()
     }
 
+    /// Parse an SQL query result row.
     pub fn row_to_entry(row: &Row) -> rusqlite::Result<(FileId, String, String)> {
         let fileno: FileId = row.get("fileno")?;
         let json: String = row.get("json")?;
@@ -392,6 +439,7 @@ mod sql {
         Ok((fileno, json, reason))
     }
 
+    /// Count number of file system entries.
     pub fn file_count(conn: &Connection) -> Result<FileId, LocalGenerationError> {
         let mut stmt = conn.prepare("SELECT count(*) FROM files")?;
         let mut iter = stmt.query_map(params![], |row| row.get(0))?;
@@ -435,6 +483,7 @@ mod sql {
             -> Result<SqlResultsIterator<'stmt, ItemT>, LocalGenerationError>,
     >;
 
+    /// Iterator of SQL results.
     pub struct SqlResults<'conn, ItemT> {
         stmt: Statement<'conn>,
         create_iter: CreateIterFn<'conn, ItemT>,
@@ -450,11 +499,13 @@ mod sql {
             Ok(Self { stmt, create_iter })
         }
 
+        /// Create an iterator over results.
         pub fn iter(&'_ mut self) -> Result<SqlResultsIterator<'_, ItemT>, LocalGenerationError> {
             (self.create_iter)(&mut self.stmt)
         }
     }
 
+    /// Return all file system entries in database.
     pub fn files(conn: &Connection) -> Result<SqlResults<BackedUpFile>, LocalGenerationError> {
         SqlResults::new(
             conn,
@@ -472,6 +523,7 @@ mod sql {
         )
     }
 
+    /// Return all chunk ids in database.
     pub fn chunkids(
         conn: &Connection,
         fileno: FileId,
@@ -490,6 +542,7 @@ mod sql {
         )
     }
 
+    /// Get a file's information given its path.
     pub fn get_file(
         conn: &Connection,
         filename: &Path,
@@ -500,6 +553,7 @@ mod sql {
         }
     }
 
+    /// Get a file's information given it's id in the database.
     pub fn get_fileno(
         conn: &Connection,
         filename: &Path,
@@ -534,6 +588,7 @@ mod sql {
         }
     }
 
+    /// Does a path refer to a cache directory?
     pub fn is_cachedir_tag(
         conn: &Connection,
         filename: &Path,

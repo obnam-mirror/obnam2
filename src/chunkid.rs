@@ -1,3 +1,8 @@
+//! The identifier for a chunk.
+//!
+//! Chunk identifiers are chosen by the server. Each chunk has a
+//! unique identifier, which isn't based on the contents of the chunk.
+
 use crate::checksummer::Checksum;
 use rusqlite::types::ToSqlOutput;
 use rusqlite::ToSql;
@@ -37,21 +42,24 @@ impl ChunkId {
         }
     }
 
-    /// Re-construct an identifier from a previous values.
+    /// Re-construct an identifier from a previous value.
     pub fn recreate(s: &str) -> Self {
         ChunkId { id: s.to_string() }
     }
 
+    /// Return the identifier as a slice of bytes.
     pub fn as_bytes(&self) -> &[u8] {
         self.id.as_bytes()
     }
 
+    /// Return the SHA256 checksum of the identifier.
     pub fn sha256(&self) -> Checksum {
         Checksum::sha256(self.id.as_bytes())
     }
 }
 
 impl ToSql for ChunkId {
+    /// Format identifier for SQL.
     fn to_sql(&self) -> rusqlite::Result<ToSqlOutput> {
         Ok(ToSqlOutput::Owned(rusqlite::types::Value::Text(
             self.id.clone(),
@@ -69,12 +77,14 @@ impl fmt::Display for ChunkId {
 }
 
 impl From<&String> for ChunkId {
+    /// Create a chunk identifier from a string.
     fn from(s: &String) -> Self {
         ChunkId { id: s.to_string() }
     }
 }
 
 impl From<&OsStr> for ChunkId {
+    /// Create a chunk identifier from an operating system string.
     fn from(s: &OsStr) -> Self {
         ChunkId {
             id: s.to_string_lossy().to_string(),
@@ -85,6 +95,7 @@ impl From<&OsStr> for ChunkId {
 impl FromStr for ChunkId {
     type Err = ();
 
+    /// Create a chunk from a string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(ChunkId::recreate(s))
     }

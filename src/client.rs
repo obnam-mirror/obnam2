@@ -1,3 +1,5 @@
+//! Client to the Obnam server HTTP API.
+
 use crate::chunk::{DataChunk, GenerationChunk, GenerationChunkError};
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
@@ -13,89 +15,118 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
+/// Possible errors when using the server API.
 #[derive(Debug, thiserror::Error)]
 pub enum ClientError {
+    /// No chunk id for uploaded chunk.
     #[error("Server response claimed it had created a chunk, but lacked chunk id")]
     NoCreatedChunkId,
 
+    /// Server claims to not have an entity.
     #[error("Server does not have {0}")]
     NotFound(String),
 
+    /// Server does not have a chunk.
     #[error("Server does not have chunk {0}")]
     ChunkNotFound(ChunkId),
 
+    /// Server does not have generation.
     #[error("Server does not have generation {0}")]
     GenerationNotFound(ChunkId),
 
+    /// Server didn't give us a chunk's metadata.
     #[error("Server response did not have a 'chunk-meta' header for chunk {0}")]
     NoChunkMeta(ChunkId),
 
+    /// Chunk has wrong checksum and may be corrupted.
     #[error("Wrong checksum for chunk {0}, got {1}, expected {2}")]
     WrongChecksum(ChunkId, String, String),
 
+    /// Client configuration is wrong.
     #[error(transparent)]
     ClientConfigError(#[from] ClientConfigError),
 
+    /// An error encrypting or decrypting chunks.
     #[error(transparent)]
     CipherError(#[from] CipherError),
 
+    /// An error regarding generation chunks.
     #[error(transparent)]
     GenerationChunkError(#[from] GenerationChunkError),
 
+    /// An error using a backup's local metadata.
     #[error(transparent)]
     LocalGenerationError(#[from] LocalGenerationError),
 
+    /// An error with the `chunk-meta` header.
     #[error("couldn't convert response chunk-meta header to string: {0}")]
     MetaHeaderToString(reqwest::header::ToStrError),
 
+    /// An error from the HTTP library.
     #[error("error from reqwest library: {0}")]
     ReqwestError(reqwest::Error),
 
+    /// Couldn't look up a chunk via checksum.
     #[error("lookup by chunk checksum failed: {0}")]
     ChunkExists(reqwest::Error),
 
+    /// Error parsing JSON.
     #[error("failed to parse JSON: {0}")]
     JsonParse(serde_json::Error),
 
+    /// Error generating JSON.
     #[error("failed to generate JSON: {0}")]
     JsonGenerate(serde_json::Error),
 
+    /// Error parsing YAML.
     #[error("failed to parse YAML: {0}")]
     YamlParse(serde_yaml::Error),
 
+    /// Failed to open a file.
     #[error("failed to open file {0}: {1}")]
     FileOpen(PathBuf, std::io::Error),
 
+    /// Failed to create a file.
     #[error("failed to create file {0}: {1}")]
     FileCreate(PathBuf, std::io::Error),
 
+    /// Failed to write a file.
     #[error("failed to write to file {0}: {1}")]
     FileWrite(PathBuf, std::io::Error),
 }
 
+/// Client for the Obnam server HTTP API.
+///
+/// This is the async version.
 pub struct AsyncBackupClient {
     chunk_client: AsyncChunkClient,
 }
 
 impl AsyncBackupClient {
+    /// Create a new backup client.
     pub fn new(config: &ClientConfig) -> Result<Self, ClientError> {
         info!("creating backup client with config: {:#?}", config);
         Ok(Self {
             chunk_client: AsyncChunkClient::new(config)?,
         })
     }
+
+    /// Does the server have a chunk?
     pub async fn has_chunk(&self, meta: &ChunkMeta) -> Result<Option<ChunkId>, ClientError> {
         self.chunk_client.has_chunk(meta).await
     }
 
+    /// Upload a data chunk to the srver.
     pub async fn upload_chunk(&self, chunk: DataChunk) -> Result<ChunkId, ClientError> {
         self.chunk_client.upload_chunk(chunk).await
     }
 
+    /// List backup generations known by the server.
     pub async fn list_generations(&self) -> Result<GenerationList, ClientError> {
         self.chunk_client.list_generations().await
     }
 
+    /// Fetch a data chunk from the server, given the chunk identifier.
     pub async fn fetch_chunk(&self, chunk_id: &ChunkId) -> Result<DataChunk, ClientError> {
         self.chunk_client.fetch_chunk(chunk_id).await
     }
@@ -106,6 +137,7 @@ impl AsyncBackupClient {
         Ok(gen)
     }
 
+    /// Fetch a backup generation's metadata, given it's identifier.
     pub async fn fetch_generation(
         &self,
         gen_id: &GenId,
@@ -129,6 +161,7 @@ impl AsyncBackupClient {
     }
 }
 
+/// Client for using chunk part of Obnam server HTTP API.
 pub struct AsyncChunkClient {
     client: reqwest::Client,
     base_url: String,
@@ -136,6 +169,7 @@ pub struct AsyncChunkClient {
 }
 
 impl AsyncChunkClient {
+    /// Create a new chunk client.
     pub fn new(config: &ClientConfig) -> Result<Self, ClientError> {
         let pass = config.passwords()?;
 
@@ -158,6 +192,7 @@ impl AsyncChunkClient {
         format!("{}/chunks", self.base_url())
     }
 
+    /// Does server have a chunk?
     pub async fn has_chunk(&self, meta: &ChunkMeta) -> Result<Option<ChunkId>, ClientError> {
         let body = match self.get("", &[("sha256", meta.sha256())]).await {
             Ok((_, body)) => body,
@@ -176,6 +211,7 @@ impl AsyncChunkClient {
         Ok(has)
     }
 
+    /// Upload a new chunk to the server.
     pub async fn upload_chunk(&self, chunk: DataChunk) -> Result<ChunkId, ClientError> {
         let enc = self.cipher.encrypt_chunk(&chunk)?;
         let res = self
@@ -198,6 +234,7 @@ impl AsyncChunkClient {
         Ok(chunk_id)
     }
 
+    /// List all generation chunks on the server.
     pub async fn list_generations(&self) -> Result<GenerationList, ClientError> {
         let (_, body) = self.get("", &[("generation", "true")]).await?;
 
@@ -211,6 +248,7 @@ impl AsyncChunkClient {
         Ok(GenerationList::new(finished))
     }
 
+    /// Fetch a chunk from the server, given its id.
     pub async fn fetch_chunk(&self, chunk_id: &ChunkId) -> Result<DataChunk, ClientError> {
         let (headers, body) = self.get(&format!("/{}", chunk_id), &[]).await?;
         let meta = self.get_chunk_meta_header(chunk_id, &headers)?;
