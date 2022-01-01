@@ -12,23 +12,25 @@ Follow these steps to make a release of Obnam.
    - `cargo outdated -R`
    - `cargo update`
    - `cargo deny check`
-3. Make sure everything still works.
-   - `./check`
-4. Review changes in the crate (`git log vX.Y.Y..`). Update the `NEWS.md`
+3. Review changes in the crate (`git log vX.Y.Y..`). Update the `NEWS.md`
    file with any changes that users of Obnam need to be aware of.
-5. Update the crate's `Cargo.toml` with the appropriate version number
+4. Update the crate's `Cargo.toml` with the appropriate version number
    for the new release, following [semantic versioning][].
-6. Update `debian/changelog` with a summary of any changes to the
+5. Update `debian/changelog` with a summary of any changes to the
    Debian packaging (it's not necessary to repeat `NEWS.md` here). Use
    the `dch` command to edit the file to get the format right, since
    it's quite finicky.
    - `dch -v X.Y.Z-1 "New release."`
    - `dch "Changed this thing: foo."`
    - `dch -r ""`
-7. Commit any changes.
-8. Run `cargo publish --dry-run` and fix any problems.
-9. Push to gitlab.com and create a merge request.
-10. Wait for GitLab CI to test the changes successfully. Fix any
+6. Make sure everything still works.
+   - `./check`
+7. Update `Cargo.lock` after version change.
+   - `cargo update`
+8. Commit any changes.
+9. Run `cargo publish --dry-run` and fix any problems.
+10. Push to gitlab.com and create a merge request.
+11. Wait for GitLab CI to test the changes successfully. Fix any
     problems it finds.
 
 After the above changes have been merged, do the following steps. You
