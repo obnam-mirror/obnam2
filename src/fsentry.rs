@@ -223,14 +223,6 @@ impl FilesystemKind {
     }
 }
 
-/// Possible errors from FileKind conversions.
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    /// The code was unknown.
-    #[error("unknown file kind code {0}")]
-    UnknownFileKindCode(u8),
-}
-
 #[cfg(test)]
 mod test {
     use super::FilesystemKind;
