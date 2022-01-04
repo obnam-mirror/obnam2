@@ -8,6 +8,50 @@ of Obnam, the backup software. The software is technically called
 ended in 2017 with version number 1.22.
 
 
+# Version 0.7.0, released 2022-01-04
+
+## Breaking changes
+
+* No known breaking changes in this release.
+
+## New or changed features
+
+* Command that retrieve and use backups from the server now verify
+  that the backup's schema is compatible with the running version of
+  Obnam. This means, for example, that `obnam restore` won't try to
+  restore a backup it doesn't know it can restore.
+
+## Internal changes
+
+* Update Subplot step bindings with types for captures to allow
+  Subplot to verify that embedded files in obnam.md are actually used.
+
+* Tidy up code in various ways.
+
+* The Obnam release process now has a step to run `cargo update` after
+  the crate's version number has been updated, so that the
+  `Cargo.lock` file gets updated.
+
+## Changes to documentation
+
+* The `obnam` crate now documents all exported symbols. This should
+  make the crate somewhat less hostile to use.
+
+* The minimum supported Rust version is whatever is going to be in the
+  next Debian stable release (code name bookworm).
+
+## Thank you
+
+Several people have helped with this release, with changes or
+feedback.
+
+* Alexander Batischev
+* Lars Wirzenius
+
+(Our apologies to anyone who's been forgotten.)
+
+
+
 # Version 0.6.0, released 2021-11-20
 
 ## Breaking changes
