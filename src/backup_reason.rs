@@ -7,7 +7,8 @@ use std::fmt;
 /// Represent the reason a file is in a backup.
 #[derive(Debug, Copy, Clone)]
 pub enum Reason {
-    /// File was skipped for some reason, but carried over without changes.
+    /// File was skipped due to policy, but carried over without
+    /// changes.
     Skipped,
     /// File is new, compared to previous backup.
     IsNew,
