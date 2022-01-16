@@ -7,6 +7,7 @@ description = "a backup program"
 license = "AGPL-3.0-or-later"
 homepage = "https://obnam.org/"
 repository = "https://gitlab.com/larswirzenius/obnam"
+rust-version = "1.56.0"
 
 
 [dependencies]
