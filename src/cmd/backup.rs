@@ -1,7 +1,7 @@
 //! The `backup` subcommand.
 
 use crate::backup_run::BackupRun;
-use crate::client::AsyncBackupClient;
+use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::generation::GenId;
@@ -26,7 +26,7 @@ impl Backup {
     async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let runtime = SystemTime::now();
 
-        let client = AsyncBackupClient::new(config)?;
+        let client = BackupClient::new(config)?;
         let genlist = client.list_generations().await?;
 
         let oldtemp = NamedTempFile::new()?;

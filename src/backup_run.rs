@@ -5,7 +5,7 @@ use crate::backup_reason::Reason;
 use crate::chunk::{GenerationChunk, GenerationChunkError};
 use crate::chunker::{Chunker, ChunkerError};
 use crate::chunkid::ChunkId;
-use crate::client::{AsyncBackupClient, ClientError};
+use crate::client::{BackupClient, ClientError};
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
@@ -24,7 +24,7 @@ const SQLITE_CHUNK_SIZE: usize = MIB as usize;
 
 /// A running backup.
 pub struct BackupRun<'a> {
-    client: &'a AsyncBackupClient,
+    client: &'a BackupClient,
     policy: BackupPolicy,
     buffer_size: usize,
     progress: Option<BackupProgress>,
@@ -95,10 +95,7 @@ pub struct RootsBackupOutcome {
 
 impl<'a> BackupRun<'a> {
     /// Create a new run for an initial backup.
-    pub fn initial(
-        config: &ClientConfig,
-        client: &'a AsyncBackupClient,
-    ) -> Result<Self, BackupError> {
+    pub fn initial(config: &ClientConfig, client: &'a BackupClient) -> Result<Self, BackupError> {
         Ok(Self {
             client,
             policy: BackupPolicy::default(),
@@ -110,7 +107,7 @@ impl<'a> BackupRun<'a> {
     /// Create a new run for an incremental backup.
     pub fn incremental(
         config: &ClientConfig,
-        client: &'a AsyncBackupClient,
+        client: &'a BackupClient,
     ) -> Result<Self, BackupError> {
         Ok(Self {
             client,
