@@ -1,6 +1,6 @@
 //! The `list` subcommand.
 
-use crate::client::AsyncBackupClient;
+use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use structopt::StructOpt;
@@ -18,7 +18,7 @@ impl List {
     }
 
     async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
-        let client = AsyncBackupClient::new(config)?;
+        let client = BackupClient::new(config)?;
 
         let generations = client.list_generations().await?;
         for finished in generations.iter() {

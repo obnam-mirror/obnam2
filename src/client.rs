@@ -96,18 +96,16 @@ pub enum ClientError {
 }
 
 /// Client for the Obnam server HTTP API.
-///
-/// This is the async version.
-pub struct AsyncBackupClient {
-    chunk_client: AsyncChunkClient,
+pub struct BackupClient {
+    chunk_client: ChunkClient,
 }
 
-impl AsyncBackupClient {
+impl BackupClient {
     /// Create a new backup client.
     pub fn new(config: &ClientConfig) -> Result<Self, ClientError> {
         info!("creating backup client with config: {:#?}", config);
         Ok(Self {
-            chunk_client: AsyncChunkClient::new(config)?,
+            chunk_client: ChunkClient::new(config)?,
         })
     }
 
@@ -162,13 +160,13 @@ impl AsyncBackupClient {
 }
 
 /// Client for using chunk part of Obnam server HTTP API.
-pub struct AsyncChunkClient {
+pub struct ChunkClient {
     client: reqwest::Client,
     base_url: String,
     cipher: CipherEngine,
 }
 
-impl AsyncChunkClient {
+impl ChunkClient {
     /// Create a new chunk client.
     pub fn new(config: &ClientConfig) -> Result<Self, ClientError> {
         let pass = config.passwords()?;
