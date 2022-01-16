@@ -1,7 +1,7 @@
 //! The `restore` subcommand.
 
 use crate::backup_reason::Reason;
-use crate::client::{AsyncBackupClient, ClientError};
+use crate::client::{BackupClient, ClientError};
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
@@ -43,7 +43,7 @@ impl Restore {
     async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let temp = NamedTempFile::new()?;
 
-        let client = AsyncBackupClient::new(config)?;
+        let client = BackupClient::new(config)?;
 
         let genlist = client.list_generations().await?;
         let gen_id = genlist.resolve(&self.gen_id)?;
@@ -130,7 +130,7 @@ pub enum RestoreError {
 }
 
 async fn restore_generation(
-    client: &AsyncBackupClient,
+    client: &BackupClient,
     gen: &LocalGeneration,
     fileid: i64,
     entry: &FilesystemEntry,
@@ -182,7 +182,7 @@ fn restored_path(entry: &FilesystemEntry, to: &Path) -> Result<PathBuf, RestoreE
 }
 
 async fn restore_regular(
-    client: &AsyncBackupClient,
+    client: &BackupClient,
     gen: &LocalGeneration,
     path: &Path,
     fileid: i64,

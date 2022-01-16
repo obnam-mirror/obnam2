@@ -1,6 +1,6 @@
 //! The `resolve` subcommand.
 
-use crate::client::AsyncBackupClient;
+use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use structopt::StructOpt;
@@ -21,7 +21,7 @@ impl Resolve {
     }
 
     async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
-        let client = AsyncBackupClient::new(config)?;
+        let client = BackupClient::new(config)?;
         let generations = client.list_generations().await?;
 
         match generations.resolve(&self.generation) {

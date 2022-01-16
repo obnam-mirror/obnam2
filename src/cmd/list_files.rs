@@ -1,7 +1,7 @@
 //! The `list-files` subcommand.
 
 use crate::backup_reason::Reason;
-use crate::client::AsyncBackupClient;
+use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
@@ -27,7 +27,7 @@ impl ListFiles {
     async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let temp = NamedTempFile::new()?;
 
-        let client = AsyncBackupClient::new(config)?;
+        let client = BackupClient::new(config)?;
 
         let genlist = client.list_generations().await?;
         let gen_id = genlist.resolve(&self.gen_id)?;

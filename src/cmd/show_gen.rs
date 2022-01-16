@@ -1,6 +1,6 @@
 //! The `show-generation` subcommand.
 
-use crate::client::AsyncBackupClient;
+use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::FilesystemKind;
@@ -26,7 +26,7 @@ impl ShowGeneration {
 
     async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let temp = NamedTempFile::new()?;
-        let client = AsyncBackupClient::new(config)?;
+        let client = BackupClient::new(config)?;
 
         let genlist = client.list_generations().await?;
         let gen_id = genlist.resolve(&self.gen_id)?;
