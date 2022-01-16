@@ -1,7 +1,3 @@
----
-title: Release checklist for Obnam
-...
-
 # Release checklist for Obnam
 
 Follow these steps to make a release of Obnam.
