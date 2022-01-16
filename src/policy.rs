@@ -6,6 +6,15 @@ use crate::generation::LocalGeneration;
 use log::{debug, warn};
 
 /// Policy for what gets backed up.
+///
+/// The policy allows two aspects to be controlled:
+///
+/// * should new files )(files that didn't exist in the previous
+///   backup be included in the new backup?
+/// * should files that haven't been changed since the previous backup
+///   be included in the new backup?
+///
+/// If policy doesn't allow a file to be included, it's skipped.
 pub struct BackupPolicy {
     new: bool,
     old_if_changed: bool,
