@@ -118,6 +118,10 @@ in an automated way:
   that their own data leaks, or even its existence leaks, to anyone.
 * _Not done:_ **Shared backups:** People who do trust each other
   should be able to share backed up data in the repository.
+* _Done:_ **Limited local cache:** The Obnam client may cache data
+  from the server locally, but the cache should small, and its size
+  must not be proportional to the amount of live data or the amount of
+  data on the server.
 
 The detailed, automatically verified acceptance criteria are
 documented below, as _scenarios_ described for the [Subplot][] tool.
