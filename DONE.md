@@ -1,7 +1,3 @@
----
-title: Definition of done
-...
-
 # Definition of done
 
 This definition is not meant to be petty bureaucracy. It's meant to be

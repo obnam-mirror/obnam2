@@ -1,7 +1,3 @@
----
-title: Obnam &mdash; a backup system
-...
-
 # Obnam &mdash; a backup system
 
 Obnam2 is a project to develop a backup system.

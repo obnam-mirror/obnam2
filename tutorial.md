@@ -1,6 +1,4 @@
----
-title: Obnam tutorial
-...
+# Obnam tutorial
 
 With the help of this tutorial, you're going to set up Obnam, make your first
 backup, and check that you can restore files from it.

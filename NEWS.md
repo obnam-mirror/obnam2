@@ -1,6 +1,4 @@
----
-title: Release notes for Obnam2
-...
+# Release notes for Obnam2
 
 This file summarizes changes between releases of the second generation
 of Obnam, the backup software. The software is technically called
