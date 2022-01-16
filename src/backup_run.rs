@@ -3,7 +3,7 @@
 use crate::backup_progress::BackupProgress;
 use crate::backup_reason::Reason;
 use crate::chunk::{GenerationChunk, GenerationChunkError};
-use crate::chunker::{Chunker, ChunkerError};
+use crate::chunker::{ChunkerError, FileChunks};
 use crate::chunkid::ChunkId;
 use crate::client::{BackupClient, ClientError};
 use crate::config::ClientConfig;
@@ -358,7 +358,7 @@ impl<'a> BackupRun<'a> {
         let mut chunk_ids = vec![];
         let file = std::fs::File::open(filename)
             .map_err(|err| ClientError::FileOpen(filename.to_path_buf(), err))?;
-        let chunker = Chunker::new(size, file, filename);
+        let chunker = FileChunks::new(size, file, filename);
         for item in chunker {
             let chunk = item?;
             if let Some(chunk_id) = self.client.has_chunk(chunk.meta()).await? {

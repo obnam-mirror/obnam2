@@ -7,7 +7,7 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 /// Iterator over chunks in a file.
-pub struct Chunker {
+pub struct FileChunks {
     chunk_size: usize,
     buf: Vec<u8>,
     filename: PathBuf,
@@ -22,7 +22,7 @@ pub enum ChunkerError {
     FileRead(PathBuf, std::io::Error),
 }
 
-impl Chunker {
+impl FileChunks {
     /// Create new iterator.
     pub fn new(chunk_size: usize, handle: std::fs::File, filename: &Path) -> Self {
         let mut buf = vec![];
@@ -61,7 +61,7 @@ impl Chunker {
     }
 }
 
-impl Iterator for Chunker {
+impl Iterator for FileChunks {
     type Item = Result<DataChunk, ChunkerError>;
 
     /// Return the next chunk, if any, or an error.
