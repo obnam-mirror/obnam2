@@ -8,7 +8,6 @@
 pub mod backup_progress;
 pub mod backup_reason;
 pub mod backup_run;
-pub mod benchmark;
 pub mod checksummer;
 pub mod chunk;
 pub mod chunker;
