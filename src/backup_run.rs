@@ -234,7 +234,8 @@ impl<'a> BackupRun<'a> {
                         Err(err) => {
                             warnings.push(err);
                         }
-                        Ok(o) => {
+                        Ok(None) => (),
+                        Ok(Some(o)) => {
                             if let Err(err) =
                                 new.insert(o.entry, &o.ids, o.reason, o.is_cachedir_tag)
                             {
@@ -257,16 +258,17 @@ impl<'a> BackupRun<'a> {
         &self,
         entry: AnnotatedFsEntry,
         old: &LocalGeneration,
-    ) -> Result<FsEntryBackupOutcome, BackupError> {
+    ) -> Result<Option<FsEntryBackupOutcome>, BackupError> {
         let path = &entry.inner.pathbuf();
         info!("backup: {}", path.display());
         self.found_live_file(path);
         let reason = self.policy.needs_backup(old, &entry.inner);
         match reason {
             Reason::IsNew | Reason::Changed | Reason::GenerationLookupError | Reason::Unknown => {
-                Ok(self.backup_one_entry(&entry, path, reason).await)
+                Ok(Some(self.backup_one_entry(&entry, path, reason).await))
             }
-            Reason::Unchanged | Reason::Skipped | Reason::FileError => {
+            Reason::Skipped => Ok(None),
+            Reason::Unchanged | Reason::FileError => {
                 let fileno = old.get_fileno(&entry.inner.pathbuf())?;
                 let ids = if let Some(fileno) = fileno {
                     let mut ids = vec![];
@@ -277,12 +279,12 @@ impl<'a> BackupRun<'a> {
                 } else {
                     vec![]
                 };
-                Ok(FsEntryBackupOutcome {
+                Ok(Some(FsEntryBackupOutcome {
                     entry: entry.inner,
                     ids,
                     reason,
                     is_cachedir_tag: entry.is_cachedir_tag,
-                })
+                }))
             }
         }
     }
