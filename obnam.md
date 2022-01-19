@@ -119,7 +119,7 @@ in an automated way:
 * _Not done:_ **Shared backups:** People who do trust each other
   should be able to share backed up data in the repository.
 * _Done:_ **Limited local cache:** The Obnam client may cache data
-  from the server locally, but the cache should small, and its size
+  from the server locally, but the cache should be small, and its size
   must not be proportional to the amount of live data or the amount of
   data on the server.
 
