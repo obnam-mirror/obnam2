@@ -2,19 +2,13 @@
 
 use crate::backup_reason::Reason;
 use crate::chunkid::ChunkId;
-use crate::dbgen::FileId;
+use crate::dbgen::{FileId, SCHEMA_MAJOR, SCHEMA_MINOR};
 use crate::fsentry::FilesystemEntry;
 use rusqlite::Connection;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
-
-/// Current generation database schema major version.
-const SCHEMA_MAJOR: u32 = 0;
-
-/// Current generation database schema minor version.
-const SCHEMA_MINOR: u32 = 0;
 
 /// An identifier for a generation.
 #[derive(Debug, Clone)]
