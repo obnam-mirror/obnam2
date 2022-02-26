@@ -2,6 +2,7 @@
 
 use crate::backup_reason::Reason;
 use crate::chunkid::ChunkId;
+use crate::dbgen::FileId;
 use crate::fsentry::FilesystemEntry;
 use rusqlite::Connection;
 use serde::Serialize;
@@ -14,9 +15,6 @@ const SCHEMA_MAJOR: u32 = 0;
 
 /// Current generation database schema minor version.
 const SCHEMA_MINOR: u32 = 0;
-
-/// An identifier for a file in a generation.
-type FileId = i64;
 
 /// An identifier for a generation.
 #[derive(Debug, Clone)]
@@ -250,7 +248,7 @@ impl LocalGeneration {
     }
 
     /// How many files are there in the local generation?
-    pub fn file_count(&self) -> Result<i64, LocalGenerationError> {
+    pub fn file_count(&self) -> Result<FileId, LocalGenerationError> {
         sql::file_count(&self.conn)
     }
 

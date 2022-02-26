@@ -3,6 +3,7 @@
 use crate::backup_run::BackupRun;
 use crate::client::BackupClient;
 use crate::config::ClientConfig;
+use crate::dbgen::FileId;
 use crate::error::ObnamError;
 use crate::generation::GenId;
 
@@ -76,7 +77,7 @@ impl Backup {
 
 fn report_stats(
     runtime: &SystemTime,
-    file_count: i64,
+    file_count: FileId,
     gen_id: &GenId,
     num_warnings: usize,
 ) -> Result<(), ObnamError> {

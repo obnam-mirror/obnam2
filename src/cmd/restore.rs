@@ -3,6 +3,7 @@
 use crate::backup_reason::Reason;
 use crate::client::{BackupClient, ClientError};
 use crate::config::ClientConfig;
+use crate::dbgen::FileId;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::{LocalGeneration, LocalGenerationError};
@@ -132,7 +133,7 @@ pub enum RestoreError {
 async fn restore_generation(
     client: &BackupClient,
     gen: &LocalGeneration,
-    fileid: i64,
+    fileid: FileId,
     entry: &FilesystemEntry,
     to: &Path,
     progress: &ProgressBar,
@@ -185,7 +186,7 @@ async fn restore_regular(
     client: &BackupClient,
     gen: &LocalGeneration,
     path: &Path,
-    fileid: i64,
+    fileid: FileId,
     entry: &FilesystemEntry,
 ) -> Result<(), RestoreError> {
     debug!("restoring regular {}", path.display());
@@ -293,9 +294,9 @@ fn path_to_cstring(path: &Path) -> CString {
     CString::new(path).unwrap()
 }
 
-fn create_progress_bar(file_count: i64, verbose: bool) -> ProgressBar {
+fn create_progress_bar(file_count: FileId, verbose: bool) -> ProgressBar {
     let progress = if verbose {
-        ProgressBar::new(file_count as u64)
+        ProgressBar::new(file_count)
     } else {
         ProgressBar::hidden()
     };

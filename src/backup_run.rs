@@ -7,6 +7,7 @@ use crate::chunker::{ChunkerError, FileChunks};
 use crate::chunkid::ChunkId;
 use crate::client::{BackupClient, ClientError};
 use crate::config::ClientConfig;
+use crate::dbgen::FileId;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::fsiter::{AnnotatedFsEntry, FsIterError, FsIterator};
@@ -84,7 +85,7 @@ struct OneRootBackupOutcome {
 #[derive(Debug)]
 pub struct RootsBackupOutcome {
     /// The number of backed up files.
-    pub files_count: i64,
+    pub files_count: FileId,
     /// The errors encountered while backing up files.
     pub warnings: Vec<BackupError>,
     /// CACHEDIR.TAG files that aren't present in in a previous generation.
