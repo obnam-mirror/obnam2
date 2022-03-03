@@ -7,6 +7,7 @@ use crate::chunker::{ChunkerError, FileChunks};
 use crate::chunkid::ChunkId;
 use crate::client::{BackupClient, ClientError};
 use crate::config::ClientConfig;
+use crate::db::DatabaseError;
 use crate::dbgen::FileId;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
@@ -49,6 +50,10 @@ pub enum BackupError {
     /// An error using an existing backup's metadata.
     #[error(transparent)]
     LocalGenerationError(#[from] LocalGenerationError),
+
+    /// An error using a Database.
+    #[error(transparent)]
+    Database(#[from] DatabaseError),
 
     /// An error splitting data into chunks.
     #[error(transparent)]
@@ -127,7 +132,7 @@ impl<'a> BackupRun<'a> {
         match genid {
             None => {
                 // Create a new, empty generation.
-                NascentGeneration::create(oldname)?;
+                NascentGeneration::create(oldname)?.close()?;
 
                 // Open the newly created empty generation.
                 Ok(LocalGeneration::open(oldname)?)
@@ -191,7 +196,9 @@ impl<'a> BackupRun<'a> {
                     }
                 }
             }
-            new.file_count()
+            let count = new.file_count();
+            new.close()?;
+            count
         };
         self.finish();
         let gen_id = self.upload_nascent_generation(newpath).await?;

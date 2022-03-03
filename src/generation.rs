@@ -2,9 +2,9 @@
 
 use crate::backup_reason::Reason;
 use crate::chunkid::ChunkId;
-use crate::dbgen::{FileId, SCHEMA_MAJOR, SCHEMA_MINOR};
+use crate::db::{DatabaseError, SqlResults};
+use crate::dbgen::{FileId, GenerationDb, GenerationDbError, SCHEMA_MAJOR, SCHEMA_MINOR};
 use crate::fsentry::FilesystemEntry;
-use rusqlite::Connection;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
@@ -43,7 +43,7 @@ impl fmt::Display for GenId {
 /// finished yet, and it's not actually on the server until the upload
 /// of its generation chunk.
 pub struct NascentGeneration {
-    conn: Connection,
+    db: GenerationDb,
     fileno: FileId,
 }
 
@@ -57,6 +57,10 @@ pub enum NascentError {
     /// Error using a local generation.
     #[error(transparent)]
     LocalGenerationError(#[from] LocalGenerationError),
+
+    /// Error from a GenerationDb.
+    #[error(transparent)]
+    GenerationDb(#[from] GenerationDbError),
 
     /// Error from an SQL transaction.
     #[error("SQL transaction error: {0}")]
@@ -77,8 +81,13 @@ impl NascentGeneration {
     where
         P: AsRef<Path>,
     {
-        let conn = sql::create_db(filename.as_ref())?;
-        Ok(Self { conn, fileno: 0 })
+        let db = GenerationDb::create(filename.as_ref())?;
+        Ok(Self { db, fileno: 0 })
+    }
+
+    /// Commit any changes, and close the database.
+    pub fn close(self) -> Result<(), NascentError> {
+        self.db.close().map_err(NascentError::GenerationDb)
     }
 
     /// How many files are there now in the nascent generation?
@@ -94,10 +103,9 @@ impl NascentGeneration {
         reason: Reason,
         is_cachedir_tag: bool,
     ) -> Result<(), NascentError> {
-        let t = self.conn.transaction().map_err(NascentError::Transaction)?;
         self.fileno += 1;
-        sql::insert_one(&t, e, self.fileno, ids, reason, is_cachedir_tag)?;
-        t.commit().map_err(NascentError::Commit)?;
+        self.db
+            .insert(e, self.fileno, ids, reason, is_cachedir_tag)?;
         Ok(())
     }
 }
@@ -138,7 +146,7 @@ impl FinishedGeneration {
 /// This is for querying an existing generation, and other read-only
 /// operations.
 pub struct LocalGeneration {
-    conn: Connection,
+    db: GenerationDb,
 }
 
 /// Possible errors from using local generations.
@@ -169,6 +177,14 @@ pub enum LocalGenerationError {
     #[error(transparent)]
     RusqliteError(#[from] rusqlite::Error),
 
+    /// Error from a GenerationDb.
+    #[error(transparent)]
+    GenerationDb(#[from] GenerationDbError),
+
+    /// Error from a Database.
+    #[error(transparent)]
+    Database(#[from] DatabaseError),
+
     /// Error from JSON.
     #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
@@ -187,8 +203,7 @@ pub struct BackedUpFile {
 
 impl BackedUpFile {
     /// Create a new `BackedUpFile`.
-    pub fn new(fileno: FileId, entry: FilesystemEntry, reason: &str) -> Self {
-        let reason = Reason::from(reason);
+    pub fn new(fileno: FileId, entry: FilesystemEntry, reason: Reason) -> Self {
         Self {
             fileno,
             entry,
@@ -213,8 +228,8 @@ impl BackedUpFile {
 }
 
 impl LocalGeneration {
-    fn new(conn: Connection) -> Self {
-        Self { conn }
+    fn new(db: GenerationDb) -> Self {
+        Self { db }
     }
 
     /// Open a local file as a local generation.
@@ -222,8 +237,8 @@ impl LocalGeneration {
     where
         P: AsRef<Path>,
     {
-        let conn = sql::open_db(filename.as_ref())?;
-        let gen = Self::new(conn);
+        let db = GenerationDb::open(filename.as_ref())?;
+        let gen = Self::new(db);
         let schema = gen.meta()?.schema_version();
         let our_schema = SchemaVersion::new(SCHEMA_MAJOR, SCHEMA_MINOR);
         if !our_schema.is_compatible_with(&schema) {
@@ -237,26 +252,27 @@ impl LocalGeneration {
 
     /// Return generation metadata for local generation.
     pub fn meta(&self) -> Result<GenMeta, LocalGenerationError> {
-        let map = sql::meta(&self.conn)?;
+        let map = self.db.meta()?;
         GenMeta::from(map)
     }
 
     /// How many files are there in the local generation?
     pub fn file_count(&self) -> Result<FileId, LocalGenerationError> {
-        sql::file_count(&self.conn)
+        Ok(self.db.file_count()?)
     }
 
     /// Return all files in the local generation.
-    pub fn files(&self) -> Result<sql::SqlResults<BackedUpFile>, LocalGenerationError> {
-        sql::files(&self.conn)
+    pub fn files(
+        &self,
+    ) -> Result<SqlResults<(FileId, FilesystemEntry, Reason, bool)>, LocalGenerationError> {
+        self.db.files().map_err(LocalGenerationError::GenerationDb)
     }
 
     /// Return ids for all chunks in local generation.
-    pub fn chunkids(
-        &self,
-        fileno: FileId,
-    ) -> Result<sql::SqlResults<ChunkId>, LocalGenerationError> {
-        sql::chunkids(&self.conn, fileno)
+    pub fn chunkids(&self, fileid: FileId) -> Result<SqlResults<ChunkId>, LocalGenerationError> {
+        self.db
+            .chunkids(fileid)
+            .map_err(LocalGenerationError::GenerationDb)
     }
 
     /// Return entry for a file, given its pathname.
@@ -264,17 +280,23 @@ impl LocalGeneration {
         &self,
         filename: &Path,
     ) -> Result<Option<FilesystemEntry>, LocalGenerationError> {
-        sql::get_file(&self.conn, filename)
+        self.db
+            .get_file(filename)
+            .map_err(LocalGenerationError::GenerationDb)
     }
 
     /// Get the id in the local generation of a file, given its pathname.
     pub fn get_fileno(&self, filename: &Path) -> Result<Option<FileId>, LocalGenerationError> {
-        sql::get_fileno(&self.conn, filename)
+        self.db
+            .get_fileno(filename)
+            .map_err(LocalGenerationError::GenerationDb)
     }
 
     /// Does a pathname refer to a cache directory?
     pub fn is_cachedir_tag(&self, filename: &Path) -> Result<bool, LocalGenerationError> {
-        sql::is_cachedir_tag(&self.conn, filename)
+        self.db
+            .is_cachedir_tag(filename)
+            .map_err(LocalGenerationError::GenerationDb)
     }
 }
 
@@ -385,278 +407,6 @@ mod test_schema {
     }
 }
 
-mod sql {
-    use super::BackedUpFile;
-    use super::FileId;
-    use super::LocalGenerationError;
-    use crate::backup_reason::Reason;
-    use crate::chunkid::ChunkId;
-    use crate::fsentry::FilesystemEntry;
-    use crate::generation::SCHEMA_MAJOR;
-    use crate::generation::SCHEMA_MINOR;
-    use log::debug;
-    use rusqlite::{params, Connection, OpenFlags, Row, Statement, Transaction};
-    use std::collections::HashMap;
-    use std::os::unix::ffi::OsStrExt;
-    use std::path::Path;
-
-    /// Create a new database in a file.
-    pub fn create_db(filename: &Path) -> Result<Connection, LocalGenerationError> {
-        let flags = OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_READ_WRITE;
-        let conn = Connection::open_with_flags(filename, flags)?;
-        conn.execute("CREATE TABLE meta (key TEXT, value TEXT)", params![])?;
-        init_meta(&conn)?;
-        conn.execute(
-            "CREATE TABLE files (fileno INTEGER PRIMARY KEY, filename BLOB, json TEXT, reason TEXT, is_cachedir_tag BOOLEAN)",
-            params![],
-        )?;
-        conn.execute(
-            "CREATE TABLE chunks (fileno INTEGER, chunkid TEXT)",
-            params![],
-        )?;
-        conn.execute("CREATE INDEX filenames ON files (filename)", params![])?;
-        conn.execute("CREATE INDEX filenos ON chunks (fileno)", params![])?;
-        conn.pragma_update(None, "journal_mode", &"WAL")?;
-        Ok(conn)
-    }
-
-    fn init_meta(conn: &Connection) -> Result<(), LocalGenerationError> {
-        conn.execute(
-            "INSERT INTO meta (key, value) VALUES (?1, ?2)",
-            params!["schema_version_major", SCHEMA_MAJOR],
-        )?;
-        conn.execute(
-            "INSERT INTO meta (key, value) VALUES (?1, ?2)",
-            params!["schema_version_minor", SCHEMA_MINOR],
-        )?;
-        Ok(())
-    }
-
-    /// Open an existing database in a file.
-    pub fn open_db(filename: &Path) -> Result<Connection, LocalGenerationError> {
-        let flags = OpenFlags::SQLITE_OPEN_READ_WRITE;
-        let conn = Connection::open_with_flags(filename, flags)?;
-        conn.pragma_update(None, "journal_mode", &"WAL")?;
-        Ok(conn)
-    }
-
-    /// Return generation metadata from a database.
-    pub fn meta(conn: &Connection) -> Result<HashMap<String, String>, LocalGenerationError> {
-        let mut stmt = conn.prepare("SELECT key, value FROM meta")?;
-        let iter = stmt.query_map(params![], row_to_key_value)?;
-        let mut map = HashMap::new();
-        for r in iter {
-            let (key, value) = r?;
-            map.insert(key, value);
-        }
-        Ok(map)
-    }
-
-    fn row_to_key_value(row: &Row) -> rusqlite::Result<(String, String)> {
-        let key: String = row.get("key")?;
-        let value: String = row.get("value")?;
-        Ok((key, value))
-    }
-
-    /// Insert one file system entry into the database.
-    pub fn insert_one(
-        t: &Transaction,
-        e: FilesystemEntry,
-        fileno: FileId,
-        ids: &[ChunkId],
-        reason: Reason,
-        is_cachedir_tag: bool,
-    ) -> Result<(), LocalGenerationError> {
-        let json = serde_json::to_string(&e)?;
-        t.execute(
-            "INSERT INTO files (fileno, filename, json, reason, is_cachedir_tag) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![fileno, path_into_blob(&e.pathbuf()), &json, reason, is_cachedir_tag,],
-        )?;
-        for id in ids {
-            t.execute(
-                "INSERT INTO chunks (fileno, chunkid) VALUES (?1, ?2)",
-                params![fileno, id],
-            )?;
-        }
-        Ok(())
-    }
-
-    fn path_into_blob(path: &Path) -> Vec<u8> {
-        path.as_os_str().as_bytes().to_vec()
-    }
-
-    /// Parse an SQL query result row.
-    pub fn row_to_entry(row: &Row) -> rusqlite::Result<(FileId, String, String)> {
-        let fileno: FileId = row.get("fileno")?;
-        let json: String = row.get("json")?;
-        let reason: String = row.get("reason")?;
-        Ok((fileno, json, reason))
-    }
-
-    /// Count number of file system entries.
-    pub fn file_count(conn: &Connection) -> Result<FileId, LocalGenerationError> {
-        let mut stmt = conn.prepare("SELECT count(*) FROM files")?;
-        let mut iter = stmt.query_map(params![], |row| row.get(0))?;
-        let count = iter.next().expect("SQL count result (1)");
-        let count = count?;
-        Ok(count)
-    }
-
-    // A pointer to a "fallible iterator" over values of type `T`, which is to say it's an iterator
-    // over values of type `Result<T, LocalGenerationError>`. The iterator is only valid for the
-    // lifetime 'stmt.
-    //
-    // The fact that it's a pointer (`Box<dyn ...>`) means we don't care what the actual type of
-    // the iterator is, and who produces it.
-    type SqlResultsIterator<'stmt, T> =
-        Box<dyn Iterator<Item = Result<T, LocalGenerationError>> + 'stmt>;
-
-    // A pointer to a function which, when called on a prepared SQLite statement, would create
-    // a "fallible iterator" over values of type `ItemT`. (See above for an explanation of what
-    // a "fallible iterator" is.)
-    //
-    // The iterator is only valid for the lifetime of the associated SQLite statement; we
-    // call this lifetime 'stmt, and use it both both on the reference and the returned Now.
-    //
-    // we iterator're in a pickle: all named lifetimes have to be declared _somewhere_, but we can't add
-    // 'stmt to the signature of `CreateIterFn` because then we'll have to specify it when we
-    // define the function. Obviously, at that point we won't yet have a `Statement`, and thus we
-    // would have no idea what its lifetime is going to be. So we can't put the 'stmt lifetime into
-    // the signature of `CreateIterFn`.
-    //
-    // That's what `for<'stmt>` is for. This is a so-called ["higher-rank trait bound"][hrtb], and
-    // it enables us to say that a function is valid for *some* lifetime 'stmt that we pass into it
-    // at the call site. It lets Rust continue to track lifetimes even though `CreateIterFn`
-    // interferes by "hiding" the 'stmt lifetime from its signature.
-    //
-    // [hrtb]: https://doc.rust-lang.org/nomicon/hrtb.html
-    type CreateIterFn<'conn, ItemT> = Box<
-        dyn for<'stmt> Fn(
-            &'stmt mut Statement<'conn>,
-        )
-            -> Result<SqlResultsIterator<'stmt, ItemT>, LocalGenerationError>,
-    >;
-
-    /// Iterator of SQL results.
-    pub struct SqlResults<'conn, ItemT> {
-        stmt: Statement<'conn>,
-        create_iter: CreateIterFn<'conn, ItemT>,
-    }
-
-    impl<'conn, ItemT> SqlResults<'conn, ItemT> {
-        fn new(
-            conn: &'conn Connection,
-            statement: &str,
-            create_iter: CreateIterFn<'conn, ItemT>,
-        ) -> Result<Self, LocalGenerationError> {
-            let stmt = conn.prepare(statement)?;
-            Ok(Self { stmt, create_iter })
-        }
-
-        /// Create an iterator over results.
-        pub fn iter(&'_ mut self) -> Result<SqlResultsIterator<'_, ItemT>, LocalGenerationError> {
-            (self.create_iter)(&mut self.stmt)
-        }
-    }
-
-    /// Return all file system entries in database.
-    pub fn files(conn: &Connection) -> Result<SqlResults<BackedUpFile>, LocalGenerationError> {
-        SqlResults::new(
-            conn,
-            "SELECT * FROM files",
-            Box::new(|stmt| {
-                let iter = stmt.query_map(params![], row_to_entry)?;
-                let iter = iter.map(|x| match x {
-                    Ok((fileno, json, reason)) => serde_json::from_str(&json)
-                        .map(|entry| BackedUpFile::new(fileno, entry, &reason))
-                        .map_err(|e| e.into()),
-                    Err(e) => Err(e.into()),
-                });
-                Ok(Box::new(iter))
-            }),
-        )
-    }
-
-    /// Return all chunk ids in database.
-    pub fn chunkids(
-        conn: &Connection,
-        fileno: FileId,
-    ) -> Result<SqlResults<ChunkId>, LocalGenerationError> {
-        SqlResults::new(
-            conn,
-            "SELECT chunkid FROM chunks WHERE fileno = ?1",
-            Box::new(move |stmt| {
-                let iter = stmt.query_map(params![fileno], |row| row.get(0))?;
-                let iter = iter.map(|x| {
-                    let fileno: String = x?;
-                    Ok(ChunkId::from(&fileno))
-                });
-                Ok(Box::new(iter))
-            }),
-        )
-    }
-
-    /// Get a file's information given its path.
-    pub fn get_file(
-        conn: &Connection,
-        filename: &Path,
-    ) -> Result<Option<FilesystemEntry>, LocalGenerationError> {
-        match get_file_and_fileno(conn, filename)? {
-            None => Ok(None),
-            Some((_, e, _)) => Ok(Some(e)),
-        }
-    }
-
-    /// Get a file's information given it's id in the database.
-    pub fn get_fileno(
-        conn: &Connection,
-        filename: &Path,
-    ) -> Result<Option<FileId>, LocalGenerationError> {
-        match get_file_and_fileno(conn, filename)? {
-            None => Ok(None),
-            Some((id, _, _)) => Ok(Some(id)),
-        }
-    }
-
-    fn get_file_and_fileno(
-        conn: &Connection,
-        filename: &Path,
-    ) -> Result<Option<(FileId, FilesystemEntry, String)>, LocalGenerationError> {
-        let mut stmt = conn.prepare("SELECT * FROM files WHERE filename = ?1")?;
-        let mut iter = stmt.query_map(params![path_into_blob(filename)], row_to_entry)?;
-        match iter.next() {
-            None => Ok(None),
-            Some(Err(e)) => {
-                debug!("database lookup error: {}", e);
-                Err(e.into())
-            }
-            Some(Ok((fileno, json, reason))) => {
-                let entry = serde_json::from_str(&json)?;
-                if iter.next() == None {
-                    Ok(Some((fileno, entry, reason)))
-                } else {
-                    debug!("too many files in file lookup");
-                    Err(LocalGenerationError::TooManyFiles(filename.to_path_buf()))
-                }
-            }
-        }
-    }
-
-    /// Does a path refer to a cache directory?
-    pub fn is_cachedir_tag(
-        conn: &Connection,
-        filename: &Path,
-    ) -> Result<bool, LocalGenerationError> {
-        let mut stmt = conn.prepare("SELECT is_cachedir_tag FROM files WHERE filename = ?1")?;
-        let mut iter = stmt.query_map(params![path_into_blob(filename)], |row| row.get(0))?;
-        match iter.next() {
-            // File is missing, so it's definitely not a CACHEDIR.TAG
-            None => Ok(false),
-            Some(result) => Ok(result?),
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::{LocalGeneration, NascentGeneration};
@@ -681,7 +431,7 @@ mod test {
         use crate::{
             backup_reason::Reason, backup_run::FsEntryBackupOutcome, fsentry::FilesystemEntry,
         };
-        use std::{fs::metadata, mem::drop, path::Path};
+        use std::{fs::metadata, path::Path};
 
         // Create a `Metadata` structure to pass to other functions (we don't care about the
         // contents)
@@ -732,7 +482,7 @@ mod test {
                 .unwrap();
         }
 
-        drop(gen);
+        gen.close().unwrap();
 
         let gen = LocalGeneration::open(dbfile).unwrap();
         assert!(!gen.is_cachedir_tag(nontag_path1).unwrap());

@@ -197,14 +197,18 @@ impl GenerationDb {
 
     /// Does a path refer to a cache directory?
     pub fn is_cachedir_tag(&self, filename: &Path) -> Result<bool, GenerationDbError> {
-        let filename = path_into_blob(filename);
-        let value = Value::blob("filename", &filename);
+        let filename_vec = path_into_blob(filename);
+        let value = Value::blob("filename", &filename_vec);
         let mut rows = self.db.some_rows(&self.files, &value, &row_to_entry)?;
         let mut iter = rows.iter()?;
 
         if let Some(row) = iter.next() {
+            // Make sure there's only one row for a given filename. A
+            // bug in a previous version, or a maliciously constructed
+            // generation, could result in there being more than one.
             if iter.next().is_some() {
-                Ok(false)
+                error!("too many files in file lookup");
+                Err(GenerationDbError::TooManyFiles(filename.to_path_buf()))
             } else {
                 let (_, _, _, is_cachedir_tag) = row?;
                 Ok(is_cachedir_tag)
@@ -220,7 +224,7 @@ impl GenerationDb {
         Ok(self.db.some_rows(&self.chunks, &fileid, &row_to_chunkid)?)
     }
 
-    /// Return all chunk ids in database.
+    /// Return all file descriptions in database.
     pub fn files(
         &self,
     ) -> Result<SqlResults<(FileId, FilesystemEntry, Reason, bool)>, GenerationDbError> {
@@ -235,7 +239,7 @@ impl GenerationDb {
         }
     }
 
-    /// Get a file's information given it's id in the database.
+    /// Get a file's information given its id in the database.
     pub fn get_fileno(&self, filename: &Path) -> Result<Option<FileId>, GenerationDbError> {
         match self.get_file_and_fileno(filename)? {
             None => Ok(None),
@@ -253,6 +257,9 @@ impl GenerationDb {
         let mut iter = rows.iter()?;
 
         if let Some(row) = iter.next() {
+            // Make sure there's only one row for a given filename. A
+            // bug in a previous version, or a maliciously constructed
+            // generation, could result in there being more than one.
             if iter.next().is_some() {
                 error!("too many files in file lookup");
                 Err(GenerationDbError::TooManyFiles(filename.to_path_buf()))

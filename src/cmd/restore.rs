@@ -3,6 +3,7 @@
 use crate::backup_reason::Reason;
 use crate::client::{BackupClient, ClientError};
 use crate::config::ClientConfig;
+use crate::db::DatabaseError;
 use crate::dbgen::FileId;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
@@ -54,26 +55,16 @@ impl Restore {
         info!("restoring {} files", gen.file_count()?);
         let progress = create_progress_bar(gen.file_count()?, true);
         for file in gen.files()?.iter()? {
-            let file = file?;
-            match file.reason() {
+            let (fileno, entry, reason, _) = file?;
+            match reason {
                 Reason::FileError => (),
-                _ => {
-                    restore_generation(
-                        &client,
-                        &gen,
-                        file.fileno(),
-                        file.entry(),
-                        &self.to,
-                        &progress,
-                    )
-                    .await?
-                }
+                _ => restore_generation(&client, &gen, fileno, &entry, &self.to, &progress).await?,
             }
         }
         for file in gen.files()?.iter()? {
-            let file = file?;
-            if file.entry().is_dir() {
-                restore_directory_metadata(file.entry(), &self.to)?;
+            let (_, entry, _, _) = file?;
+            if entry.is_dir() {
+                restore_directory_metadata(&entry, &self.to)?;
             }
         }
         progress.finish();
@@ -85,6 +76,10 @@ impl Restore {
 /// Possible errors from restoring.
 #[derive(Debug, thiserror::Error)]
 pub enum RestoreError {
+    /// An error using a Database.
+    #[error(transparent)]
+    Database(#[from] DatabaseError),
+
     /// Failed to create a name pipe.
     #[error("Could not create named pipe (FIFO) {0}")]
     NamedPipeCreationError(PathBuf),

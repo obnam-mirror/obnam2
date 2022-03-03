@@ -10,7 +10,7 @@ use crate::generation::GenId;
 use log::info;
 use std::time::SystemTime;
 use structopt::StructOpt;
-use tempfile::NamedTempFile;
+use tempfile::tempdir;
 use tokio::runtime::Runtime;
 
 /// Make a backup.
@@ -30,21 +30,22 @@ impl Backup {
         let client = BackupClient::new(config)?;
         let genlist = client.list_generations().await?;
 
-        let oldtemp = NamedTempFile::new()?;
-        let newtemp = NamedTempFile::new()?;
+        let temp = tempdir()?;
+        let oldtemp = temp.path().join("old.db");
+        let newtemp = temp.path().join("new.db");
 
         let (is_incremental, outcome) = match genlist.resolve("latest") {
             Err(_) => {
                 info!("fresh backup without a previous generation");
                 let mut run = BackupRun::initial(config, &client)?;
-                let old = run.start(None, oldtemp.path()).await?;
-                (false, run.backup_roots(config, &old, newtemp.path()).await?)
+                let old = run.start(None, &oldtemp).await?;
+                (false, run.backup_roots(config, &old, &newtemp).await?)
             }
             Ok(old_id) => {
                 info!("incremental backup based on {}", old_id);
                 let mut run = BackupRun::incremental(config, &client)?;
-                let old = run.start(Some(&old_id), oldtemp.path()).await?;
-                (true, run.backup_roots(config, &old, newtemp.path()).await?)
+                let old = run.start(Some(&old_id), &oldtemp).await?;
+                (true, run.backup_roots(config, &old, &newtemp).await?)
             }
         };
 
