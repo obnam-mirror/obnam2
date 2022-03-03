@@ -8,6 +8,7 @@ use std::fs::{FileType, Metadata};
 use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::FileTypeExt;
 use std::path::{Path, PathBuf};
+use users::{Groups, Users, UsersCache};
 
 #[cfg(target_os = "linux")]
 use std::os::linux::fs::MetadataExt;
@@ -69,7 +70,11 @@ pub enum FsEntryError {
 #[allow(clippy::len_without_is_empty)]
 impl FilesystemEntry {
     /// Create an `FsEntry` from a file's metadata.
-    pub fn from_metadata(path: &Path, meta: &Metadata) -> Result<Self, FsEntryError> {
+    pub fn from_metadata(
+        path: &Path,
+        meta: &Metadata,
+        cache: &mut UsersCache,
+    ) -> Result<Self, FsEntryError> {
         let kind = FilesystemKind::from_file_type(meta.file_type());
         let symlink_target = if kind == FilesystemKind::Symlink {
             debug!("reading symlink target for {:?}", path);
@@ -82,6 +87,16 @@ impl FilesystemEntry {
 
         let uid = meta.st_uid();
         let gid = meta.st_gid();
+        let user: String = if let Some(user) = cache.get_user_by_uid(uid) {
+            user.name().to_string_lossy().to_string()
+        } else {
+            "".to_string()
+        };
+        let group = if let Some(group) = cache.get_group_by_gid(gid) {
+            group.name().to_string_lossy().to_string()
+        } else {
+            "".to_string()
+        };
 
         Ok(Self {
             path: path.to_path_buf().into_os_string().into_vec(),
@@ -95,8 +110,8 @@ impl FilesystemEntry {
             symlink_target,
             uid,
             gid,
-            user: get_username(uid),
-            group: get_groupname(gid),
+            user,
+            group,
         })
     }
 
@@ -149,20 +164,6 @@ impl FilesystemEntry {
     /// Return target of the symlink the entry represents.
     pub fn symlink_target(&self) -> Option<PathBuf> {
         self.symlink_target.clone()
-    }
-}
-
-fn get_username(uid: u32) -> String {
-    match users::get_user_by_uid(uid) {
-        None => "".to_string(),
-        Some(user) => user.name().to_os_string().to_string_lossy().into_owned(),
-    }
-}
-
-fn get_groupname(gid: u32) -> String {
-    match users::get_group_by_gid(gid) {
-        None => "".to_string(),
-        Some(group) => group.name().to_os_string().to_string_lossy().into_owned(),
     }
 }
 

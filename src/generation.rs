@@ -446,16 +446,17 @@ mod test {
         let tag_path2 = Path::new("/another_dir/a_tag");
 
         let mut gen = NascentGeneration::create(&dbfile).unwrap();
+        let mut cache = users::UsersCache::new();
 
         gen.insert(
-            FilesystemEntry::from_metadata(nontag_path1, &metadata).unwrap(),
+            FilesystemEntry::from_metadata(nontag_path1, &metadata, &mut cache).unwrap(),
             &[],
             Reason::IsNew,
             false,
         )
         .unwrap();
         gen.insert(
-            FilesystemEntry::from_metadata(tag_path1, &metadata).unwrap(),
+            FilesystemEntry::from_metadata(tag_path1, &metadata, &mut cache).unwrap(),
             &[],
             Reason::IsNew,
             true,
@@ -464,13 +465,13 @@ mod test {
 
         let entries = vec![
             FsEntryBackupOutcome {
-                entry: FilesystemEntry::from_metadata(nontag_path2, &metadata).unwrap(),
+                entry: FilesystemEntry::from_metadata(nontag_path2, &metadata, &mut cache).unwrap(),
                 ids: vec![],
                 reason: Reason::IsNew,
                 is_cachedir_tag: false,
             },
             FsEntryBackupOutcome {
-                entry: FilesystemEntry::from_metadata(tag_path2, &metadata).unwrap(),
+                entry: FilesystemEntry::from_metadata(tag_path2, &metadata, &mut cache).unwrap(),
                 ids: vec![],
                 reason: Reason::IsNew,
                 is_cachedir_tag: true,
