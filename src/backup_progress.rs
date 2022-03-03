@@ -4,6 +4,8 @@ use crate::generation::GenId;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::path::Path;
 
+const SHOW_PROGRESS: bool = true;
+
 /// A progress bar abstraction specific to backups.
 ///
 /// The progress bar is different for initial and incremental backups,
@@ -15,7 +17,7 @@ pub struct BackupProgress {
 impl BackupProgress {
     /// Create a progress bar for an initial backup.
     pub fn initial() -> Self {
-        let progress = if true {
+        let progress = if SHOW_PROGRESS {
             ProgressBar::new(0)
         } else {
             ProgressBar::hidden()
@@ -35,7 +37,7 @@ impl BackupProgress {
 
     /// Create a progress bar for an incremental backup.
     pub fn incremental() -> Self {
-        let progress = if true {
+        let progress = if SHOW_PROGRESS {
             ProgressBar::new(0)
         } else {
             ProgressBar::hidden()
