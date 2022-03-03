@@ -123,7 +123,6 @@ impl Iterator for SkipCachedirs {
     fn next(&mut self) -> Option<Self::Item> {
         self.cachedir_tag.take().or_else(|| {
             let next = self.iter.next();
-            //            debug!("walkdir found: {:?}", next);
             match next {
                 None => None,
                 Some(Err(err)) => Some(Err(FsIterError::WalkDir(err))),
@@ -142,7 +141,6 @@ fn new_entry(
     cache: &mut UsersCache,
 ) -> Result<AnnotatedFsEntry, FsIterError> {
     let meta = std::fs::symlink_metadata(path);
-    //    debug!("metadata for {:?}: {:?}", path, meta);
     let meta = match meta {
         Ok(meta) => meta,
         Err(err) => {
@@ -151,7 +149,6 @@ fn new_entry(
         }
     };
     let entry = FilesystemEntry::from_metadata(path, &meta, cache)?;
-    //    debug!("FileSystemEntry for {:?}: {:?}", path, entry);
     let annotated = AnnotatedFsEntry {
         inner: entry,
         is_cachedir_tag,
