@@ -42,6 +42,9 @@ require_cmd pdflatex
 # daemonize installation location changed from Debian 10 to 11.
 require_cmd daemonize || require_cmd /usr/sbin/daemonize
 
+$hideok cargo --version
+$hideok rustc --version
+
 got_cargo_cmd clippy && cargo clippy --all-targets -q
 $hideok cargo build --all-targets
 got_cargo_cmd fmt && $hideok cargo fmt -- --check
