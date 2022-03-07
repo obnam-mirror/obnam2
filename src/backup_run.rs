@@ -7,6 +7,8 @@ use crate::chunker::{ChunkerError, FileChunks};
 use crate::chunkid::ChunkId;
 use crate::client::{BackupClient, ClientError};
 use crate::config::ClientConfig;
+use crate::db::DatabaseError;
+use crate::dbgen::FileId;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::fsiter::{AnnotatedFsEntry, FsIterError, FsIterator};
@@ -49,6 +51,10 @@ pub enum BackupError {
     #[error(transparent)]
     LocalGenerationError(#[from] LocalGenerationError),
 
+    /// An error using a Database.
+    #[error(transparent)]
+    Database(#[from] DatabaseError),
+
     /// An error splitting data into chunks.
     #[error(transparent)]
     ChunkerError(#[from] ChunkerError),
@@ -84,7 +90,7 @@ struct OneRootBackupOutcome {
 #[derive(Debug)]
 pub struct RootsBackupOutcome {
     /// The number of backed up files.
-    pub files_count: i64,
+    pub files_count: FileId,
     /// The errors encountered while backing up files.
     pub warnings: Vec<BackupError>,
     /// CACHEDIR.TAG files that aren't present in in a previous generation.
@@ -126,7 +132,7 @@ impl<'a> BackupRun<'a> {
         match genid {
             None => {
                 // Create a new, empty generation.
-                NascentGeneration::create(oldname)?;
+                NascentGeneration::create(oldname)?.close()?;
 
                 // Open the newly created empty generation.
                 Ok(LocalGeneration::open(oldname)?)
@@ -190,7 +196,9 @@ impl<'a> BackupRun<'a> {
                     }
                 }
             }
-            new.file_count()
+            let count = new.file_count();
+            new.close()?;
+            count
         };
         self.finish();
         let gen_id = self.upload_nascent_generation(newpath).await?;

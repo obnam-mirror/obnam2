@@ -3,7 +3,7 @@
 use crate::backup_reason::Reason;
 use crate::fsentry::FilesystemEntry;
 use crate::generation::LocalGeneration;
-use log::{debug, warn};
+use log::warn;
 
 /// Policy for what gets backed up.
 ///
@@ -59,10 +59,6 @@ impl BackupPolicy {
                 Reason::GenerationLookupError
             }
         };
-        debug!(
-            "needs_backup: file {:?}: policy decision: {}",
-            new_name, reason
-        );
         reason
     }
 }

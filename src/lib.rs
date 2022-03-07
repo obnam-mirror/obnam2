@@ -17,6 +17,8 @@ pub mod cipher;
 pub mod client;
 pub mod cmd;
 pub mod config;
+pub mod db;
+pub mod dbgen;
 pub mod engine;
 pub mod error;
 pub mod fsentry;

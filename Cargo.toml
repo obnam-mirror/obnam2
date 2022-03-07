@@ -2,7 +2,7 @@
 name = "obnam"
 version ="0.7.0"
 authors = ["Lars Wirzenius <liw@liw.fi>"]
-edition = "2018"
+edition = "2021"
 description = "a backup program"
 license = "AGPL-3.0-or-later"
 homepage = "https://obnam.org/"

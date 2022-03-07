@@ -35,8 +35,7 @@ impl ShowGeneration {
         let mut files = files.iter()?;
 
         let total_bytes = files.try_fold(0, |acc, file| {
-            file.map(|file| {
-                let e = file.entry();
+            file.map(|(_, e, _, _)| {
                 if e.kind() == FilesystemKind::Regular {
                     acc + e.len()
                 } else {
