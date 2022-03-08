@@ -6,6 +6,25 @@ of Obnam, the backup software. The software is technically called
 ended in 2017 with version number 1.22.
 
 
+# Version 0.7.1, released 2022-03-08
+
+## Bug fixes
+
+* Skipped files are not added to a new backup.
+
+## Other changes
+
+* Obnam is now much faster when backing up files that haven't changed.
+
+## Thank you
+
+Several people have helped with this release, with changes or
+feedback.
+
+* Alexander Batischev
+* Lars Wirzenius
+
+
 # Version 0.7.0, released 2022-01-04
 
 ## Breaking changes
