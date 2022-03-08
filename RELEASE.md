@@ -45,6 +45,11 @@ steps can hopefully be automated in the future.
 4. Wait for Lars's Ick CI to build the release.
 5. Publish Obnam crate to crates.io:
   - `cargo publish`
+5. Run benchmark for release.
+  - `obnam-benchmark run benchmarks.yaml --obnam vX.Y.Z --output obnam-X.Y.Z.json`
+  - add the output file to the `obnam-benchmark-results` repository
+  - push the updated results repository to Lars's personal CI, to
+    update the result page on the web
 6. Announce new release:
   - obnam.org blog, possibly other blogs
   - `#obnam` IRC channel
