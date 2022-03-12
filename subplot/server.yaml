@@ -31,11 +31,11 @@
     python:
       function: get_chunk_by_id
 
-- when: "I GET /chunks?sha256={sha}"
+- when: "I GET /chunks?label={sha}"
   regex: false
   impl:
     python:
-      function: find_chunks_with_sha
+      function: find_chunks_with_label
 
 - when: "I DELETE /chunks/<{var}>"
   impl:
