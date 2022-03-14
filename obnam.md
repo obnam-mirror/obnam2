@@ -643,28 +643,29 @@ fields:
   - stored
   - restored if restore is running as root, otherwise not restored
 * `st_rdev` &mdash; the device this inode represents
-  - not stored?
+  - not stored
 * `st_size` &mdash; size or length of the file in bytes
   - stored
   - restored implicitly be re-creating the origtinal contents
 * `st_blksize` &mdash; preferred block size for efficient I/O
-  - not stored?
+  - chosen automatically by the operating system, can't be changed
+  - not stored
 * `st_blocks` &mdash; how many blocks of 512 bytes are actually
     allocated to store this file's contents
   - see below for discussion about sparse files
-  - not stored by Obnam
+  - not stored
 * `st_atime` &mdash; timestamp of latest access
   - stored and restored
-  - On Linux, split into two integer fields
+  - On Linux, split into two integer fields to achieve nanosecond resolution
 * `st_mtime` &mdash; timestamp of latest modification
   - stored and restored
-  - On Linux, split into two integer fields
+  - On Linux, split into two integer fields to achieve nanosecond resolution
 * `st_ctime` &mdash; timestamp of latest inode change
-  - On Linux, split into two integer fields
-  - stored
-  - not restored
+  - can't be set by an application, maintained automatically by
+    operating system
+  - not stored
 
-Obnam stores most these fields. Not all of them can be restored,
+Obnam stores most of these fields. Not all of them can be restored,
 especially not explicitly. The `st_dev` and `st_ino` fields get set by
 the file system when when a restored file is created. They're stored
 so that Obnam can restore all hard links to the same inode.
@@ -689,6 +690,15 @@ the file was used instead. Obnam stores the contents of a symbolic
 link, the "target" of the link, and restores the original value
 without modification.
 
+To recognize that filename are hard links to the same file, a program
+needs to use **lstat**(2) on each filename and compare the `st_dev`
+and `st_ino` fields of the result. If they're identical, the filenames
+refer to the same inode. It's important to check both fields so that
+one is certain the resulting data refers to the same inode on the same
+file system. Keeping track of filenames pointing at the same inode can
+be resource intensive. It can be helpful to note that it only needs to
+be done for inodes with an `st_nlink` count greater then one.
+
 ## On access time stamps
 
 The `st_atime` field is automatically updated when a file or directory
@@ -710,14 +720,16 @@ change mount options, or make the file system be read-only. It thus
 needs to use the `NO_ATIME` flag to the [open(2)][] system call.
 
 Obnam does not do this yet. In fact, it doesn't store or restore the
-access time stamp yet.
+access time stamp, and it might never do that. If you have a need for
+that, please open issue on the [Obnam issue
+tracker](https://gitlab.com/obnam/obnam/-/issues).
 
 [open(2)]: https://linux.die.net/man/2/open
 
 ## Time stamp representation
 
 Originally, Unix (and Linux) stored file time stamps as whole seconds
-since the beginning of 1970. Linux now stores timestamp with up to
+since the beginning of 1970. Linux now stores file timestamps with up to
 nanosecond precision, depending on file system type. Obnam handles
 this by storing and restoring nanosecond timestamps. If, when
 restoring, the target file system doesn't support that precision, then
