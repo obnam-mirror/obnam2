@@ -69,8 +69,8 @@ def get_chunk_by_id(ctx, chunk_id=None):
     _request(ctx, requests.get, url)
 
 
-def find_chunks_with_sha(ctx, sha=None):
-    url = f"{ctx['server_url']}/chunks?sha256={sha}"
+def find_chunks_with_label(ctx, sha=None):
+    url = f"{ctx['server_url']}/chunks?label={sha}"
     _request(ctx, requests.get, url)
 
 

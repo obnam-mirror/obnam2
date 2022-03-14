@@ -61,8 +61,8 @@ impl Index {
         sql::remove(&self.conn, id)
     }
 
-    /// Find chunks with a given checksum.
-    pub fn find_by_sha256(&self, sha256: &str) -> Result<Vec<ChunkId>, IndexError> {
+    /// Find chunks with a client-assigned label.
+    pub fn find_by_label(&self, sha256: &str) -> Result<Vec<ChunkId>, IndexError> {
         sql::find_by_256(&self.conn, sha256)
     }
 
@@ -98,7 +98,7 @@ mod test {
         let mut idx = new_index(dir.path());
         idx.insert_meta(id.clone(), meta.clone()).unwrap();
         assert_eq!(idx.get_meta(&id).unwrap(), meta);
-        let ids = idx.find_by_sha256("abc").unwrap();
+        let ids = idx.find_by_label("abc").unwrap();
         assert_eq!(ids, vec![id]);
     }
 
@@ -110,7 +110,7 @@ mod test {
         let dir = tempdir().unwrap();
         let mut idx = new_index(dir.path());
         idx.insert_meta(id, meta).unwrap();
-        assert_eq!(idx.find_by_sha256("def").unwrap().len(), 0)
+        assert_eq!(idx.find_by_label("def").unwrap().len(), 0)
     }
 
     #[test]
@@ -122,7 +122,7 @@ mod test {
         let mut idx = new_index(dir.path());
         idx.insert_meta(id.clone(), meta).unwrap();
         idx.remove_meta(&id).unwrap();
-        let ids: Vec<ChunkId> = idx.find_by_sha256("abc").unwrap();
+        let ids: Vec<ChunkId> = idx.find_by_label("abc").unwrap();
         assert_eq!(ids, vec![]);
     }
 
@@ -193,12 +193,12 @@ mod sql {
     /// Insert a new chunk's metadata into database.
     pub fn insert(t: &Transaction, chunkid: &ChunkId, meta: &ChunkMeta) -> Result<(), IndexError> {
         let chunkid = format!("{}", chunkid);
-        let sha256 = meta.sha256();
+        let label = meta.label();
         let generation = if meta.is_generation() { 1 } else { 0 };
         let ended = meta.ended();
         t.execute(
             "INSERT INTO chunks (id, sha256, generation, ended) VALUES (?1, ?2, ?3, ?4)",
-            params![chunkid, sha256, generation, ended],
+            params![chunkid, label, generation, ended],
         )?;
         Ok(())
     }

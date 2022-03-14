@@ -63,9 +63,9 @@ impl IndexedStore {
         Ok(self.index.get_meta(id)?)
     }
 
-    /// Find chunks with a given checksum.
-    pub fn find_by_sha256(&self, sha256: &str) -> Result<Vec<ChunkId>, IndexedError> {
-        Ok(self.index.find_by_sha256(sha256)?)
+    /// Find chunks with a client-assigned label.
+    pub fn find_by_label(&self, label: &str) -> Result<Vec<ChunkId>, IndexedError> {
+        Ok(self.index.find_by_label(label)?)
     }
 
     /// Find all generations.

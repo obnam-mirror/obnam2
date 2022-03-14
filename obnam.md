@@ -835,12 +835,13 @@ Chunks consist of arbitrary binary data, a small amount of metadata,
 and an identifier chosen by the server. The chunk metadata is a JSON
 object, consisting of the following fields:
 
-* `sha256` &mdash; the SHA256 checksum of the chunk contents as
+* `label` &mdash; the SHA256 checksum of the chunk contents as
   determined by the client
   - this MUST be set for every chunk, including generation chunks
   - the server allows for searching based on this field
   - note that the server doesn't verify this in any way, to pave way
-    for future client-side encryption of the chunk data
+    for future client-side encryption of the chunk data, including the
+    label
 * `generation` &mdash; set to `true` if the chunk represents a
   generation
   - may also be set to `false` or `null` or be missing entirely
@@ -865,7 +866,7 @@ The server has the following API for managing chunks:
   server, return its randomly chosen identifier
 * `GET /chunks/<ID>` &mdash; retrieve a chunk (and its metadata) from
   the server, given a chunk identifier
-* `GET /chunks?sha256=xyzzy` &mdash; find chunks on the server whose
+* `GET /chunks?label=xyzzy` &mdash; find chunks on the server whose
   metadata indicates their contents has a given SHA256 checksum
 * `GET /chunks?generation=true` &mdash; find generation chunks
 * `GET /chunks?data=True` &mdash; find chunks with file data
@@ -903,7 +904,7 @@ metadata are returned in a JSON object:
 ~~~json
 {
   "fe20734b-edb3-432f-83c3-d35fe15969dd": {
-     "sha256": "09ca7e4eaa6e8ae9c7d261167129184883644d07dfba7cbfbc4c8a2e08360d5b",
+     "label": "09ca7e4eaa6e8ae9c7d261167129184883644d07dfba7cbfbc4c8a2e08360d5b",
      "generation": null,
 	 "ended: null,
   }
@@ -1036,7 +1037,7 @@ storage of backed up data.
 ~~~scenario
 given a working Obnam system
 and a file data.dat containing some random data
-when I POST data.dat to /chunks, with chunk-meta: {"sha256":"abc"}
+when I POST data.dat to /chunks, with chunk-meta: {"label":"abc"}
 then HTTP status code is 201
 and content-type is application/json
 and the JSON body has a field chunk_id, henceforth ID
@@ -1049,17 +1050,17 @@ We must be able to retrieve it.
 when I GET /chunks/<ID>
 then HTTP status code is 200
 and content-type is application/octet-stream
-and chunk-meta is {"sha256":"abc","generation":null,"ended":null}
+and chunk-meta is {"label":"abc","generation":null,"ended":null}
 and the body matches file data.dat
 ~~~
 
 We must also be able to find it based on metadata.
 
 ~~~scenario
-when I GET /chunks?sha256=abc
+when I GET /chunks?label=abc
 then HTTP status code is 200
 and content-type is application/json
-and the JSON body matches {"<ID>":{"sha256":"abc","generation":null,"ended":null}}
+and the JSON body matches {"<ID>":{"label":"abc","generation":null,"ended":null}}
 ~~~
 
 Finally, we must be able to delete it. After that, we must not be able
@@ -1072,7 +1073,7 @@ then HTTP status code is 200
 when I GET /chunks/<ID>
 then HTTP status code is 404
 
-when I GET /chunks?sha256=abc
+when I GET /chunks?label=abc
 then HTTP status code is 200
 and content-type is application/json
 and the JSON body matches {}
@@ -1095,7 +1096,7 @@ We must get an empty result if searching for chunks that don't exist.
 
 ~~~scenario
 given a working Obnam system
-when I GET /chunks?sha256=abc
+when I GET /chunks?label=abc
 then HTTP status code is 200
 and content-type is application/json
 and the JSON body matches {}
@@ -1122,7 +1123,7 @@ First, create a chunk.
 ~~~scenario
 given a working Obnam system
 and a file data.dat containing some random data
-when I POST data.dat to /chunks, with chunk-meta: {"sha256":"abc"}
+when I POST data.dat to /chunks, with chunk-meta: {"label":"abc"}
 then HTTP status code is 201
 and content-type is application/json
 and the JSON body has a field chunk_id, henceforth ID
@@ -1138,10 +1139,10 @@ given a running chunk server
 Can we still find it by its metadata?
 
 ~~~scenario
-when I GET /chunks?sha256=abc
+when I GET /chunks?label=abc
 then HTTP status code is 200
 and content-type is application/json
-and the JSON body matches {"<ID>":{"sha256":"abc","generation":null,"ended":null}}
+and the JSON body matches {"<ID>":{"label":"abc","generation":null,"ended":null}}
 ~~~
 
 Can we still retrieve it by its identifier?
@@ -1150,7 +1151,7 @@ Can we still retrieve it by its identifier?
 when I GET /chunks/<ID>
 then HTTP status code is 200
 and content-type is application/octet-stream
-and chunk-meta is {"sha256":"abc","generation":null,"ended":null}
+and chunk-meta is {"label":"abc","generation":null,"ended":null}
 and the body matches file data.dat
 ~~~
 
@@ -1164,14 +1165,14 @@ server more chatty.
 ~~~scenario
 given a working Obnam system
 and a file data1.dat containing some random data
-when I POST data1.dat to /chunks, with chunk-meta: {"sha256":"qwerty"}
+when I POST data1.dat to /chunks, with chunk-meta: {"label":"qwerty"}
 then the JSON body has a field chunk_id, henceforth ID
 and chunk server's stderr doesn't contain "Obnam server starting up"
 and chunk server's stderr doesn't contain "created chunk <ID>"
 
 given a running chunk server with environment {"OBNAM_SERVER_LOG": "info"}
 and a file data2.dat containing some random data
-when I POST data2.dat to /chunks, with chunk-meta: {"sha256":"xyz"}
+when I POST data2.dat to /chunks, with chunk-meta: {"label":"xyz"}
 then the JSON body has a field chunk_id, henceforth ID
 and chunk server's stderr contains "Obnam server starting up"
 and chunk server's stderr contains "created chunk <ID>"
@@ -1274,8 +1275,8 @@ roots: [live]
 given a working Obnam system
 given a client config based on smoke.yaml
 given a file cleartext.dat containing some random data
-when I run obnam encrypt-chunk cleartext.dat encrypted.dat '{"sha256":"fake"}'
-when I run obnam decrypt-chunk encrypted.dat decrypted.dat '{"sha256":"fake"}'
+when I run obnam encrypt-chunk cleartext.dat encrypted.dat '{"label":"fake"}'
+when I run obnam decrypt-chunk encrypted.dat decrypted.dat '{"label":"fake"}'
 then files cleartext.dat and encrypted.dat are different
 then files cleartext.dat and decrypted.dat are identical
 ~~~

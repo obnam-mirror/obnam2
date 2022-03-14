@@ -10,7 +10,8 @@ use std::str::FromStr;
 /// We manage three bits of metadata about chunks, in addition to its
 /// identifier:
 ///
-/// * for all chunks, a [SHA256][] checksum of the chunk content
+/// * for all chunks, a [SHA256][] checksum of the chunk content; we
+///   expose this to the server as the chunk "label"
 ///
 /// * for generation chunks, an indication that it is a generation
 ///   chunk, and a timestamp for when making the generation snapshot
@@ -23,7 +24,7 @@ use std::str::FromStr;
 ///
 /// ~~~json
 /// {
-///     "sha256": "09ca7e4eaa6e8ae9c7d261167129184883644d07dfba7cbfbc4c8a2e08360d5b",
+///     "label": "09ca7e4eaa6e8ae9c7d261167129184883644d07dfba7cbfbc4c8a2e08360d5b",
 ///     "generation": true,
 ///     "ended": "2020-09-17T08:17:13+03:00"
 /// }
@@ -40,7 +41,7 @@ use std::str::FromStr;
 /// [SHA256]: https://en.wikipedia.org/wiki/SHA-2
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ChunkMeta {
-    sha256: String,
+    label: String,
     // The remaining fields are Options so that JSON parsing doesn't
     // insist on them being there in the textual representation.
     generation: Option<bool>,
@@ -51,18 +52,18 @@ impl ChunkMeta {
     /// Create a new data chunk.
     ///
     /// Data chunks are not for generations.
-    pub fn new(sha256: &Checksum) -> Self {
+    pub fn new(checksum: &Checksum) -> Self {
         ChunkMeta {
-            sha256: sha256.to_string(),
+            label: checksum.to_string(),
             generation: None,
             ended: None,
         }
     }
 
     /// Create a new generation chunk.
-    pub fn new_generation(sha256: &Checksum, ended: &str) -> Self {
+    pub fn new_generation(checksum: &Checksum, ended: &str) -> Self {
         ChunkMeta {
-            sha256: sha256.to_string(),
+            label: checksum.to_string(),
             generation: Some(true),
             ended: Some(ended.to_string()),
         }
@@ -78,9 +79,13 @@ impl ChunkMeta {
         self.ended.as_deref()
     }
 
-    /// SHA256 checksum of the content of the chunk.
-    pub fn sha256(&self) -> &str {
-        &self.sha256
+    /// The label of the content of the chunk.
+    ///
+    /// The caller should not interpret the label in any way. It
+    /// happens to be a SHA256 of the cleartext contents of the
+    /// checksum for now, but that _will_ change in the future.
+    pub fn label(&self) -> &str {
+        &self.label
     }
 
     /// Serialize from a textual JSON representation.
@@ -118,7 +123,7 @@ mod test {
         let meta = ChunkMeta::new(&sum);
         assert!(!meta.is_generation());
         assert_eq!(meta.ended(), None);
-        assert_eq!(meta.sha256(), "abcdef");
+        assert_eq!(meta.label(), "abcdef");
     }
 
     #[test]
@@ -127,26 +132,26 @@ mod test {
         let meta = ChunkMeta::new_generation(&sum, "2020-09-17T08:17:13+03:00");
         assert!(meta.is_generation());
         assert_eq!(meta.ended(), Some("2020-09-17T08:17:13+03:00"));
-        assert_eq!(meta.sha256(), "abcdef");
+        assert_eq!(meta.label(), "abcdef");
     }
 
     #[test]
     fn data_chunk_from_json() {
-        let meta: ChunkMeta = r#"{"sha256": "abcdef"}"#.parse().unwrap();
+        let meta: ChunkMeta = r#"{"label": "abcdef"}"#.parse().unwrap();
         assert!(!meta.is_generation());
         assert_eq!(meta.ended(), None);
-        assert_eq!(meta.sha256(), "abcdef");
+        assert_eq!(meta.label(), "abcdef");
     }
 
     #[test]
     fn generation_chunk_from_json() {
         let meta: ChunkMeta =
-            r#"{"sha256": "abcdef", "generation": true, "ended": "2020-09-17T08:17:13+03:00"}"#
+            r#"{"label": "abcdef", "generation": true, "ended": "2020-09-17T08:17:13+03:00"}"#
                 .parse()
                 .unwrap();
         assert!(meta.is_generation());
         assert_eq!(meta.ended(), Some("2020-09-17T08:17:13+03:00"));
-        assert_eq!(meta.sha256(), "abcdef");
+        assert_eq!(meta.label(), "abcdef");
     }
 
     #[test]

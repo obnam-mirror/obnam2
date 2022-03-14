@@ -155,8 +155,8 @@ pub async fn search_chunks(
         }
         if key == "generation" && value == "true" {
             store.find_generations().expect("SQL lookup failed")
-        } else if key == "sha256" {
-            store.find_by_sha256(value).expect("SQL lookup failed")
+        } else if key == "label" {
+            store.find_by_label(value).expect("SQL lookup failed")
         } else {
             error!("unknown search key {:?}", key);
             return Ok(ChunkResult::BadRequest);

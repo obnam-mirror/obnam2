@@ -130,7 +130,7 @@ impl BackupClient {
 
     /// Does the server have a chunk?
     pub async fn has_chunk(&self, meta: &ChunkMeta) -> Result<Option<ChunkId>, ClientError> {
-        let body = match self.get("", &[("sha256", meta.sha256())]).await {
+        let body = match self.get("", &[("label", meta.label())]).await {
             Ok((_, body)) => body,
             Err(err) => return Err(err),
         };
