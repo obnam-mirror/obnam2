@@ -18,6 +18,7 @@ impls:
   - lib/runcmd.py
 classes:
   - json
+  - sql
 ...
 
 # Abstract
@@ -122,6 +123,15 @@ in an automated way:
   from the server locally, but the cache should be small, and its size
   must not be proportional to the amount of live data or the amount of
   data on the server.
+* _Not done_: **Resilient:** If the metadata about a backup or the
+  backed up data is corrupted or goes missing, everything that can be
+  restored must be possible to restore, and the backup repository must
+  be possible to be repaired so that it's internally consistent.
+* _Not done_: **Self-compatible:** It must be possible to use any
+  version of the client with any version of the backup repository, and
+  to restore any backup with any later version of the client.
+* _Not done:_ **No re-backups:** The system must never require the
+  user to do more than one full backup the same repository.
 
 The detailed, automatically verified acceptance criteria are
 documented below, as _scenarios_ described for the [Subplot][] tool.
@@ -391,6 +401,46 @@ C6: file "data" big big "chunk 6" big big
 arrow from DB3.s right 60% then down 70% then right 100% then down 30%
 C7: file "data" big big "chunk 7" big big
 ~~~
+
+
+## Evolving the database
+
+The per-generation SQLite database file has a schema. Over time it may
+be necessary to change the schema. This needs to be done carefully to
+avoid having backup clients to have to do a full backup of previously
+backed up data.
+
+We do this by storing the "schema version" in the database. Each
+database will have a table `meta`:
+
+~~~sql
+CREATE TABLE meta (key TEXT, value TEXT)
+~~~
+
+This will allow key/value pairs serialized into text. We use the keys
+`schema_version_major` and `schema_version_minor` to store the schema
+version. This will allow the Obnam client to correctly restore the
+backup, or at least do the best job it can, while warning the user
+there may be an incompatibility.
+
+We may later add more keys to the `meta` table if there's a need.
+
+The client will support every historical major version, and the latest
+historical minor version of each major version. We will make sure that
+this will be enough to restore every previously made backup. That is,
+every backup with schema version x.y will be possible to correctly
+restore with a version of the Obnam client that understands schema
+version x.z, where _z >= y_. If we make a change that would break
+this, we increment the major version.
+
+We may drop support for a schema version if we're sure no backups with
+that schema version exist. This is primarily to be able to drop schema
+versions that were never included in a released version of the Obnam
+client.
+
+To verify schema compatibility support, we will, at minimum, have
+tests that automatically make backups with every supported major
+version, and restore them.
 
 
 ## On SFTP versus HTTPS
@@ -1260,6 +1310,24 @@ server_url: http://backup.example.com
 verify_tls_cert: true
 ~~~
 
+## Client lists the backup schema versions it supports
+
+~~~scenario
+given an installed obnam
+given file config.yaml
+when I run obnam --config config.yaml list-backup-versions
+then stdout is exactly "0.0\n1.0\n"
+~~~
+
+## Client lists the default backup schema version
+
+~~~scenario
+given an installed obnam
+given file config.yaml
+when I run obnam --config config.yaml list-backup-versions --default-only
+then stdout is exactly "0.0\n"
+~~~
+
 ## Client refuses a self-signed certificate
 
 This scenario verifies that the client refuses to connect to a server
@@ -1353,6 +1421,27 @@ verify_tls_cert: false
 roots: [live]
 ~~~
 
+
+## Inspect a backup
+
+Once a backup is made, the user needs to be able inspect it to see the
+schema version.
+
+~~~scenario
+given a working Obnam system
+and a client config based on smoke.yaml
+and a file live/data.dat containing some random data
+and a manifest of the directory live in live.yaml
+when I run obnam backup
+when I run obnam inspect latest
+then stdout contains "schema_version: 0.0\n"
+when I run obnam backup --backup-version=0
+when I run obnam inspect latest
+then stdout contains "schema_version: 0.0\n"
+when I run obnam backup --backup-version=1
+when I run obnam inspect latest
+then stdout contains "schema_version: 1.0\n"
+~~~
 
 ## Backup root must exist
 
@@ -1656,6 +1745,25 @@ when I run obnam backup
 when I run obnam restore latest rest
 given a manifest of the directory live restored in rest in rest.yaml
 then manifests second.yaml and rest.yaml match
+~~~
+
+## Restore backups made with each backup version
+
+~~~scenario
+given a working Obnam system
+given a client config based on metadata.yaml
+given a file live/data.dat containing some random data
+given a manifest of the directory live in live.yaml
+
+when I run obnam backup --backup-version=0
+when I run obnam restore latest rest0
+given a manifest of the directory live restored in rest0 in rest0.yaml
+then manifests live.yaml and rest0.yaml match
+
+when I run obnam backup --backup-version=1
+when I run obnam restore latest rest1
+given a manifest of the directory live restored in rest1 in rest1.yaml
+then manifests live.yaml and rest1.yaml match
 ~~~
 
 ## Back up multiple directories
