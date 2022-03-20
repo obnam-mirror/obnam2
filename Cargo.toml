@@ -6,7 +6,7 @@ edition = "2021"
 description = "a backup program"
 license = "AGPL-3.0-or-later"
 homepage = "https://obnam.org/"
-repository = "https://gitlab.com/larswirzenius/obnam"
+repository = "https://gitlab.com/obnam/obnam"
 rust-version = "1.56.0"
 
 
