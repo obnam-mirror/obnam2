@@ -6,6 +6,7 @@ use crate::client::ClientError;
 use crate::cmd::restore::RestoreError;
 use crate::config::ClientConfigError;
 use crate::db::DatabaseError;
+use crate::dbgen::GenerationDbError;
 use crate::generation::{LocalGenerationError, NascentError};
 use crate::genlist::GenerationListError;
 use crate::passwords::PasswordError;
@@ -51,6 +52,10 @@ pub enum ObnamError {
     /// Error using local copy of existing backup generation.
     #[error(transparent)]
     LocalGenerationError(#[from] LocalGenerationError),
+
+    /// Error from generation database.
+    #[error(transparent)]
+    GenerationDb(#[from] GenerationDbError),
 
     /// Error using a Database.
     #[error(transparent)]

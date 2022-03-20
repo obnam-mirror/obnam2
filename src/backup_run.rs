@@ -8,7 +8,7 @@ use crate::chunkid::ChunkId;
 use crate::client::{BackupClient, ClientError};
 use crate::config::ClientConfig;
 use crate::db::DatabaseError;
-use crate::dbgen::FileId;
+use crate::dbgen::{schema_version, FileId, DEFAULT_SCHEMA_MAJOR};
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::fsiter::{AnnotatedFsEntry, FsIterError, FsIterator};
@@ -16,6 +16,7 @@ use crate::generation::{
     GenId, LocalGeneration, LocalGenerationError, NascentError, NascentGeneration,
 };
 use crate::policy::BackupPolicy;
+use crate::schema::SchemaVersion;
 
 use bytesize::MIB;
 use chrono::{DateTime, Local};
@@ -132,7 +133,8 @@ impl<'a> BackupRun<'a> {
         match genid {
             None => {
                 // Create a new, empty generation.
-                NascentGeneration::create(oldname)?.close()?;
+                let schema = schema_version(DEFAULT_SCHEMA_MAJOR).unwrap();
+                NascentGeneration::create(oldname, schema)?.close()?;
 
                 // Open the newly created empty generation.
                 Ok(LocalGeneration::open(oldname)?)
@@ -173,11 +175,12 @@ impl<'a> BackupRun<'a> {
         config: &ClientConfig,
         old: &LocalGeneration,
         newpath: &Path,
+        schema: SchemaVersion,
     ) -> Result<RootsBackupOutcome, ObnamError> {
         let mut warnings: Vec<BackupError> = vec![];
         let mut new_cachedir_tags = vec![];
         let files_count = {
-            let mut new = NascentGeneration::create(newpath)?;
+            let mut new = NascentGeneration::create(newpath, schema)?;
             for root in &config.roots {
                 match self.backup_one_root(config, old, &mut new, root).await {
                     Ok(mut o) => {
