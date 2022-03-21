@@ -93,12 +93,12 @@ impl GenerationChunk {
     }
 
     /// Convert generation chunk to a data chunk.
-    pub fn to_data_chunk(&self, ended: &str) -> Result<DataChunk, GenerationChunkError> {
+    pub fn to_data_chunk(&self) -> Result<DataChunk, GenerationChunkError> {
         let json: String =
             serde_json::to_string(self).map_err(GenerationChunkError::JsonGenerate)?;
         let bytes = json.as_bytes().to_vec();
         let checksum = Checksum::sha256(&bytes);
-        let meta = ChunkMeta::new_generation(&checksum, ended);
+        let meta = ChunkMeta::new(&checksum);
         Ok(DataChunk::new(bytes, meta))
     }
 }
@@ -186,7 +186,7 @@ impl ClientTrust {
         let json: String = serde_json::to_string(self).map_err(ClientTrustError::JsonGenerate)?;
         let bytes = json.as_bytes().to_vec();
         let checksum = Checksum::sha256_from_str_unchecked("client-trust");
-        let meta = ChunkMeta::new_generation(&checksum, "");
+        let meta = ChunkMeta::new(&checksum);
         Ok(DataChunk::new(bytes, meta))
     }
 

@@ -1112,7 +1112,7 @@ We must be able to retrieve it.
 when I GET /chunks/<ID>
 then HTTP status code is 200
 and content-type is application/octet-stream
-and chunk-meta is {"label":"abc","generation":null,"ended":null}
+and chunk-meta is {"label":"abc"}
 and the body matches file data.dat
 ~~~
 
@@ -1122,7 +1122,7 @@ We must also be able to find it based on metadata.
 when I GET /chunks?label=abc
 then HTTP status code is 200
 and content-type is application/json
-and the JSON body matches {"<ID>":{"label":"abc","generation":null,"ended":null}}
+and the JSON body matches {"<ID>":{"label":"abc"}}
 ~~~
 
 Finally, we must be able to delete it. After that, we must not be able
@@ -1204,7 +1204,7 @@ Can we still find it by its metadata?
 when I GET /chunks?label=abc
 then HTTP status code is 200
 and content-type is application/json
-and the JSON body matches {"<ID>":{"label":"abc","generation":null,"ended":null}}
+and the JSON body matches {"<ID>":{"label":"abc"}}
 ~~~
 
 Can we still retrieve it by its identifier?
@@ -1213,7 +1213,7 @@ Can we still retrieve it by its identifier?
 when I GET /chunks/<ID>
 then HTTP status code is 200
 and content-type is application/octet-stream
-and chunk-meta is {"label":"abc","generation":null,"ended":null}
+and chunk-meta is {"label":"abc"}
 and the body matches file data.dat
 ~~~
 
