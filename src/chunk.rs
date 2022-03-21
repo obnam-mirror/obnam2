@@ -102,3 +102,98 @@ impl GenerationChunk {
         Ok(DataChunk::new(bytes, meta))
     }
 }
+
+/// A client trust root chunk.
+///
+/// This chunk contains all per-client backup information. As long as
+/// this chunk can be trusted, everything it links to can also be
+/// trusted, thanks to cryptographic signatures.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ClientTrust {
+    client_name: String,
+    previous_version: Option<ChunkId>,
+    timestamp: String,
+    backups: Vec<ChunkId>,
+}
+
+/// All the errors that may be returned for `ClientTrust` operations.
+#[derive(Debug, thiserror::Error)]
+pub enum ClientTrustError {
+    /// Error converting text from UTF8.
+    #[error(transparent)]
+    Utf8Error(#[from] std::str::Utf8Error),
+
+    /// Error parsing JSON as chunk metadata.
+    #[error("failed to parse JSON: {0}")]
+    JsonParse(serde_json::Error),
+
+    /// Error generating JSON from chunk metadata.
+    #[error("failed to serialize to JSON: {0}")]
+    JsonGenerate(serde_json::Error),
+}
+
+impl ClientTrust {
+    /// Create a new ClientTrust object.
+    pub fn new(
+        name: &str,
+        previous_version: Option<ChunkId>,
+        timestamp: String,
+        backups: Vec<ChunkId>,
+    ) -> Self {
+        Self {
+            client_name: name.to_string(),
+            previous_version,
+            timestamp,
+            backups,
+        }
+    }
+
+    /// Return client name.
+    pub fn client_name(&self) -> &str {
+        &self.client_name
+    }
+
+    /// Return id of previous version, if any.
+    pub fn previous_version(&self) -> Option<ChunkId> {
+        self.previous_version.clone()
+    }
+
+    /// Return timestamp.
+    pub fn timestamp(&self) -> &str {
+        &self.timestamp
+    }
+
+    /// Return list of all backup generations known.
+    pub fn backups(&self) -> &[ChunkId] {
+        &self.backups
+    }
+
+    /// Append a backup generation to the list.
+    pub fn append_backup(&mut self, id: &ChunkId) {
+        self.backups.push(id.clone());
+    }
+
+    /// Update for new upload.
+    ///
+    /// This needs to happen every time the chunk is updated so that
+    /// the timestamp gets updated.
+    pub fn finalize(&mut self, timestamp: String) {
+        self.timestamp = timestamp;
+    }
+
+    /// Convert generation chunk to a data chunk.
+    pub fn to_data_chunk(&self) -> Result<DataChunk, ClientTrustError> {
+        let json: String = serde_json::to_string(self).map_err(ClientTrustError::JsonGenerate)?;
+        let bytes = json.as_bytes().to_vec();
+        let checksum = Checksum::sha256_from_str_unchecked("client-trust");
+        let meta = ChunkMeta::new_generation(&checksum, "");
+        Ok(DataChunk::new(bytes, meta))
+    }
+
+    /// Create a new ClientTrust from a data chunk.
+    pub fn from_data_chunk(chunk: &DataChunk) -> Result<Self, ClientTrustError> {
+        let data = chunk.data();
+        let data = std::str::from_utf8(data)?;
+        serde_json::from_str(data).map_err(ClientTrustError::JsonParse)
+    }
+}

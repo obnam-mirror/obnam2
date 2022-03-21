@@ -1538,14 +1538,15 @@ data.
 The backup uses a chunk size of one byte, and backs up a file with
 three bytes. This results in three chunks for the file data, plus one
 for the generation SQLite file (not split into chunks of one byte),
-plus a chunk for the generation itself. A total of five chunks.
+plus a chunk for the generation itself. Additionally, the "trust root"
+chunk exists. A total of six chunks.
 
 ~~~scenario
 given a working Obnam system
 given a client config based on tiny-chunk-size.yaml
 given a file live/data.dat containing "abc"
 when I run obnam backup
-then server has 5 chunks
+then server has 6 chunks
 ~~~
 
 ~~~{#tiny-chunk-size.yaml .file .yaml .numberLines}
@@ -1846,10 +1847,10 @@ then exit code is 1
 and stdout contains "live/CACHEDIR.TAG"
 when I run obnam list-files
 then exit code is 0
+~~~
 then file live/CACHEDIR.TAG was backed up because it was new
 and stdout doesn't contain "live/data1.dat"
 and stdout doesn't contain "live/data2.dat"
-~~~
 
 ### Ignore CACHEDIR.TAGs if `exclude_cache_tag_directories` is disabled
 

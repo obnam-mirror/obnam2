@@ -406,7 +406,8 @@ impl<'a> BackupRun<'a> {
     }
 }
 
-fn current_timestamp() -> String {
+/// Current timestamp as an ISO 8601 string.
+pub fn current_timestamp() -> String {
     let now: DateTime<Local> = Local::now();
     format!("{}", now.format("%Y-%m-%d %H:%M:%S.%f %z"))
 }

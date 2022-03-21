@@ -1,5 +1,6 @@
 //! The `resolve` subcommand.
 
+use crate::chunk::ClientTrust;
 use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
@@ -22,7 +23,12 @@ impl Resolve {
 
     async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let client = BackupClient::new(config)?;
-        let generations = client.list_generations().await?;
+        let trust = client
+            .get_client_trust()
+            .await?
+            .or_else(|| Some(ClientTrust::new("FIXME", None, "".to_string(), vec![])))
+            .unwrap();
+        let generations = client.list_generations(&trust);
 
         match generations.resolve(&self.generation) {
             Err(err) => {

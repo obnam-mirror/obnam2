@@ -1,5 +1,6 @@
 //! The `gen-info` subcommand.
 
+use crate::chunk::ClientTrust;
 use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
@@ -28,7 +29,13 @@ impl GenInfo {
 
         let client = BackupClient::new(config)?;
 
-        let genlist = client.list_generations().await?;
+        let trust = client
+            .get_client_trust()
+            .await?
+            .or_else(|| Some(ClientTrust::new("FIXME", None, "".to_string(), vec![])))
+            .unwrap();
+
+        let genlist = client.list_generations(&trust);
         let gen_id = genlist.resolve(&self.gen_ref)?;
         info!("generation id is {}", gen_id.as_chunk_id());
 
