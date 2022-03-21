@@ -147,7 +147,7 @@ impl BackupClient {
         Ok(has)
     }
 
-    /// Upload a data chunk to the srver.
+    /// Upload a data chunk to the server.
     pub async fn upload_chunk(&self, chunk: DataChunk) -> Result<ChunkId, ClientError> {
         let enc = self.cipher.encrypt_chunk(&chunk)?;
         let res = self
