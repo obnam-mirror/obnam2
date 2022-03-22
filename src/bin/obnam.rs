@@ -8,7 +8,9 @@ use obnam::cmd::chunkify::Chunkify;
 use obnam::cmd::gen_info::GenInfo;
 use obnam::cmd::get_chunk::GetChunk;
 use obnam::cmd::init::Init;
+use obnam::cmd::inspect::Inspect;
 use obnam::cmd::list::List;
+use obnam::cmd::list_backup_versions::ListSchemaVersions;
 use obnam::cmd::list_files::ListFiles;
 use obnam::cmd::resolve::Resolve;
 use obnam::cmd::restore::Restore;
@@ -41,7 +43,9 @@ fn main_program() -> anyhow::Result<()> {
 
     match opt.cmd {
         Command::Init(x) => x.run(&config),
+        Command::ListBackupVersions(x) => x.run(&config),
         Command::Backup(x) => x.run(&config),
+        Command::Inspect(x) => x.run(&config),
         Command::Chunkify(x) => x.run(&config),
         Command::List(x) => x.run(&config),
         Command::ShowGeneration(x) => x.run(&config),
@@ -101,8 +105,10 @@ struct Opt {
 enum Command {
     Init(Init),
     Backup(Backup),
+    Inspect(Inspect),
     Chunkify(Chunkify),
     List(List),
+    ListBackupVersions(ListSchemaVersions),
     ListFiles(ListFiles),
     Restore(Restore),
     GenInfo(GenInfo),

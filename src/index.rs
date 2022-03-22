@@ -62,8 +62,8 @@ impl Index {
     }
 
     /// Find chunks with a client-assigned label.
-    pub fn find_by_label(&self, sha256: &str) -> Result<Vec<ChunkId>, IndexError> {
-        sql::find_by_256(&self.conn, sha256)
+    pub fn find_by_label(&self, label: &str) -> Result<Vec<ChunkId>, IndexError> {
+        sql::find_by_label(&self.conn, label)
     }
 
     /// Find all backup generations.
@@ -170,10 +170,10 @@ mod sql {
         let flags = OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
         conn.execute(
-            "CREATE TABLE chunks (id TEXT PRIMARY KEY, sha256 TEXT, generation INT, ended TEXT)",
+            "CREATE TABLE chunks (id TEXT PRIMARY KEY, label TEXT, generation INT, ended TEXT)",
             params![],
         )?;
-        conn.execute("CREATE INDEX sha256_idx ON chunks (sha256)", params![])?;
+        conn.execute("CREATE INDEX label_idx ON chunks (label)", params![])?;
         conn.execute(
             "CREATE INDEX generation_idx ON chunks (generation)",
             params![],
@@ -197,7 +197,7 @@ mod sql {
         let generation = if meta.is_generation() { 1 } else { 0 };
         let ended = meta.ended();
         t.execute(
-            "INSERT INTO chunks (id, sha256, generation, ended) VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO chunks (id, label, generation, ended) VALUES (?1, ?2, ?3, ?4)",
             params![chunkid, label, generation, ended],
         )?;
         Ok(())
@@ -232,9 +232,9 @@ mod sql {
     }
 
     /// Find chunks with a given checksum.
-    pub fn find_by_256(conn: &Connection, sha256: &str) -> Result<Vec<ChunkId>, IndexError> {
-        let mut stmt = conn.prepare("SELECT id FROM chunks WHERE sha256 IS ?1")?;
-        let iter = stmt.query_map(params![sha256], row_to_id)?;
+    pub fn find_by_label(conn: &Connection, label: &str) -> Result<Vec<ChunkId>, IndexError> {
+        let mut stmt = conn.prepare("SELECT id FROM chunks WHERE label IS ?1")?;
+        let iter = stmt.query_map(params![label], row_to_id)?;
         let mut ids = vec![];
         for x in iter {
             let x = x?;
@@ -268,7 +268,7 @@ mod sql {
     }
 
     fn row_to_meta(row: &Row) -> rusqlite::Result<ChunkMeta> {
-        let hash: String = row.get("sha256")?;
+        let hash: String = row.get("label")?;
         let sha256 = Checksum::sha256_from_str_unchecked(&hash);
         let generation: i32 = row.get("generation")?;
         let meta = if generation == 0 {

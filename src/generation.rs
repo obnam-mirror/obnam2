@@ -3,10 +3,10 @@
 use crate::backup_reason::Reason;
 use crate::chunkid::ChunkId;
 use crate::db::{DatabaseError, SqlResults};
-use crate::dbgen::{FileId, GenerationDb, GenerationDbError, SCHEMA_MAJOR, SCHEMA_MINOR};
+use crate::dbgen::{FileId, GenerationDb, GenerationDbError};
 use crate::fsentry::FilesystemEntry;
-use serde::Serialize;
-use std::collections::HashMap;
+use crate::genmeta::{GenerationMeta, GenerationMetaError};
+use crate::schema::{SchemaVersion, VersionComponent};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -77,11 +77,11 @@ pub enum NascentError {
 
 impl NascentGeneration {
     /// Create a new nascent generation.
-    pub fn create<P>(filename: P) -> Result<Self, NascentError>
+    pub fn create<P>(filename: P, schema: SchemaVersion) -> Result<Self, NascentError>
     where
         P: AsRef<Path>,
     {
-        let db = GenerationDb::create(filename.as_ref())?;
+        let db = GenerationDb::create(filename.as_ref(), schema)?;
         Ok(Self { db, fileno: 0 })
     }
 
@@ -160,18 +160,14 @@ pub enum LocalGenerationError {
     #[error("Generation does not have a 'meta' table")]
     NoMeta,
 
-    /// Missing from from 'meta' table.
-    #[error("Generation 'meta' table does not have a row {0}")]
-    NoMetaKey(String),
-
-    /// Bad data in 'meta' table.
-    #[error("Generation 'meta' row {0} has badly formed integer: {1}")]
-    BadMetaInteger(String, std::num::ParseIntError),
-
     /// Local generation uses a schema version that this version of
     /// Obnam isn't compatible with.
     #[error("Backup is not compatible with this version of Obnam: {0}.{1}")]
-    Incompatible(u32, u32),
+    Incompatible(VersionComponent, VersionComponent),
+
+    /// Error from generation metadata.
+    #[error(transparent)]
+    GenerationMeta(#[from] GenerationMetaError),
 
     /// Error from SQL.
     #[error(transparent)]
@@ -239,21 +235,13 @@ impl LocalGeneration {
     {
         let db = GenerationDb::open(filename.as_ref())?;
         let gen = Self::new(db);
-        let schema = gen.meta()?.schema_version();
-        let our_schema = SchemaVersion::new(SCHEMA_MAJOR, SCHEMA_MINOR);
-        if !our_schema.is_compatible_with(&schema) {
-            return Err(LocalGenerationError::Incompatible(
-                schema.major,
-                schema.minor,
-            ));
-        }
         Ok(gen)
     }
 
     /// Return generation metadata for local generation.
-    pub fn meta(&self) -> Result<GenMeta, LocalGenerationError> {
+    pub fn meta(&self) -> Result<GenerationMeta, LocalGenerationError> {
         let map = self.db.meta()?;
-        GenMeta::from(map)
+        GenerationMeta::from(map).map_err(LocalGenerationError::GenerationMeta)
     }
 
     /// How many files are there in the local generation?
@@ -300,123 +288,17 @@ impl LocalGeneration {
     }
 }
 
-/// Metadata about the local generation.
-#[derive(Debug, Serialize)]
-pub struct GenMeta {
-    schema_version: SchemaVersion,
-    extras: HashMap<String, String>,
-}
-
-impl GenMeta {
-    /// Create from a hash map.
-    fn from(mut map: HashMap<String, String>) -> Result<Self, LocalGenerationError> {
-        let major: u32 = metaint(&mut map, "schema_version_major")?;
-        let minor: u32 = metaint(&mut map, "schema_version_minor")?;
-        Ok(Self {
-            schema_version: SchemaVersion::new(major, minor),
-            extras: map,
-        })
-    }
-
-    /// Return schema version of local generation.
-    pub fn schema_version(&self) -> SchemaVersion {
-        self.schema_version
-    }
-}
-
-fn metastr(map: &mut HashMap<String, String>, key: &str) -> Result<String, LocalGenerationError> {
-    if let Some(v) = map.remove(key) {
-        Ok(v)
-    } else {
-        Err(LocalGenerationError::NoMetaKey(key.to_string()))
-    }
-}
-
-fn metaint(map: &mut HashMap<String, String>, key: &str) -> Result<u32, LocalGenerationError> {
-    let v = metastr(map, key)?;
-    let v = v
-        .parse()
-        .map_err(|err| LocalGenerationError::BadMetaInteger(key.to_string(), err))?;
-    Ok(v)
-}
-
-/// Schema version of the database storing the generation.
-///
-/// An Obnam client can restore a generation using schema version
-/// (x,y), if the client supports a schema version (x,z). If z < y,
-/// the client knows it may not be able to the generation faithfully,
-/// and should warn the user about this. If z >= y, the client knows
-/// it can restore the generation faithfully. If the client does not
-/// support any schema version x, it knows it can't restore the backup
-/// at all.
-#[derive(Debug, Clone, Copy, Serialize)]
-pub struct SchemaVersion {
-    /// Major version.
-    pub major: u32,
-    /// Minor version.
-    pub minor: u32,
-}
-
-impl SchemaVersion {
-    fn new(major: u32, minor: u32) -> Self {
-        Self { major, minor }
-    }
-
-    /// Is this schema version compatible with another schema version?
-    pub fn is_compatible_with(&self, other: &Self) -> bool {
-        self.major == other.major && self.minor >= other.minor
-    }
-}
-
-#[cfg(test)]
-mod test_schema {
-    use super::*;
-
-    #[test]
-    fn compatible_with_self() {
-        let v = SchemaVersion::new(1, 2);
-        assert!(v.is_compatible_with(&v));
-    }
-
-    #[test]
-    fn compatible_with_older_minor_version() {
-        let old = SchemaVersion::new(1, 2);
-        let new = SchemaVersion::new(1, 3);
-        assert!(new.is_compatible_with(&old));
-    }
-
-    #[test]
-    fn not_compatible_with_newer_minor_version() {
-        let old = SchemaVersion::new(1, 2);
-        let new = SchemaVersion::new(1, 3);
-        assert!(!old.is_compatible_with(&new));
-    }
-
-    #[test]
-    fn not_compatible_with_older_major_version() {
-        let old = SchemaVersion::new(1, 2);
-        let new = SchemaVersion::new(2, 0);
-        assert!(!new.is_compatible_with(&old));
-    }
-
-    #[test]
-    fn not_compatible_with_newer_major_version() {
-        let old = SchemaVersion::new(1, 2);
-        let new = SchemaVersion::new(2, 0);
-        assert!(!old.is_compatible_with(&new));
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use super::{LocalGeneration, NascentGeneration};
+    use super::{LocalGeneration, NascentGeneration, SchemaVersion};
     use tempfile::NamedTempFile;
 
     #[test]
     fn empty() {
         let filename = NamedTempFile::new().unwrap().path().to_path_buf();
+        let schema = SchemaVersion::new(0, 0);
         {
-            let mut _gen = NascentGeneration::create(&filename).unwrap();
+            let mut _gen = NascentGeneration::create(&filename, schema).unwrap();
             // _gen is dropped here; the connection is close; the file
             // should not be removed.
         }
@@ -445,7 +327,8 @@ mod test {
         let tag_path1 = Path::new("/a_tag");
         let tag_path2 = Path::new("/another_dir/a_tag");
 
-        let mut gen = NascentGeneration::create(&dbfile).unwrap();
+        let schema = SchemaVersion::new(0, 0);
+        let mut gen = NascentGeneration::create(&dbfile, schema).unwrap();
         let mut cache = users::UsersCache::new();
 
         gen.insert(

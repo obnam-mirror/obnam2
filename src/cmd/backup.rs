@@ -3,9 +3,10 @@
 use crate::backup_run::BackupRun;
 use crate::client::BackupClient;
 use crate::config::ClientConfig;
-use crate::dbgen::FileId;
+use crate::dbgen::{schema_version, FileId, DEFAULT_SCHEMA_MAJOR};
 use crate::error::ObnamError;
 use crate::generation::GenId;
+use crate::schema::VersionComponent;
 
 use log::info;
 use std::time::SystemTime;
@@ -15,7 +16,11 @@ use tokio::runtime::Runtime;
 
 /// Make a backup.
 #[derive(Debug, StructOpt)]
-pub struct Backup {}
+pub struct Backup {
+    /// Backup schema major version.
+    #[structopt(long)]
+    backup_version: Option<VersionComponent>,
+}
 
 impl Backup {
     /// Run the command.
@@ -26,6 +31,10 @@ impl Backup {
 
     async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let runtime = SystemTime::now();
+
+        let major = self.backup_version.or(Some(DEFAULT_SCHEMA_MAJOR)).unwrap();
+        let schema = schema_version(major)?;
+        eprintln!("backup: schema: {}", schema);
 
         let client = BackupClient::new(config)?;
         let genlist = client.list_generations().await?;
@@ -39,13 +48,19 @@ impl Backup {
                 info!("fresh backup without a previous generation");
                 let mut run = BackupRun::initial(config, &client)?;
                 let old = run.start(None, &oldtemp).await?;
-                (false, run.backup_roots(config, &old, &newtemp).await?)
+                (
+                    false,
+                    run.backup_roots(config, &old, &newtemp, schema).await?,
+                )
             }
             Ok(old_id) => {
                 info!("incremental backup based on {}", old_id);
                 let mut run = BackupRun::incremental(config, &client)?;
                 let old = run.start(Some(&old_id), &oldtemp).await?;
-                (true, run.backup_roots(config, &old, &newtemp).await?)
+                (
+                    true,
+                    run.backup_roots(config, &old, &newtemp, schema).await?,
+                )
             }
         };
 
