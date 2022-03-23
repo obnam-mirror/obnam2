@@ -1,5 +1,7 @@
 //! The `inspect` subcommand.
 
+use crate::backup_run::current_timestamp;
+use crate::chunk::ClientTrust;
 use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
@@ -27,7 +29,12 @@ impl Inspect {
     async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let temp = NamedTempFile::new()?;
         let client = BackupClient::new(config)?;
-        let genlist = client.list_generations().await?;
+        let trust = client
+            .get_client_trust()
+            .await?
+            .or_else(|| Some(ClientTrust::new("FIXME", None, current_timestamp(), vec![])))
+            .unwrap();
+        let genlist = client.list_generations(&trust);
         let gen_id = genlist.resolve(&self.gen_id)?;
         info!("generation id is {}", gen_id.as_chunk_id());
 

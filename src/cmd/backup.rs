@@ -1,6 +1,7 @@
 //! The `backup` subcommand.
 
-use crate::backup_run::BackupRun;
+use crate::backup_run::{current_timestamp, BackupRun};
+use crate::chunk::ClientTrust;
 use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::dbgen::{schema_version, FileId, DEFAULT_SCHEMA_MAJOR};
@@ -37,7 +38,12 @@ impl Backup {
         eprintln!("backup: schema: {}", schema);
 
         let client = BackupClient::new(config)?;
-        let genlist = client.list_generations().await?;
+        let trust = client
+            .get_client_trust()
+            .await?
+            .or_else(|| Some(ClientTrust::new("FIXME", None, current_timestamp(), vec![])))
+            .unwrap();
+        let genlist = client.list_generations(&trust);
 
         let temp = tempdir()?;
         let oldtemp = temp.path().join("old.db");
@@ -63,6 +69,13 @@ impl Backup {
                 )
             }
         };
+
+        let mut trust = trust;
+        trust.append_backup(outcome.gen_id.as_chunk_id());
+        trust.finalize(current_timestamp());
+        let trust = trust.to_data_chunk()?;
+        let trust_id = client.upload_chunk(trust).await?;
+        info!("uploaded new client-trust {}", trust_id);
 
         for w in outcome.warnings.iter() {
             println!("warning: {}", w);

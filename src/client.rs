@@ -1,6 +1,8 @@
 //! Client to the Obnam server HTTP API.
 
-use crate::chunk::{DataChunk, GenerationChunk, GenerationChunkError};
+use crate::chunk::{
+    ClientTrust, ClientTrustError, DataChunk, GenerationChunk, GenerationChunkError,
+};
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
 use crate::cipher::{CipherEngine, CipherError};
@@ -53,6 +55,10 @@ pub enum ClientError {
     /// An error regarding generation chunks.
     #[error(transparent)]
     GenerationChunkError(#[from] GenerationChunkError),
+
+    /// An error regarding client trust.
+    #[error(transparent)]
+    ClientTrust(#[from] ClientTrustError),
 
     /// An error using a backup's local metadata.
     #[error(transparent)]
@@ -147,7 +153,7 @@ impl BackupClient {
         Ok(has)
     }
 
-    /// Upload a data chunk to the srver.
+    /// Upload a data chunk to the server.
     pub async fn upload_chunk(&self, chunk: DataChunk) -> Result<ChunkId, ClientError> {
         let enc = self.cipher.encrypt_chunk(&chunk)?;
         let res = self
@@ -170,18 +176,44 @@ impl BackupClient {
         Ok(chunk_id)
     }
 
-    /// List backup generations known by the server.
-    pub async fn list_generations(&self) -> Result<GenerationList, ClientError> {
-        let (_, body) = self.get("", &[("generation", "true")]).await?;
+    /// Get current client trust chunk from repository, if there is one.
+    pub async fn get_client_trust(&self) -> Result<Option<ClientTrust>, ClientError> {
+        let ids = self.find_client_trusts().await?;
+        let mut latest: Option<ClientTrust> = None;
+        for id in ids {
+            let chunk = self.fetch_chunk(&id).await?;
+            let new = ClientTrust::from_data_chunk(&chunk)?;
+            if let Some(t) = &latest {
+                if new.timestamp() > t.timestamp() {
+                    latest = Some(new);
+                }
+            } else {
+                latest = Some(new);
+            }
+        }
+        Ok(latest)
+    }
 
-        let map: HashMap<String, ChunkMeta> =
-            serde_yaml::from_slice(&body).map_err(ClientError::YamlParse)?;
-        debug!("list_generations: map={:?}", map);
-        let finished = map
+    async fn find_client_trusts(&self) -> Result<Vec<ChunkId>, ClientError> {
+        let body = match self.get("", &[("label", "client-trust")]).await {
+            Ok((_, body)) => body,
+            Err(err) => return Err(err),
+        };
+
+        let hits: HashMap<String, ChunkMeta> =
+            serde_json::from_slice(&body).map_err(ClientError::JsonParse)?;
+        let ids = hits.iter().map(|(id, _)| id.into()).collect();
+        Ok(ids)
+    }
+
+    /// List backup generations known by the server.
+    pub fn list_generations(&self, trust: &ClientTrust) -> GenerationList {
+        let finished = trust
+            .backups()
             .iter()
-            .map(|(id, meta)| FinishedGeneration::new(id, meta.ended().map_or("", |s| s)))
+            .map(|id| FinishedGeneration::new(&format!("{}", id), ""))
             .collect();
-        Ok(GenerationList::new(finished))
+        GenerationList::new(finished)
     }
 
     /// Fetch a data chunk from the server, given the chunk identifier.

@@ -356,7 +356,7 @@ impl<'a> BackupRun<'a> {
         info!("upload SQLite {}", filename.display());
         let ids = self.upload_regular_file(filename, size).await?;
         let gen = GenerationChunk::new(ids);
-        let data = gen.to_data_chunk(&current_timestamp())?;
+        let data = gen.to_data_chunk()?;
         let gen_id = self.client.upload_chunk(data).await?;
         info!("uploaded generation {}", gen_id);
         Ok(gen_id)
@@ -406,7 +406,8 @@ impl<'a> BackupRun<'a> {
     }
 }
 
-fn current_timestamp() -> String {
+/// Current timestamp as an ISO 8601 string.
+pub fn current_timestamp() -> String {
     let now: DateTime<Local> = Local::now();
     format!("{}", now.format("%Y-%m-%d %H:%M:%S.%f %z"))
 }

@@ -250,7 +250,7 @@ requirements and notes how they affect the architecture.
 * **Large numbers of live data files:** Storing and accessing lists of
   and meta data about files needs to done using data structures that
   are efficient for that.
-* **Live data in the terabyte range:** 
+* **Live data in the terabyte range:** FIXME
 * **Many clients:** The architecture should enable flexibly managing
   clients.
 * **Shared repository:** The server component needs identify and
@@ -895,7 +895,7 @@ clients.
 
 Chunks consist of arbitrary binary data, a small amount of metadata,
 and an identifier chosen by the server. The chunk metadata is a JSON
-object, consisting of the following fields:
+object, consisting of the following field (there used to be more):
 
 * `label` &mdash; the SHA256 checksum of the chunk contents as
   determined by the client
@@ -904,20 +904,21 @@ object, consisting of the following fields:
   - note that the server doesn't verify this in any way, to pave way
     for future client-side encryption of the chunk data, including the
     label
-* `generation` &mdash; set to `true` if the chunk represents a
-  generation
-  - may also be set to `false` or `null` or be missing entirely
-  - the server allows for listing chunks where this field is set to
-    `true`
-* `ended` &mdash; the timestamp of when the backup generation ended
-  - note that the server doesn't process this in any way, the contents
-    is entirely up to the client
-  - may be set to the empty string, `null`, or be missing entirely
-  - this can't be used in searches
+  - there is no requirement that only one chunk has any given label
 
 When creating or retrieving a chunk, its metadata is carried in a
 `Chunk-Meta` header as a JSON object, serialized into a textual form
 that can be put into HTTP headers.
+
+There are several kinds of chunk. The kind only matters to the client,
+not to the server.
+
+* Data chunk: File content data, from live data files, or from an
+  SQLite database file listing all files in a backup.
+* Generation chunk: A list of chunks for the SQLite file for a
+  generation.
+* Client trust: A list of ids of generation chunks, plus other data
+  that are per-client, not per-backup.
 
 
 ## Server
@@ -929,12 +930,7 @@ The server has the following API for managing chunks:
 * `GET /chunks/<ID>` &mdash; retrieve a chunk (and its metadata) from
   the server, given a chunk identifier
 * `GET /chunks?label=xyzzy` &mdash; find chunks on the server whose
-  metadata indicates their contents has a given SHA256 checksum
-* `GET /chunks?generation=true` &mdash; find generation chunks
-* `GET /chunks?data=True` &mdash; find chunks with file data
-  - this is meant for testing only
-  - it excludes generation chunks, and chunks used to store the
-    generation's SQLite file
+  metadata has a specific value for a label.
 
 HTTP status codes are used to indicate if a request succeeded or not,
 using the customary meanings.
@@ -958,17 +954,14 @@ and should treat it as an opaque value.
 When a chunk is retrieved, the chunk metadata is returned in the
 `Chunk-Meta` header, and the contents in the response body.
 
-It is not possible to update a chunk or its metadata.
-
-When searching for chunks, any matching chunk's identifiers and
-metadata are returned in a JSON object:
+It is not possible to update a chunk or its metadata. It's not
+possible to remove a chunk. When searching for chunks, any matching
+chunk's identifiers and metadata are returned in a JSON object:
 
 ~~~json
 {
   "fe20734b-edb3-432f-83c3-d35fe15969dd": {
-     "label": "09ca7e4eaa6e8ae9c7d261167129184883644d07dfba7cbfbc4c8a2e08360d5b",
-     "generation": null,
-	 "ended: null,
+     "label": "09ca7e4eaa6e8ae9c7d261167129184883644d07dfba7cbfbc4c8a2e08360d5b"
   }
 }
 ~~~
@@ -1112,7 +1105,7 @@ We must be able to retrieve it.
 when I GET /chunks/<ID>
 then HTTP status code is 200
 and content-type is application/octet-stream
-and chunk-meta is {"label":"abc","generation":null,"ended":null}
+and chunk-meta is {"label":"abc"}
 and the body matches file data.dat
 ~~~
 
@@ -1122,7 +1115,7 @@ We must also be able to find it based on metadata.
 when I GET /chunks?label=abc
 then HTTP status code is 200
 and content-type is application/json
-and the JSON body matches {"<ID>":{"label":"abc","generation":null,"ended":null}}
+and the JSON body matches {"<ID>":{"label":"abc"}}
 ~~~
 
 Finally, we must be able to delete it. After that, we must not be able
@@ -1204,7 +1197,7 @@ Can we still find it by its metadata?
 when I GET /chunks?label=abc
 then HTTP status code is 200
 and content-type is application/json
-and the JSON body matches {"<ID>":{"label":"abc","generation":null,"ended":null}}
+and the JSON body matches {"<ID>":{"label":"abc"}}
 ~~~
 
 Can we still retrieve it by its identifier?
@@ -1213,7 +1206,7 @@ Can we still retrieve it by its identifier?
 when I GET /chunks/<ID>
 then HTTP status code is 200
 and content-type is application/octet-stream
-and chunk-meta is {"label":"abc","generation":null,"ended":null}
+and chunk-meta is {"label":"abc"}
 and the body matches file data.dat
 ~~~
 
@@ -1538,14 +1531,15 @@ data.
 The backup uses a chunk size of one byte, and backs up a file with
 three bytes. This results in three chunks for the file data, plus one
 for the generation SQLite file (not split into chunks of one byte),
-plus a chunk for the generation itself. A total of five chunks.
+plus a chunk for the generation itself. Additionally, the "trust root"
+chunk exists. A total of six chunks.
 
 ~~~scenario
 given a working Obnam system
 given a client config based on tiny-chunk-size.yaml
 given a file live/data.dat containing "abc"
 when I run obnam backup
-then server has 5 chunks
+then server has 6 chunks
 ~~~
 
 ~~~{#tiny-chunk-size.yaml .file .yaml .numberLines}
@@ -1846,10 +1840,10 @@ then exit code is 1
 and stdout contains "live/CACHEDIR.TAG"
 when I run obnam list-files
 then exit code is 0
+~~~
 then file live/CACHEDIR.TAG was backed up because it was new
 and stdout doesn't contain "live/data1.dat"
 and stdout doesn't contain "live/data2.dat"
-~~~
 
 ### Ignore CACHEDIR.TAGs if `exclude_cache_tag_directories` is disabled
 

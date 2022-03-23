@@ -1,6 +1,7 @@
 //! Errors from Obnam client.
 
 use crate::backup_run::BackupError;
+use crate::chunk::ClientTrustError;
 use crate::cipher::CipherError;
 use crate::client::ClientError;
 use crate::cmd::restore::RestoreError;
@@ -24,6 +25,10 @@ pub enum ObnamError {
     /// Error listing generations on server.
     #[error(transparent)]
     GenerationListError(#[from] GenerationListError),
+
+    /// Error about client trust chunks.
+    #[error(transparent)]
+    ClientTrust(#[from] ClientTrustError),
 
     /// Error saving passwords.
     #[error("couldn't save passwords to {0}: {1}")]

@@ -7,26 +7,15 @@ use std::str::FromStr;
 
 /// Metadata about chunks.
 ///
-/// We manage three bits of metadata about chunks, in addition to its
-/// identifier:
-///
-/// * for all chunks, a [SHA256][] checksum of the chunk content; we
-///   expose this to the server as the chunk "label"
-///
-/// * for generation chunks, an indication that it is a generation
-///   chunk, and a timestamp for when making the generation snapshot
-///   ended
-///
-/// There is no syntax or semantics imposed on the timestamp, but a
-/// client should probably use [ISO 8601][] representation.
+/// We a single piece of metadata about chunks, in addition to its
+/// identifier: a label assigned by the client. Currently, this is a
+/// [SHA256][] checksum of the chunk content.
 ///
 /// For HTTP, the metadata will be serialised as a JSON object, like this:
 ///
 /// ~~~json
 /// {
 ///     "label": "09ca7e4eaa6e8ae9c7d261167129184883644d07dfba7cbfbc4c8a2e08360d5b",
-///     "generation": true,
-///     "ended": "2020-09-17T08:17:13+03:00"
 /// }
 /// ~~~
 ///
@@ -42,10 +31,6 @@ use std::str::FromStr;
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ChunkMeta {
     label: String,
-    // The remaining fields are Options so that JSON parsing doesn't
-    // insist on them being there in the textual representation.
-    generation: Option<bool>,
-    ended: Option<String>,
 }
 
 impl ChunkMeta {
@@ -55,28 +40,7 @@ impl ChunkMeta {
     pub fn new(checksum: &Checksum) -> Self {
         ChunkMeta {
             label: checksum.to_string(),
-            generation: None,
-            ended: None,
         }
-    }
-
-    /// Create a new generation chunk.
-    pub fn new_generation(checksum: &Checksum, ended: &str) -> Self {
-        ChunkMeta {
-            label: checksum.to_string(),
-            generation: Some(true),
-            ended: Some(ended.to_string()),
-        }
-    }
-
-    /// Is this a generation chunk?
-    pub fn is_generation(&self) -> bool {
-        matches!(self.generation, Some(true))
-    }
-
-    /// When did this generation end?
-    pub fn ended(&self) -> Option<&str> {
-        self.ended.as_deref()
     }
 
     /// The label of the content of the chunk.
@@ -121,25 +85,19 @@ mod test {
     fn new_creates_data_chunk() {
         let sum = Checksum::sha256_from_str_unchecked("abcdef");
         let meta = ChunkMeta::new(&sum);
-        assert!(!meta.is_generation());
-        assert_eq!(meta.ended(), None);
         assert_eq!(meta.label(), "abcdef");
     }
 
     #[test]
     fn new_generation_creates_generation_chunk() {
         let sum = Checksum::sha256_from_str_unchecked("abcdef");
-        let meta = ChunkMeta::new_generation(&sum, "2020-09-17T08:17:13+03:00");
-        assert!(meta.is_generation());
-        assert_eq!(meta.ended(), Some("2020-09-17T08:17:13+03:00"));
+        let meta = ChunkMeta::new(&sum);
         assert_eq!(meta.label(), "abcdef");
     }
 
     #[test]
     fn data_chunk_from_json() {
         let meta: ChunkMeta = r#"{"label": "abcdef"}"#.parse().unwrap();
-        assert!(!meta.is_generation());
-        assert_eq!(meta.ended(), None);
         assert_eq!(meta.label(), "abcdef");
     }
 
@@ -149,15 +107,14 @@ mod test {
             r#"{"label": "abcdef", "generation": true, "ended": "2020-09-17T08:17:13+03:00"}"#
                 .parse()
                 .unwrap();
-        assert!(meta.is_generation());
-        assert_eq!(meta.ended(), Some("2020-09-17T08:17:13+03:00"));
+
         assert_eq!(meta.label(), "abcdef");
     }
 
     #[test]
     fn generation_json_roundtrip() {
         let sum = Checksum::sha256_from_str_unchecked("abcdef");
-        let meta = ChunkMeta::new_generation(&sum, "2020-09-17T08:17:13+03:00");
+        let meta = ChunkMeta::new(&sum);
         let json = serde_json::to_string(&meta).unwrap();
         let meta2 = serde_json::from_str(&json).unwrap();
         assert_eq!(meta, meta2);

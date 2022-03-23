@@ -68,11 +68,6 @@ impl IndexedStore {
         Ok(self.index.find_by_label(label)?)
     }
 
-    /// Find all generations.
-    pub fn find_generations(&self) -> Result<Vec<ChunkId>, IndexedError> {
-        Ok(self.index.find_generations()?)
-    }
-
     /// Remove a chunk from the store.
     pub fn remove(&mut self, id: &ChunkId) -> Result<(), IndexedError> {
         self.index.remove_meta(id)?;

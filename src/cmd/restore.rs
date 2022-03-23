@@ -1,6 +1,7 @@
 //! The `restore` subcommand.
 
 use crate::backup_reason::Reason;
+use crate::chunk::ClientTrust;
 use crate::client::{BackupClient, ClientError};
 use crate::config::ClientConfig;
 use crate::db::DatabaseError;
@@ -46,8 +47,13 @@ impl Restore {
         let temp = NamedTempFile::new()?;
 
         let client = BackupClient::new(config)?;
+        let trust = client
+            .get_client_trust()
+            .await?
+            .or_else(|| Some(ClientTrust::new("FIXME", None, "".to_string(), vec![])))
+            .unwrap();
 
-        let genlist = client.list_generations().await?;
+        let genlist = client.list_generations(&trust);
         let gen_id = genlist.resolve(&self.gen_id)?;
         info!("generation id is {}", gen_id.as_chunk_id());
 
