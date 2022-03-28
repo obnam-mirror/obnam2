@@ -35,7 +35,6 @@ impl Backup {
 
         let major = self.backup_version.or(Some(DEFAULT_SCHEMA_MAJOR)).unwrap();
         let schema = schema_version(major)?;
-        eprintln!("backup: schema: {}", schema);
 
         let client = BackupClient::new(config)?;
         let trust = client
