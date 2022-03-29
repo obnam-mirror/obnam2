@@ -42,8 +42,6 @@ impl Passwords {
 
     /// Save passwords to file.
     pub fn save(&self, filename: &Path) -> Result<(), PasswordError> {
-        eprintln!("saving passwords to {:?}", filename);
-
         let data = serde_yaml::to_string(&self).map_err(PasswordError::Serialize)?;
 
         let mut file = std::fs::File::create(filename)
