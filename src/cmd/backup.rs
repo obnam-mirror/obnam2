@@ -7,6 +7,7 @@ use crate::config::ClientConfig;
 use crate::dbgen::{schema_version, FileId, DEFAULT_SCHEMA_MAJOR};
 use crate::error::ObnamError;
 use crate::generation::GenId;
+use crate::performance::{Clock, Performance};
 use crate::schema::VersionComponent;
 
 use log::info;
@@ -25,12 +26,16 @@ pub struct Backup {
 
 impl Backup {
     /// Run the command.
-    pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
+    pub fn run(&self, config: &ClientConfig, perf: &mut Performance) -> Result<(), ObnamError> {
         let rt = Runtime::new()?;
-        rt.block_on(self.run_async(config))
+        rt.block_on(self.run_async(config, perf))
     }
 
-    async fn run_async(&self, config: &ClientConfig) -> Result<(), ObnamError> {
+    async fn run_async(
+        &self,
+        config: &ClientConfig,
+        perf: &mut Performance,
+    ) -> Result<(), ObnamError> {
         let runtime = SystemTime::now();
 
         let major = self.backup_version.or(Some(DEFAULT_SCHEMA_MAJOR)).unwrap();
@@ -52,28 +57,32 @@ impl Backup {
             Err(_) => {
                 info!("fresh backup without a previous generation");
                 let mut run = BackupRun::initial(config, &client)?;
-                let old = run.start(None, &oldtemp).await?;
+                let old = run.start(None, &oldtemp, perf).await?;
                 (
                     false,
-                    run.backup_roots(config, &old, &newtemp, schema).await?,
+                    run.backup_roots(config, &old, &newtemp, schema, perf)
+                        .await?,
                 )
             }
             Ok(old_id) => {
                 info!("incremental backup based on {}", old_id);
                 let mut run = BackupRun::incremental(config, &client)?;
-                let old = run.start(Some(&old_id), &oldtemp).await?;
+                let old = run.start(Some(&old_id), &oldtemp, perf).await?;
                 (
                     true,
-                    run.backup_roots(config, &old, &newtemp, schema).await?,
+                    run.backup_roots(config, &old, &newtemp, schema, perf)
+                        .await?,
                 )
             }
         };
 
+        perf.start(Clock::GenerationUpload);
         let mut trust = trust;
         trust.append_backup(outcome.gen_id.as_chunk_id());
         trust.finalize(current_timestamp());
         let trust = trust.to_data_chunk()?;
         let trust_id = client.upload_chunk(trust).await?;
+        perf.stop(Clock::GenerationUpload);
         info!("uploaded new client-trust {}", trust_id);
 
         for w in outcome.warnings.iter() {

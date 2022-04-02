@@ -15,6 +15,7 @@ use crate::fsiter::{AnnotatedFsEntry, FsIterError, FsIterator};
 use crate::generation::{
     GenId, LocalGeneration, LocalGenerationError, NascentError, NascentGeneration,
 };
+use crate::performance::{Clock, Performance};
 use crate::policy::BackupPolicy;
 use crate::schema::SchemaVersion;
 
@@ -129,6 +130,7 @@ impl<'a> BackupRun<'a> {
         &mut self,
         genid: Option<&GenId>,
         oldname: &Path,
+        perf: &mut Performance,
     ) -> Result<LocalGeneration, ObnamError> {
         match genid {
             None => {
@@ -140,7 +142,9 @@ impl<'a> BackupRun<'a> {
                 Ok(LocalGeneration::open(oldname)?)
             }
             Some(genid) => {
+                perf.start(Clock::GenerationDownload);
                 let old = self.fetch_previous_generation(genid, oldname).await?;
+                perf.stop(Clock::GenerationDownload);
 
                 let progress = BackupProgress::incremental();
                 progress.files_in_previous_generation(old.file_count()? as u64);
@@ -176,6 +180,7 @@ impl<'a> BackupRun<'a> {
         old: &LocalGeneration,
         newpath: &Path,
         schema: SchemaVersion,
+        perf: &mut Performance,
     ) -> Result<RootsBackupOutcome, ObnamError> {
         let mut warnings: Vec<BackupError> = vec![];
         let mut new_cachedir_tags = vec![];
@@ -204,7 +209,9 @@ impl<'a> BackupRun<'a> {
             count
         };
         self.finish();
+        perf.start(Clock::GenerationUpload);
         let gen_id = self.upload_nascent_generation(newpath).await?;
+        perf.stop(Clock::GenerationUpload);
         let gen_id = GenId::from_chunk_id(gen_id);
         Ok(RootsBackupOutcome {
             files_count,

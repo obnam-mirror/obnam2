@@ -17,6 +17,7 @@ use obnam::cmd::restore::Restore;
 use obnam::cmd::show_config::ShowConfig;
 use obnam::cmd::show_gen::ShowGeneration;
 use obnam::config::ClientConfig;
+use obnam::performance::{Clock, Performance};
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
@@ -25,14 +26,18 @@ const ORG: &str = "";
 const APPLICATION: &str = "obnam";
 
 fn main() {
-    if let Err(err) = main_program() {
+    let mut perf = Performance::default();
+    perf.start(Clock::RunTime);
+    if let Err(err) = main_program(&mut perf) {
         error!("{}", err);
         eprintln!("ERROR: {}", err);
         std::process::exit(1);
     }
+    perf.stop(Clock::RunTime);
+    perf.log();
 }
 
-fn main_program() -> anyhow::Result<()> {
+fn main_program(perf: &mut Performance) -> anyhow::Result<()> {
     let opt = Opt::from_args();
     let config = ClientConfig::read(&config_filename(&opt))?;
     setup_logging(&config.log)?;
@@ -44,7 +49,7 @@ fn main_program() -> anyhow::Result<()> {
     match opt.cmd {
         Command::Init(x) => x.run(&config),
         Command::ListBackupVersions(x) => x.run(&config),
-        Command::Backup(x) => x.run(&config),
+        Command::Backup(x) => x.run(&config, perf),
         Command::Inspect(x) => x.run(&config),
         Command::Chunkify(x) => x.run(&config),
         Command::List(x) => x.run(&config),

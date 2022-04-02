@@ -14,15 +14,6 @@ pub enum Clock {
 
     /// Time spent uploading backup generations.
     GenerationUpload,
-
-    /// Time spent checking if a chunk exists already on server.
-    HasChunk,
-
-    /// Time spent computing splitting files into chunks.
-    Chunking,
-
-    /// Time spent scanning live data.
-    Scanning,
 }
 
 /// Collected measurements from this Obnam run.
@@ -60,18 +51,6 @@ impl Performance {
         info!("Files backed up: {}", self.files_backed_up);
         info!("Chunks uploaded: {}", self.chunks_uploaded);
         info!("Chunks reused: {}", self.chunks_reused);
-        info!(
-            "Scanning live data (seconds): {}",
-            self.time.secs(Clock::Scanning)
-        );
-        info!(
-            "Chunking live data (seconds): {}",
-            self.time.secs(Clock::Chunking)
-        );
-        info!(
-            "Checking for duplicate chunks (seconds): {}",
-            self.time.secs(Clock::HasChunk)
-        );
         info!(
             "Downloading previous generation (seconds): {}",
             self.time.secs(Clock::GenerationDownload)
