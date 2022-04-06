@@ -5,6 +5,7 @@
 
 #![deny(missing_docs)]
 
+pub mod accumulated_time;
 pub mod backup_progress;
 pub mod backup_reason;
 pub mod backup_run;
@@ -29,6 +30,7 @@ pub mod genmeta;
 pub mod index;
 pub mod indexedstore;
 pub mod passwords;
+pub mod performance;
 pub mod policy;
 pub mod schema;
 pub mod server;
