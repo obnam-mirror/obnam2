@@ -21,28 +21,28 @@
     python:
       function: post_file
 
-- when: "I GET /chunks/<{var}>"
+- when: "I GET /v1/chunks/<{var}>"
   impl:
     python:
       function: get_chunk_via_var
 
-- when: "I try to GET /chunks/{chunk_id}"
+- when: "I try to GET /v1/chunks/{chunk_id}"
   impl:
     python:
       function: get_chunk_by_id
 
-- when: "I GET /chunks?label={sha}"
+- when: "I GET /v1/chunks?label={sha}"
   regex: false
   impl:
     python:
       function: find_chunks_with_label
 
-- when: "I DELETE /chunks/<{var}>"
+- when: "I DELETE /v1/chunks/<{var}>"
   impl:
     python:
       function: delete_chunk_via_var
 
-- when: "I try to DELETE /chunks/{chunk_id}"
+- when: "I try to DELETE /v1/chunks/{chunk_id}"
   impl:
     python:
       function: delete_chunk_by_id

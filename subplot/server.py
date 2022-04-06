@@ -53,7 +53,7 @@ def stop_chunk_server(ctx, env=None):
 
 
 def post_file(ctx, filename=None, path=None, header=None, json=None):
-    url = f"{ctx['server_url']}/chunks"
+    url = f"{ctx['server_url']}/v1/chunks"
     headers = {header: json}
     data = open(filename, "rb").read()
     _request(ctx, requests.post, url, headers=headers, data=data)
@@ -65,12 +65,12 @@ def get_chunk_via_var(ctx, var=None):
 
 
 def get_chunk_by_id(ctx, chunk_id=None):
-    url = f"{ctx['server_url']}/chunks/{chunk_id}"
+    url = f"{ctx['server_url']}/v1/chunks/{chunk_id}"
     _request(ctx, requests.get, url)
 
 
 def find_chunks_with_label(ctx, sha=None):
-    url = f"{ctx['server_url']}/chunks?label={sha}"
+    url = f"{ctx['server_url']}/v1/chunks?label={sha}"
     _request(ctx, requests.get, url)
 
 
@@ -80,7 +80,7 @@ def delete_chunk_via_var(ctx, var=None):
 
 
 def delete_chunk_by_id(ctx, chunk_id=None):
-    url = f"{ctx['server_url']}/chunks/{chunk_id}"
+    url = f"{ctx['server_url']}/v1/chunks/{chunk_id}"
     _request(ctx, requests.delete, url)
 
 

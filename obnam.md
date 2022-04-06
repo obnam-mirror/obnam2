@@ -925,11 +925,11 @@ not to the server.
 
 The server has the following API for managing chunks:
 
-* `POST /chunks` &mdash; store a new chunk (and its metadata) on the
+* `POST /v1/chunks` &mdash; store a new chunk (and its metadata) on the
   server, return its randomly chosen identifier
-* `GET /chunks/<ID>` &mdash; retrieve a chunk (and its metadata) from
+* `GET /v1/chunks/<ID>` &mdash; retrieve a chunk (and its metadata) from
   the server, given a chunk identifier
-* `GET /chunks?label=xyzzy` &mdash; find chunks on the server whose
+* `GET /v1/chunks?label=xyzzy` &mdash; find chunks on the server whose
   metadata has a specific value for a label.
 
 HTTP status codes are used to indicate if a request succeeded or not,
@@ -1092,7 +1092,7 @@ storage of backed up data.
 ~~~scenario
 given a working Obnam system
 and a file data.dat containing some random data
-when I POST data.dat to /chunks, with chunk-meta: {"label":"abc"}
+when I POST data.dat to /v1/chunks, with chunk-meta: {"label":"abc"}
 then HTTP status code is 201
 and content-type is application/json
 and the JSON body has a field chunk_id, henceforth ID
@@ -1102,7 +1102,7 @@ and server has 1 chunks
 We must be able to retrieve it.
 
 ~~~scenario
-when I GET /chunks/<ID>
+when I GET /v1/chunks/<ID>
 then HTTP status code is 200
 and content-type is application/octet-stream
 and chunk-meta is {"label":"abc"}
@@ -1112,7 +1112,7 @@ and the body matches file data.dat
 We must also be able to find it based on metadata.
 
 ~~~scenario
-when I GET /chunks?label=abc
+when I GET /v1/chunks?label=abc
 then HTTP status code is 200
 and content-type is application/json
 and the JSON body matches {"<ID>":{"label":"abc"}}
@@ -1122,13 +1122,13 @@ Finally, we must be able to delete it. After that, we must not be able
 to retrieve it, or find it using metadata.
 
 ~~~scenario
-when I DELETE /chunks/<ID>
+when I DELETE /v1/chunks/<ID>
 then HTTP status code is 200
 
-when I GET /chunks/<ID>
+when I GET /v1/chunks/<ID>
 then HTTP status code is 404
 
-when I GET /chunks?label=abc
+when I GET /v1/chunks?label=abc
 then HTTP status code is 200
 and content-type is application/json
 and the JSON body matches {}
@@ -1141,7 +1141,7 @@ not exist.
 
 ~~~scenario
 given a working Obnam system
-when I try to GET /chunks/any.random.string
+when I try to GET /v1/chunks/any.random.string
 then HTTP status code is 404
 ~~~
 
@@ -1151,7 +1151,7 @@ We must get an empty result if searching for chunks that don't exist.
 
 ~~~scenario
 given a working Obnam system
-when I GET /chunks?label=abc
+when I GET /v1/chunks?label=abc
 then HTTP status code is 200
 and content-type is application/json
 and the JSON body matches {}
@@ -1163,7 +1163,7 @@ We must get the right error when deleting a chunk that doesn't exist.
 
 ~~~scenario
 given a working Obnam system
-when I try to DELETE /chunks/any.random.string
+when I try to DELETE /v1/chunks/any.random.string
 then HTTP status code is 404
 ~~~
 
@@ -1178,7 +1178,7 @@ First, create a chunk.
 ~~~scenario
 given a working Obnam system
 and a file data.dat containing some random data
-when I POST data.dat to /chunks, with chunk-meta: {"label":"abc"}
+when I POST data.dat to /v1/chunks, with chunk-meta: {"label":"abc"}
 then HTTP status code is 201
 and content-type is application/json
 and the JSON body has a field chunk_id, henceforth ID
@@ -1194,7 +1194,7 @@ given a running chunk server
 Can we still find it by its metadata?
 
 ~~~scenario
-when I GET /chunks?label=abc
+when I GET /v1/chunks?label=abc
 then HTTP status code is 200
 and content-type is application/json
 and the JSON body matches {"<ID>":{"label":"abc"}}
@@ -1203,7 +1203,7 @@ and the JSON body matches {"<ID>":{"label":"abc"}}
 Can we still retrieve it by its identifier?
 
 ~~~scenario
-when I GET /chunks/<ID>
+when I GET /v1/chunks/<ID>
 then HTTP status code is 200
 and content-type is application/octet-stream
 and chunk-meta is {"label":"abc"}
@@ -1220,14 +1220,14 @@ server more chatty.
 ~~~scenario
 given a working Obnam system
 and a file data1.dat containing some random data
-when I POST data1.dat to /chunks, with chunk-meta: {"label":"qwerty"}
+when I POST data1.dat to /v1/chunks, with chunk-meta: {"label":"qwerty"}
 then the JSON body has a field chunk_id, henceforth ID
 and chunk server's stderr doesn't contain "Obnam server starting up"
 and chunk server's stderr doesn't contain "created chunk <ID>"
 
 given a running chunk server with environment {"OBNAM_SERVER_LOG": "info"}
 and a file data2.dat containing some random data
-when I POST data2.dat to /chunks, with chunk-meta: {"label":"xyz"}
+when I POST data2.dat to /v1/chunks, with chunk-meta: {"label":"xyz"}
 then the JSON body has a field chunk_id, henceforth ID
 and chunk server's stderr contains "Obnam server starting up"
 and chunk server's stderr contains "created chunk <ID>"
