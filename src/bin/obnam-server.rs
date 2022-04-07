@@ -47,27 +47,35 @@ async fn main() -> anyhow::Result<()> {
     debug!("Configuration: {:#?}", config);
 
     let create = warp::post()
+        .and(warp::path("v1"))
         .and(warp::path("chunks"))
+        .and(warp::path::end())
         .and(store.clone())
         .and(warp::header("chunk-meta"))
         .and(warp::filters::body::bytes())
         .and_then(create_chunk);
 
     let fetch = warp::get()
+        .and(warp::path("v1"))
         .and(warp::path("chunks"))
         .and(warp::path::param())
+        .and(warp::path::end())
         .and(store.clone())
         .and_then(fetch_chunk);
 
     let search = warp::get()
+        .and(warp::path("v1"))
         .and(warp::path("chunks"))
+        .and(warp::path::end())
         .and(warp::query::<HashMap<String, String>>())
         .and(store.clone())
         .and_then(search_chunks);
 
     let delete = warp::delete()
+        .and(warp::path("v1"))
         .and(warp::path("chunks"))
         .and(warp::path::param())
+        .and(warp::path::end())
         .and(store.clone())
         .and_then(delete_chunk);
 

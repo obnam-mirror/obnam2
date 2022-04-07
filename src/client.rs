@@ -131,7 +131,7 @@ impl BackupClient {
     }
 
     fn chunks_url(&self) -> String {
-        format!("{}/chunks", self.base_url())
+        format!("{}/v1/chunks", self.base_url())
     }
 
     /// Does the server have a chunk?
