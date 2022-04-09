@@ -10,6 +10,7 @@ use crate::db::DatabaseError;
 use crate::dbgen::GenerationDbError;
 use crate::generation::{LocalGenerationError, NascentError};
 use crate::genlist::GenerationListError;
+use crate::label::LabelError;
 use crate::passwords::PasswordError;
 use std::path::PathBuf;
 use std::time::SystemTimeError;
@@ -22,6 +23,10 @@ use tempfile::PersistError;
 /// convenience.
 #[derive(Debug, thiserror::Error)]
 pub enum ObnamError {
+    /// Error from chunk labels.
+    #[error(transparent)]
+    Label(#[from] LabelError),
+
     /// Error listing generations on server.
     #[error(transparent)]
     GenerationListError(#[from] GenerationListError),

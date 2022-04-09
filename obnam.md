@@ -1901,7 +1901,9 @@ then stdout, as JSON, has all the values in file geninfo.json
         "major": 0,
         "minor": 0
     },
-    "extras": {}
+    "extras": {
+        "checksum_kind": "sha256"
+    }
 }
 ~~~
 

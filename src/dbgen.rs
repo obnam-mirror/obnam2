@@ -5,6 +5,7 @@ use crate::chunkid::ChunkId;
 use crate::db::{Column, Database, DatabaseError, SqlResults, Table, Value};
 use crate::fsentry::FilesystemEntry;
 use crate::genmeta::{GenerationMeta, GenerationMetaError};
+use crate::label::LabelChecksumKind;
 use crate::schema::{SchemaVersion, VersionComponent};
 use log::error;
 use std::collections::HashMap;
@@ -90,14 +91,15 @@ impl GenerationDb {
     pub fn create<P: AsRef<Path>>(
         filename: P,
         schema: SchemaVersion,
+        checksum_kind: LabelChecksumKind,
     ) -> Result<Self, GenerationDbError> {
         let meta_table = Self::meta_table();
         let variant = match schema.version() {
             (V0_0::MAJOR, V0_0::MINOR) => {
-                GenerationDbVariant::V0_0(V0_0::create(filename, meta_table)?)
+                GenerationDbVariant::V0_0(V0_0::create(filename, meta_table, checksum_kind)?)
             }
             (V1_0::MAJOR, V1_0::MINOR) => {
-                GenerationDbVariant::V1_0(V1_0::create(filename, meta_table)?)
+                GenerationDbVariant::V1_0(V1_0::create(filename, meta_table, checksum_kind)?)
             }
             (major, minor) => return Err(GenerationDbError::Incompatible(major, minor)),
         };
@@ -240,11 +242,15 @@ impl V0_0 {
     const MINOR: VersionComponent = 0;
 
     /// Create a new generation database in read/write mode.
-    pub fn create<P: AsRef<Path>>(filename: P, meta: Table) -> Result<Self, GenerationDbError> {
+    pub fn create<P: AsRef<Path>>(
+        filename: P,
+        meta: Table,
+        checksum_kind: LabelChecksumKind,
+    ) -> Result<Self, GenerationDbError> {
         let db = Database::create(filename.as_ref())?;
         let mut moi = Self::new(db, meta);
         moi.created = true;
-        moi.create_tables()?;
+        moi.create_tables(checksum_kind)?;
         Ok(moi)
     }
 
@@ -276,7 +282,7 @@ impl V0_0 {
         }
     }
 
-    fn create_tables(&mut self) -> Result<(), GenerationDbError> {
+    fn create_tables(&mut self, checksum_kind: LabelChecksumKind) -> Result<(), GenerationDbError> {
         self.db.create_table(&self.meta)?;
         self.db.create_table(&self.files)?;
         self.db.create_table(&self.chunks)?;
@@ -293,6 +299,13 @@ impl V0_0 {
             &[
                 Value::text("key", "schema_version_minor"),
                 Value::text("value", &format!("{}", Self::MINOR)),
+            ],
+        )?;
+        self.db.insert(
+            &self.meta,
+            &[
+                Value::text("key", "checksum_kind"),
+                Value::text("value", checksum_kind.serialize()),
             ],
         )?;
 
@@ -483,11 +496,15 @@ impl V1_0 {
     const MINOR: VersionComponent = 0;
 
     /// Create a new generation database in read/write mode.
-    pub fn create<P: AsRef<Path>>(filename: P, meta: Table) -> Result<Self, GenerationDbError> {
+    pub fn create<P: AsRef<Path>>(
+        filename: P,
+        meta: Table,
+        checksum_kind: LabelChecksumKind,
+    ) -> Result<Self, GenerationDbError> {
         let db = Database::create(filename.as_ref())?;
         let mut moi = Self::new(db, meta);
         moi.created = true;
-        moi.create_tables()?;
+        moi.create_tables(checksum_kind)?;
         Ok(moi)
     }
 
@@ -519,7 +536,7 @@ impl V1_0 {
         }
     }
 
-    fn create_tables(&mut self) -> Result<(), GenerationDbError> {
+    fn create_tables(&mut self, checksum_kind: LabelChecksumKind) -> Result<(), GenerationDbError> {
         self.db.create_table(&self.meta)?;
         self.db.create_table(&self.files)?;
         self.db.create_table(&self.chunks)?;
@@ -536,6 +553,13 @@ impl V1_0 {
             &[
                 Value::text("key", "schema_version_minor"),
                 Value::text("value", &format!("{}", Self::MINOR)),
+            ],
+        )?;
+        self.db.insert(
+            &self.meta,
+            &[
+                Value::text("key", "checksum_kind"),
+                Value::text("value", checksum_kind.serialize()),
             ],
         )?;
 
