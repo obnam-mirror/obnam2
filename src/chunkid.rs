@@ -3,7 +3,7 @@
 //! Chunk identifiers are chosen by the server. Each chunk has a
 //! unique identifier, which isn't based on the contents of the chunk.
 
-use crate::checksummer::Checksum;
+use crate::label::Label;
 use rusqlite::types::ToSqlOutput;
 use rusqlite::ToSql;
 use serde::{Deserialize, Serialize};
@@ -53,8 +53,8 @@ impl ChunkId {
     }
 
     /// Return the SHA256 checksum of the identifier.
-    pub fn sha256(&self) -> Checksum {
-        Checksum::sha256(self.id.as_bytes())
+    pub fn sha256(&self) -> Label {
+        Label::sha256(self.id.as_bytes())
     }
 }
 

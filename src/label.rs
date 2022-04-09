@@ -1,4 +1,4 @@
-//! Compute checksums of data.
+//! A chunk label.
 //!
 //! De-duplication of backed up data in Obnam relies on cryptographic
 //! checksums. They are implemented in this module. Note that Obnam
@@ -10,7 +10,7 @@ use std::fmt;
 
 /// A checksum of some data.
 #[derive(Debug, Clone)]
-pub enum Checksum {
+pub enum Label {
     /// An arbitrary, literal string.
     Literal(String),
 
@@ -18,7 +18,7 @@ pub enum Checksum {
     Sha256(String),
 }
 
-impl Checksum {
+impl Label {
     /// Construct a literal string.
     pub fn literal(s: &str) -> Self {
         Self::Literal(s.to_string())
@@ -38,7 +38,7 @@ impl Checksum {
     }
 }
 
-impl fmt::Display for Checksum {
+impl fmt::Display for Label {
     /// Format a checksum for display.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

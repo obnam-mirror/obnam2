@@ -1,8 +1,8 @@
 //! Split file data into chunks.
 
-use crate::checksummer::Checksum;
 use crate::chunk::DataChunk;
 use crate::chunkmeta::ChunkMeta;
+use crate::label::Label;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
@@ -54,7 +54,7 @@ impl FileChunks {
         }
 
         let buffer = &self.buf.as_slice()[..used];
-        let hash = Checksum::sha256(buffer);
+        let hash = Label::sha256(buffer);
         let meta = ChunkMeta::new(&hash);
         let chunk = DataChunk::new(buffer.to_vec(), meta);
         Ok(Some(chunk))
