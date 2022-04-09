@@ -11,11 +11,19 @@ use std::fmt;
 /// A checksum of some data.
 #[derive(Debug, Clone)]
 pub enum Checksum {
+    /// An arbitrary, literal string.
+    Literal(String),
+
     /// A SHA256 checksum.
     Sha256(String),
 }
 
 impl Checksum {
+    /// Construct a literal string.
+    pub fn literal(s: &str) -> Self {
+        Self::Literal(s.to_string())
+    }
+
     /// Compute a SHA256 checksum for a block of data.
     pub fn sha256(data: &[u8]) -> Self {
         let mut hasher = Sha256::new();
@@ -33,9 +41,9 @@ impl Checksum {
 impl fmt::Display for Checksum {
     /// Format a checksum for display.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let hash = match self {
-            Self::Sha256(hash) => hash,
-        };
-        write!(f, "{}", hash)
+        match self {
+            Self::Literal(s) => write!(f, "{}", s),
+            Self::Sha256(hash) => write!(f, "{}", hash),
+        }
     }
 }

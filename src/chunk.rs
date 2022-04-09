@@ -185,7 +185,7 @@ impl ClientTrust {
     pub fn to_data_chunk(&self) -> Result<DataChunk, ClientTrustError> {
         let json: String = serde_json::to_string(self).map_err(ClientTrustError::JsonGenerate)?;
         let bytes = json.as_bytes().to_vec();
-        let checksum = Checksum::sha256_from_str_unchecked("client-trust");
+        let checksum = Checksum::literal("client-trust");
         let meta = ChunkMeta::new(&checksum);
         Ok(DataChunk::new(bytes, meta))
     }

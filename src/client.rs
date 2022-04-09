@@ -1,5 +1,6 @@
 //! Client to the Obnam server HTTP API.
 
+use crate::checksummer::Checksum;
 use crate::chunk::{
     ClientTrust, ClientTrustError, DataChunk, GenerationChunk, GenerationChunkError,
 };
@@ -195,7 +196,8 @@ impl BackupClient {
     }
 
     async fn find_client_trusts(&self) -> Result<Vec<ChunkId>, ClientError> {
-        let body = match self.get("", &[("label", "client-trust")]).await {
+        let label = format!("{}", Checksum::literal("client-trust"));
+        let body = match self.get("", &[("label", &label)]).await {
             Ok((_, body)) => body,
             Err(err) => return Err(err),
         };
