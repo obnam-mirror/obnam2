@@ -196,7 +196,7 @@ impl BackupClient {
     }
 
     async fn find_client_trusts(&self) -> Result<Vec<ChunkId>, ClientError> {
-        let label = format!("{}", Label::literal("client-trust"));
+        let label = Label::literal("client-trust").serialize();
         let body = match self.get("", &[("label", &label)]).await {
             Ok((_, body)) => body,
             Err(err) => return Err(err),

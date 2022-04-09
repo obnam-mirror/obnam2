@@ -39,7 +39,7 @@ impl ChunkMeta {
     /// Data chunks are not for generations.
     pub fn new(label: &Label) -> Self {
         ChunkMeta {
-            label: label.to_string(),
+            label: label.serialize(),
         }
     }
 
@@ -85,14 +85,14 @@ mod test {
     fn new_creates_data_chunk() {
         let sum = Label::sha256(b"abcdef");
         let meta = ChunkMeta::new(&sum);
-        assert_eq!(meta.label(), &format!("{}", sum));
+        assert_eq!(meta.label(), sum.serialize());
     }
 
     #[test]
     fn new_generation_creates_generation_chunk() {
         let sum = Label::sha256(b"abcdef");
         let meta = ChunkMeta::new(&sum);
-        assert_eq!(meta.label(), &format!("{}", sum));
+        assert_eq!(meta.label(), sum.serialize());
     }
 
     #[test]

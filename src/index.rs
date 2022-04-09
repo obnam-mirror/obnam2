@@ -93,7 +93,7 @@ mod test {
         let mut idx = new_index(dir.path());
         idx.insert_meta(id.clone(), meta.clone()).unwrap();
         assert_eq!(idx.get_meta(&id).unwrap(), meta);
-        let ids = idx.find_by_label(&format!("{}", sum)).unwrap();
+        let ids = idx.find_by_label(&sum.serialize()).unwrap();
         assert_eq!(ids, vec![id]);
     }
 
@@ -117,7 +117,7 @@ mod test {
         let mut idx = new_index(dir.path());
         idx.insert_meta(id.clone(), meta).unwrap();
         idx.remove_meta(&id).unwrap();
-        let ids: Vec<ChunkId> = idx.find_by_label(&format!("{}", sum)).unwrap();
+        let ids: Vec<ChunkId> = idx.find_by_label(&sum.serialize()).unwrap();
         assert_eq!(ids, vec![]);
     }
 }
@@ -216,7 +216,7 @@ mod sql {
 
     fn row_to_meta(row: &Row) -> rusqlite::Result<ChunkMeta> {
         let hash: String = row.get("label")?;
-        let sha256 = Label::sha256_from_str_unchecked(&hash);
+        let sha256 = Label::deserialize(&hash).expect("deserialize checksum from database");
         Ok(ChunkMeta::new(&sha256))
     }
 
