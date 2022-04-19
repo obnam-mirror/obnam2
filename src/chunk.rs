@@ -1,8 +1,8 @@
 //! Chunks of data.
 
-use crate::checksummer::Checksum;
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
+use crate::label::Label;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
 
@@ -97,7 +97,7 @@ impl GenerationChunk {
         let json: String =
             serde_json::to_string(self).map_err(GenerationChunkError::JsonGenerate)?;
         let bytes = json.as_bytes().to_vec();
-        let checksum = Checksum::sha256(&bytes);
+        let checksum = Label::sha256(&bytes);
         let meta = ChunkMeta::new(&checksum);
         Ok(DataChunk::new(bytes, meta))
     }
@@ -185,7 +185,7 @@ impl ClientTrust {
     pub fn to_data_chunk(&self) -> Result<DataChunk, ClientTrustError> {
         let json: String = serde_json::to_string(self).map_err(ClientTrustError::JsonGenerate)?;
         let bytes = json.as_bytes().to_vec();
-        let checksum = Checksum::sha256_from_str_unchecked("client-trust");
+        let checksum = Label::literal("client-trust");
         let meta = ChunkMeta::new(&checksum);
         Ok(DataChunk::new(bytes, meta))
     }

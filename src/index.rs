@@ -1,8 +1,8 @@
 //! An on-disk index of chunks for the server.
 
-use crate::checksummer::Checksum;
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
+use crate::label::Label;
 use rusqlite::Connection;
 use std::path::Path;
 
@@ -74,7 +74,7 @@ impl Index {
 
 #[cfg(test)]
 mod test {
-    use crate::checksummer::Checksum;
+    use super::Label;
 
     use super::{ChunkId, ChunkMeta, Index};
     use std::path::Path;
@@ -87,20 +87,20 @@ mod test {
     #[test]
     fn remembers_inserted() {
         let id: ChunkId = "id001".parse().unwrap();
-        let sum = Checksum::sha256_from_str_unchecked("abc");
+        let sum = Label::sha256(b"abc");
         let meta = ChunkMeta::new(&sum);
         let dir = tempdir().unwrap();
         let mut idx = new_index(dir.path());
         idx.insert_meta(id.clone(), meta.clone()).unwrap();
         assert_eq!(idx.get_meta(&id).unwrap(), meta);
-        let ids = idx.find_by_label("abc").unwrap();
+        let ids = idx.find_by_label(&sum.serialize()).unwrap();
         assert_eq!(ids, vec![id]);
     }
 
     #[test]
     fn does_not_find_uninserted() {
         let id: ChunkId = "id001".parse().unwrap();
-        let sum = Checksum::sha256_from_str_unchecked("abc");
+        let sum = Label::sha256(b"abc");
         let meta = ChunkMeta::new(&sum);
         let dir = tempdir().unwrap();
         let mut idx = new_index(dir.path());
@@ -111,19 +111,19 @@ mod test {
     #[test]
     fn removes_inserted() {
         let id: ChunkId = "id001".parse().unwrap();
-        let sum = Checksum::sha256_from_str_unchecked("abc");
+        let sum = Label::sha256(b"abc");
         let meta = ChunkMeta::new(&sum);
         let dir = tempdir().unwrap();
         let mut idx = new_index(dir.path());
         idx.insert_meta(id.clone(), meta).unwrap();
         idx.remove_meta(&id).unwrap();
-        let ids: Vec<ChunkId> = idx.find_by_label("abc").unwrap();
+        let ids: Vec<ChunkId> = idx.find_by_label(&sum.serialize()).unwrap();
         assert_eq!(ids, vec![]);
     }
 }
 
 mod sql {
-    use super::{Checksum, IndexError};
+    use super::{IndexError, Label};
     use crate::chunkid::ChunkId;
     use crate::chunkmeta::ChunkMeta;
     use log::error;
@@ -216,7 +216,7 @@ mod sql {
 
     fn row_to_meta(row: &Row) -> rusqlite::Result<ChunkMeta> {
         let hash: String = row.get("label")?;
-        let sha256 = Checksum::sha256_from_str_unchecked(&hash);
+        let sha256 = Label::deserialize(&hash).expect("deserialize checksum from database");
         Ok(ChunkMeta::new(&sha256))
     }
 

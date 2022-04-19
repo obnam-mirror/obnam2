@@ -19,7 +19,11 @@ use tokio::runtime::Runtime;
 /// Make a backup.
 #[derive(Debug, StructOpt)]
 pub struct Backup {
-    /// Backup schema major version.
+    /// Force a full backup, instead of an incremental one.
+    #[structopt(long)]
+    full: bool,
+
+    /// Backup schema major version to use.
     #[structopt(long)]
     backup_version: Option<VersionComponent>,
 }
@@ -53,27 +57,33 @@ impl Backup {
         let oldtemp = temp.path().join("old.db");
         let newtemp = temp.path().join("new.db");
 
-        let (is_incremental, outcome) = match genlist.resolve("latest") {
-            Err(_) => {
-                info!("fresh backup without a previous generation");
-                let mut run = BackupRun::initial(config, &client)?;
-                let old = run.start(None, &oldtemp, perf).await?;
-                (
-                    false,
-                    run.backup_roots(config, &old, &newtemp, schema, perf)
-                        .await?,
-                )
+        let old_id = if self.full {
+            None
+        } else {
+            match genlist.resolve("latest") {
+                Err(_) => None,
+                Ok(old_id) => Some(old_id),
             }
-            Ok(old_id) => {
-                info!("incremental backup based on {}", old_id);
-                let mut run = BackupRun::incremental(config, &client)?;
-                let old = run.start(Some(&old_id), &oldtemp, perf).await?;
-                (
-                    true,
-                    run.backup_roots(config, &old, &newtemp, schema, perf)
-                        .await?,
-                )
-            }
+        };
+
+        let (is_incremental, outcome) = if let Some(old_id) = old_id {
+            info!("incremental backup based on {}", old_id);
+            let mut run = BackupRun::incremental(config, &client)?;
+            let old = run.start(Some(&old_id), &oldtemp, perf).await?;
+            (
+                true,
+                run.backup_roots(config, &old, &newtemp, schema, perf)
+                    .await?,
+            )
+        } else {
+            info!("fresh backup without a previous generation");
+            let mut run = BackupRun::initial(config, &client)?;
+            let old = run.start(None, &oldtemp, perf).await?;
+            (
+                false,
+                run.backup_roots(config, &old, &newtemp, schema, perf)
+                    .await?,
+            )
         };
 
         perf.start(Clock::GenerationUpload);

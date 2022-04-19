@@ -15,6 +15,7 @@ use crate::fsiter::{AnnotatedFsEntry, FsIterError, FsIterator};
 use crate::generation::{
     GenId, LocalGeneration, LocalGenerationError, NascentError, NascentGeneration,
 };
+use crate::label::LabelChecksumKind;
 use crate::performance::{Clock, Performance};
 use crate::policy::BackupPolicy;
 use crate::schema::SchemaVersion;
@@ -24,10 +25,12 @@ use chrono::{DateTime, Local};
 use log::{debug, error, info, warn};
 use std::path::{Path, PathBuf};
 
+const DEFAULT_CHECKSUM_KIND: LabelChecksumKind = LabelChecksumKind::Sha256;
 const SQLITE_CHUNK_SIZE: usize = MIB as usize;
 
 /// A running backup.
 pub struct BackupRun<'a> {
+    checksum_kind: Option<LabelChecksumKind>,
     client: &'a BackupClient,
     policy: BackupPolicy,
     buffer_size: usize,
@@ -105,6 +108,7 @@ impl<'a> BackupRun<'a> {
     /// Create a new run for an initial backup.
     pub fn initial(config: &ClientConfig, client: &'a BackupClient) -> Result<Self, BackupError> {
         Ok(Self {
+            checksum_kind: Some(DEFAULT_CHECKSUM_KIND),
             client,
             policy: BackupPolicy::default(),
             buffer_size: config.chunk_size,
@@ -118,6 +122,7 @@ impl<'a> BackupRun<'a> {
         client: &'a BackupClient,
     ) -> Result<Self, BackupError> {
         Ok(Self {
+            checksum_kind: None,
             client,
             policy: BackupPolicy::default(),
             buffer_size: config.chunk_size,
@@ -136,7 +141,7 @@ impl<'a> BackupRun<'a> {
             None => {
                 // Create a new, empty generation.
                 let schema = schema_version(DEFAULT_SCHEMA_MAJOR).unwrap();
-                NascentGeneration::create(oldname, schema)?.close()?;
+                NascentGeneration::create(oldname, schema, self.checksum_kind.unwrap())?.close()?;
 
                 // Open the newly created empty generation.
                 Ok(LocalGeneration::open(oldname)?)
@@ -146,6 +151,11 @@ impl<'a> BackupRun<'a> {
                 let old = self.fetch_previous_generation(genid, oldname).await?;
                 perf.stop(Clock::GenerationDownload);
 
+                let meta = old.meta()?;
+                if let Some(v) = meta.get("checksum_kind") {
+                    self.checksum_kind = Some(LabelChecksumKind::from(v)?);
+                }
+
                 let progress = BackupProgress::incremental();
                 progress.files_in_previous_generation(old.file_count()? as u64);
                 self.progress = Some(progress);
@@ -153,6 +163,12 @@ impl<'a> BackupRun<'a> {
                 Ok(old)
             }
         }
+    }
+
+    fn checksum_kind(&self) -> LabelChecksumKind {
+        self.checksum_kind
+            .or(Some(LabelChecksumKind::Sha256))
+            .unwrap()
     }
 
     async fn fetch_previous_generation(
@@ -185,7 +201,7 @@ impl<'a> BackupRun<'a> {
         let mut warnings: Vec<BackupError> = vec![];
         let mut new_cachedir_tags = vec![];
         let files_count = {
-            let mut new = NascentGeneration::create(newpath, schema)?;
+            let mut new = NascentGeneration::create(newpath, schema, self.checksum_kind.unwrap())?;
             for root in &config.roots {
                 match self.backup_one_root(config, old, &mut new, root).await {
                     Ok(mut o) => {
@@ -378,7 +394,7 @@ impl<'a> BackupRun<'a> {
         let mut chunk_ids = vec![];
         let file = std::fs::File::open(filename)
             .map_err(|err| ClientError::FileOpen(filename.to_path_buf(), err))?;
-        let chunker = FileChunks::new(size, file, filename);
+        let chunker = FileChunks::new(size, file, filename, self.checksum_kind());
         for item in chunker {
             let chunk = item?;
             if let Some(chunk_id) = self.client.has_chunk(chunk.meta()).await? {

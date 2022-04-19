@@ -9,6 +9,7 @@ use crate::cipher::{CipherEngine, CipherError};
 use crate::config::{ClientConfig, ClientConfigError};
 use crate::generation::{FinishedGeneration, GenId, LocalGeneration, LocalGenerationError};
 use crate::genlist::GenerationList;
+use crate::label::Label;
 
 use log::{debug, error, info};
 use reqwest::header::HeaderMap;
@@ -195,7 +196,8 @@ impl BackupClient {
     }
 
     async fn find_client_trusts(&self) -> Result<Vec<ChunkId>, ClientError> {
-        let body = match self.get("", &[("label", "client-trust")]).await {
+        let label = Label::literal("client-trust").serialize();
+        let body = match self.get("", &[("label", &label)]).await {
             Ok((_, body)) => body,
             Err(err) => return Err(err),
         };

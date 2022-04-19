@@ -1,6 +1,6 @@
 //! Metadata about a chunk.
 
-use crate::checksummer::Checksum;
+use crate::label::Label;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
 use std::str::FromStr;
@@ -37,9 +37,9 @@ impl ChunkMeta {
     /// Create a new data chunk.
     ///
     /// Data chunks are not for generations.
-    pub fn new(checksum: &Checksum) -> Self {
+    pub fn new(label: &Label) -> Self {
         ChunkMeta {
-            label: checksum.to_string(),
+            label: label.serialize(),
         }
     }
 
@@ -79,20 +79,20 @@ impl FromStr for ChunkMeta {
 
 #[cfg(test)]
 mod test {
-    use super::{Checksum, ChunkMeta};
+    use super::{ChunkMeta, Label};
 
     #[test]
     fn new_creates_data_chunk() {
-        let sum = Checksum::sha256_from_str_unchecked("abcdef");
+        let sum = Label::sha256(b"abcdef");
         let meta = ChunkMeta::new(&sum);
-        assert_eq!(meta.label(), "abcdef");
+        assert_eq!(meta.label(), sum.serialize());
     }
 
     #[test]
     fn new_generation_creates_generation_chunk() {
-        let sum = Checksum::sha256_from_str_unchecked("abcdef");
+        let sum = Label::sha256(b"abcdef");
         let meta = ChunkMeta::new(&sum);
-        assert_eq!(meta.label(), "abcdef");
+        assert_eq!(meta.label(), sum.serialize());
     }
 
     #[test]
@@ -113,7 +113,7 @@ mod test {
 
     #[test]
     fn generation_json_roundtrip() {
-        let sum = Checksum::sha256_from_str_unchecked("abcdef");
+        let sum = Label::sha256(b"abcdef");
         let meta = ChunkMeta::new(&sum);
         let json = serde_json::to_string(&meta).unwrap();
         let meta2 = serde_json::from_str(&json).unwrap();
@@ -122,7 +122,7 @@ mod test {
 
     #[test]
     fn data_json_roundtrip() {
-        let sum = Checksum::sha256_from_str_unchecked("abcdef");
+        let sum = Label::sha256(b"abcdef");
         let meta = ChunkMeta::new(&sum);
         let json = meta.to_json_vec();
         let meta2 = serde_json::from_slice(&json).unwrap();

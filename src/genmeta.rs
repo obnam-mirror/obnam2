@@ -26,6 +26,11 @@ impl GenerationMeta {
     pub fn schema_version(&self) -> SchemaVersion {
         self.schema_version
     }
+
+    /// Get a value corresponding to a key in the meta table.
+    pub fn get(&self, key: &str) -> Option<&String> {
+        self.extras.get(key)
+    }
 }
 
 fn metastr(map: &mut HashMap<String, String>, key: &str) -> Result<String, GenerationMetaError> {

@@ -1092,7 +1092,7 @@ storage of backed up data.
 ~~~scenario
 given a working Obnam system
 and a file data.dat containing some random data
-when I POST data.dat to /v1/chunks, with chunk-meta: {"label":"abc"}
+when I POST data.dat to /v1/chunks, with chunk-meta: {"label":"0abc"}
 then HTTP status code is 201
 and content-type is application/json
 and the JSON body has a field chunk_id, henceforth ID
@@ -1105,17 +1105,17 @@ We must be able to retrieve it.
 when I GET /v1/chunks/<ID>
 then HTTP status code is 200
 and content-type is application/octet-stream
-and chunk-meta is {"label":"abc"}
+and chunk-meta is {"label":"0abc"}
 and the body matches file data.dat
 ~~~
 
 We must also be able to find it based on metadata.
 
 ~~~scenario
-when I GET /v1/chunks?label=abc
+when I GET /v1/chunks?label=0abc
 then HTTP status code is 200
 and content-type is application/json
-and the JSON body matches {"<ID>":{"label":"abc"}}
+and the JSON body matches {"<ID>":{"label":"0abc"}}
 ~~~
 
 Finally, we must be able to delete it. After that, we must not be able
@@ -1128,7 +1128,7 @@ then HTTP status code is 200
 when I GET /v1/chunks/<ID>
 then HTTP status code is 404
 
-when I GET /v1/chunks?label=abc
+when I GET /v1/chunks?label=0abc
 then HTTP status code is 200
 and content-type is application/json
 and the JSON body matches {}
@@ -1151,7 +1151,7 @@ We must get an empty result if searching for chunks that don't exist.
 
 ~~~scenario
 given a working Obnam system
-when I GET /v1/chunks?label=abc
+when I GET /v1/chunks?label=0abc
 then HTTP status code is 200
 and content-type is application/json
 and the JSON body matches {}
@@ -1178,7 +1178,7 @@ First, create a chunk.
 ~~~scenario
 given a working Obnam system
 and a file data.dat containing some random data
-when I POST data.dat to /v1/chunks, with chunk-meta: {"label":"abc"}
+when I POST data.dat to /v1/chunks, with chunk-meta: {"label":"0abc"}
 then HTTP status code is 201
 and content-type is application/json
 and the JSON body has a field chunk_id, henceforth ID
@@ -1194,10 +1194,10 @@ given a running chunk server
 Can we still find it by its metadata?
 
 ~~~scenario
-when I GET /v1/chunks?label=abc
+when I GET /v1/chunks?label=0abc
 then HTTP status code is 200
 and content-type is application/json
-and the JSON body matches {"<ID>":{"label":"abc"}}
+and the JSON body matches {"<ID>":{"label":"0abc"}}
 ~~~
 
 Can we still retrieve it by its identifier?
@@ -1206,7 +1206,7 @@ Can we still retrieve it by its identifier?
 when I GET /v1/chunks/<ID>
 then HTTP status code is 200
 and content-type is application/octet-stream
-and chunk-meta is {"label":"abc"}
+and chunk-meta is {"label":"0abc"}
 and the body matches file data.dat
 ~~~
 
@@ -1901,7 +1901,9 @@ then stdout, as JSON, has all the values in file geninfo.json
         "major": 0,
         "minor": 0
     },
-    "extras": {}
+    "extras": {
+        "checksum_kind": "sha256"
+    }
 }
 ~~~
 

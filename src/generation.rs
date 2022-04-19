@@ -6,6 +6,7 @@ use crate::db::{DatabaseError, SqlResults};
 use crate::dbgen::{FileId, GenerationDb, GenerationDbError};
 use crate::fsentry::FilesystemEntry;
 use crate::genmeta::{GenerationMeta, GenerationMetaError};
+use crate::label::LabelChecksumKind;
 use crate::schema::{SchemaVersion, VersionComponent};
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -77,11 +78,15 @@ pub enum NascentError {
 
 impl NascentGeneration {
     /// Create a new nascent generation.
-    pub fn create<P>(filename: P, schema: SchemaVersion) -> Result<Self, NascentError>
+    pub fn create<P>(
+        filename: P,
+        schema: SchemaVersion,
+        checksum_kind: LabelChecksumKind,
+    ) -> Result<Self, NascentError>
     where
         P: AsRef<Path>,
     {
-        let db = GenerationDb::create(filename.as_ref(), schema)?;
+        let db = GenerationDb::create(filename.as_ref(), schema, checksum_kind)?;
         Ok(Self { db, fileno: 0 })
     }
 
@@ -290,7 +295,7 @@ impl LocalGeneration {
 
 #[cfg(test)]
 mod test {
-    use super::{LocalGeneration, NascentGeneration, SchemaVersion};
+    use super::{LabelChecksumKind, LocalGeneration, NascentGeneration, SchemaVersion};
     use tempfile::NamedTempFile;
 
     #[test]
@@ -298,7 +303,8 @@ mod test {
         let filename = NamedTempFile::new().unwrap().path().to_path_buf();
         let schema = SchemaVersion::new(0, 0);
         {
-            let mut _gen = NascentGeneration::create(&filename, schema).unwrap();
+            let mut _gen =
+                NascentGeneration::create(&filename, schema, LabelChecksumKind::Sha256).unwrap();
             // _gen is dropped here; the connection is close; the file
             // should not be removed.
         }
@@ -328,7 +334,8 @@ mod test {
         let tag_path2 = Path::new("/another_dir/a_tag");
 
         let schema = SchemaVersion::new(0, 0);
-        let mut gen = NascentGeneration::create(&dbfile, schema).unwrap();
+        let mut gen =
+            NascentGeneration::create(&dbfile, schema, LabelChecksumKind::Sha256).unwrap();
         let mut cache = users::UsersCache::new();
 
         gen.insert(

@@ -1,14 +1,15 @@
 //! Split file data into chunks.
 
-use crate::checksummer::Checksum;
 use crate::chunk::DataChunk;
 use crate::chunkmeta::ChunkMeta;
+use crate::label::{Label, LabelChecksumKind};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 /// Iterator over chunks in a file.
 pub struct FileChunks {
     chunk_size: usize,
+    kind: LabelChecksumKind,
     buf: Vec<u8>,
     filename: PathBuf,
     handle: std::fs::File,
@@ -24,11 +25,17 @@ pub enum ChunkerError {
 
 impl FileChunks {
     /// Create new iterator.
-    pub fn new(chunk_size: usize, handle: std::fs::File, filename: &Path) -> Self {
+    pub fn new(
+        chunk_size: usize,
+        handle: std::fs::File,
+        filename: &Path,
+        kind: LabelChecksumKind,
+    ) -> Self {
         let mut buf = vec![];
         buf.resize(chunk_size, 0);
         Self {
             chunk_size,
+            kind,
             buf,
             handle,
             filename: filename.to_path_buf(),
@@ -54,7 +61,10 @@ impl FileChunks {
         }
 
         let buffer = &self.buf.as_slice()[..used];
-        let hash = Checksum::sha256(buffer);
+        let hash = match self.kind {
+            LabelChecksumKind::Blake2 => Label::blake2(buffer),
+            LabelChecksumKind::Sha256 => Label::sha256(buffer),
+        };
         let meta = ChunkMeta::new(&hash);
         let chunk = DataChunk::new(buffer.to_vec(), meta);
         Ok(Some(chunk))
