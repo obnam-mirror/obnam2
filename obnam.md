@@ -1793,7 +1793,9 @@ roots:
 ### By default, skip directories containing CACHEDIR.TAG
 
 This scenario verifies that Obnam client skips the contents of directories that
-contain [CACHEDIR.TAG][], but backs up the tag itself.
+contain [CACHEDIR.TAG][], but backs up the tag itself. We back up the
+tag so that after a restore, the directory continues to be tagged as a
+cache directory.
 
 [CACHEDIR.TAG]: https://bford.info/cachedir/
 
