@@ -8,11 +8,12 @@ use crate::fsentry::FilesystemEntry;
 use crate::genmeta::{GenerationMeta, GenerationMetaError};
 use crate::label::LabelChecksumKind;
 use crate::schema::{SchemaVersion, VersionComponent};
+use serde::Serialize;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
 /// An identifier for a generation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct GenId {
     id: ChunkId,
 }

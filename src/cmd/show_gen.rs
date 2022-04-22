@@ -5,7 +5,9 @@ use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::FilesystemKind;
+use crate::generation::GenId;
 use indicatif::HumanBytes;
+use serde::Serialize;
 use structopt::StructOpt;
 use tempfile::NamedTempFile;
 use tokio::runtime::Runtime;
@@ -51,11 +53,48 @@ impl ShowGeneration {
         });
         let total_bytes = total_bytes?;
 
-        println!("generation-id: {}", gen_id);
-        println!("file-count: {}", gen.file_count()?);
-        println!("file-bytes: {}", HumanBytes(total_bytes));
-        println!("file-bytes-raw: {}", total_bytes);
+        let output = Output::new(gen_id)
+            .db_bytes(temp.path().metadata()?.len())
+            .file_count(gen.file_count()?)
+            .file_bytes(total_bytes);
+        serde_json::to_writer_pretty(std::io::stdout(), &output)?;
 
         Ok(())
+    }
+}
+
+#[derive(Debug, Default, Serialize)]
+struct Output {
+    generation_id: String,
+    file_count: u64,
+    file_bytes: String,
+    file_bytes_raw: u64,
+    db_bytes: String,
+    db_bytes_raw: u64,
+}
+
+impl Output {
+    fn new(gen_id: GenId) -> Self {
+        Self {
+            generation_id: format!("{}", gen_id),
+            ..Self::default()
+        }
+    }
+
+    fn file_count(mut self, n: u64) -> Self {
+        self.file_count = n;
+        self
+    }
+
+    fn file_bytes(mut self, n: u64) -> Self {
+        self.file_bytes_raw = n;
+        self.file_bytes = HumanBytes(n).to_string();
+        self
+    }
+
+    fn db_bytes(mut self, n: u64) -> Self {
+        self.db_bytes_raw = n;
+        self.db_bytes = HumanBytes(n).to_string();
+        self
     }
 }
