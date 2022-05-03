@@ -631,7 +631,6 @@ mod test {
         }
         assert_eq!(values, expected);
     }
-
     #[test]
     fn round_trips_int_max() {
         let tmp = tempdir().unwrap();

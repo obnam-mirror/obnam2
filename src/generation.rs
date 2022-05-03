@@ -296,8 +296,44 @@ impl LocalGeneration {
 
 #[cfg(test)]
 mod test {
-    use super::{LabelChecksumKind, LocalGeneration, NascentGeneration, SchemaVersion};
-    use tempfile::NamedTempFile;
+    use super::{LabelChecksumKind, LocalGeneration, NascentGeneration, Reason, SchemaVersion};
+    use crate::fsentry::FilesystemEntry;
+    use crate::fsentry::FilesystemKind;
+    use std::path::Path;
+    use tempfile::{tempdir, NamedTempFile};
+    use users::UsersCache;
+
+    #[test]
+    fn round_trips_u64_max() {
+        let tmp = tempdir().unwrap();
+        let filename = tmp.path().join("test.db");
+        let mut cache = UsersCache::new();
+        let schema = SchemaVersion::new(0, 0);
+        {
+            let e = FilesystemEntry::new(
+                Path::new("/"),
+                FilesystemKind::Directory,
+                0,
+                0,
+                u64::MAX,
+                0,
+                0,
+                0,
+                0,
+                0,
+                &mut cache,
+            )
+            .unwrap();
+            let mut gen =
+                NascentGeneration::create(&filename, schema, LabelChecksumKind::Sha256).unwrap();
+            gen.insert(e, &[], Reason::IsNew, false).unwrap();
+            gen.close().unwrap();
+        }
+
+        let db = LocalGeneration::open(&filename).unwrap();
+        let e = db.get_file(Path::new("/")).unwrap().unwrap();
+        assert_eq!(e.len(), u64::MAX);
+    }
 
     #[test]
     fn empty() {

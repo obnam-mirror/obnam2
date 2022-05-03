@@ -70,12 +70,19 @@ pub enum FsEntryError {
 #[allow(clippy::len_without_is_empty)]
 impl FilesystemEntry {
     /// Create an `FsEntry` from a file's metadata.
-    pub fn from_metadata(
+    pub(crate) fn new(
         path: &Path,
-        meta: &Metadata,
+        kind: FilesystemKind,
+        uid: u32,
+        gid: u32,
+        len: u64,
+        mode: u32,
+        mtime: i64,
+        mtime_ns: i64,
+        atime: i64,
+        atime_ns: i64,
         cache: &mut UsersCache,
     ) -> Result<Self, FsEntryError> {
-        let kind = FilesystemKind::from_file_type(meta.file_type());
         let symlink_target = if kind == FilesystemKind::Symlink {
             debug!("reading symlink target for {:?}", path);
             let target =
@@ -85,8 +92,6 @@ impl FilesystemEntry {
             None
         };
 
-        let uid = meta.st_uid();
-        let gid = meta.st_gid();
         let user: String = if let Some(user) = cache.get_user_by_uid(uid) {
             user.name().to_string_lossy().to_string()
         } else {
@@ -100,19 +105,41 @@ impl FilesystemEntry {
 
         Ok(Self {
             path: path.to_path_buf().into_os_string().into_vec(),
-            kind: FilesystemKind::from_file_type(meta.file_type()),
-            len: meta.len(),
-            mode: meta.st_mode(),
-            mtime: meta.st_mtime(),
-            mtime_ns: meta.st_mtime_nsec(),
-            atime: meta.st_atime(),
-            atime_ns: meta.st_atime_nsec(),
+            kind,
+            len,
+            mode,
+            mtime,
+            mtime_ns,
+            atime,
+            atime_ns,
             symlink_target,
             uid,
             gid,
             user,
             group,
         })
+    }
+
+    /// Create an `FsEntry` from a file's metadata.
+    pub fn from_metadata(
+        path: &Path,
+        meta: &Metadata,
+        cache: &mut UsersCache,
+    ) -> Result<Self, FsEntryError> {
+        let kind = FilesystemKind::from_file_type(meta.file_type());
+        Self::new(
+            path,
+            kind,
+            meta.st_uid(),
+            meta.st_gid(),
+            meta.len(),
+            meta.st_mode(),
+            meta.st_mtime(),
+            meta.st_mtime_nsec(),
+            meta.st_atime(),
+            meta.st_atime_nsec(),
+            cache,
+        )
     }
 
     /// Return the kind of file the entry refers to.
