@@ -354,7 +354,7 @@ impl Column {
 }
 
 /// Type of plain integers that can be stored.
-pub type DbInt = u64;
+pub type DbInt = i64;
 
 /// A value in a named column.
 #[derive(Debug)]
@@ -630,5 +630,18 @@ mod test {
             expected.push(i);
         }
         assert_eq!(values, expected);
+    }
+
+    #[test]
+    fn round_trips_int_max() {
+        let tmp = tempdir().unwrap();
+        let filename = tmp.path().join("test.db");
+        let mut db = create_db(&filename);
+        insert(&mut db, DbInt::MAX);
+        db.close().unwrap();
+
+        let db = open_db(&filename);
+        let values = values(db);
+        assert_eq!(values, vec![DbInt::MAX]);
     }
 }
