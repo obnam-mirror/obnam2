@@ -70,76 +70,22 @@ pub enum FsEntryError {
 #[allow(clippy::len_without_is_empty)]
 impl FilesystemEntry {
     /// Create an `FsEntry` from a file's metadata.
-    pub(crate) fn new(
-        path: &Path,
-        kind: FilesystemKind,
-        uid: u32,
-        gid: u32,
-        len: u64,
-        mode: u32,
-        mtime: i64,
-        mtime_ns: i64,
-        atime: i64,
-        atime_ns: i64,
-        cache: &mut UsersCache,
-    ) -> Result<Self, FsEntryError> {
-        let symlink_target = if kind == FilesystemKind::Symlink {
-            debug!("reading symlink target for {:?}", path);
-            let target =
-                read_link(path).map_err(|err| FsEntryError::ReadLink(path.to_path_buf(), err))?;
-            Some(target)
-        } else {
-            None
-        };
-
-        let user: String = if let Some(user) = cache.get_user_by_uid(uid) {
-            user.name().to_string_lossy().to_string()
-        } else {
-            "".to_string()
-        };
-        let group = if let Some(group) = cache.get_group_by_gid(gid) {
-            group.name().to_string_lossy().to_string()
-        } else {
-            "".to_string()
-        };
-
-        Ok(Self {
-            path: path.to_path_buf().into_os_string().into_vec(),
-            kind,
-            len,
-            mode,
-            mtime,
-            mtime_ns,
-            atime,
-            atime_ns,
-            symlink_target,
-            uid,
-            gid,
-            user,
-            group,
-        })
-    }
-
-    /// Create an `FsEntry` from a file's metadata.
     pub fn from_metadata(
         path: &Path,
         meta: &Metadata,
         cache: &mut UsersCache,
     ) -> Result<Self, FsEntryError> {
         let kind = FilesystemKind::from_file_type(meta.file_type());
-        Self::new(
-            path,
-            kind,
-            meta.st_uid(),
-            meta.st_gid(),
-            meta.len(),
-            meta.st_mode(),
-            meta.st_mtime(),
-            meta.st_mtime_nsec(),
-            meta.st_atime(),
-            meta.st_atime_nsec(),
-            cache,
-        )
+        Ok(EntryBuilder::new(kind)
+            .path(path.to_path_buf())
+            .len(meta.len())
+            .mode(meta.st_mode())
+            .mtime(meta.st_mtime(), meta.st_mtime_nsec())
+            .atime(meta.st_atime(), meta.st_atime_nsec())
+            .user(meta.st_uid(), cache)?
+            .group(meta.st_uid(), cache)?
+            .symlink_target()?
+            .build())
     }
 
     /// Return the kind of file the entry refers to.
@@ -191,6 +137,133 @@ impl FilesystemEntry {
     /// Return target of the symlink the entry represents.
     pub fn symlink_target(&self) -> Option<PathBuf> {
         self.symlink_target.clone()
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct EntryBuilder {
+    kind: FilesystemKind,
+    path: PathBuf,
+    len: u64,
+
+    // 16 bits should be enough for a Unix mode_t.
+    // https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_stat.h.html
+    //  However, it's 32 bits on Linux, so that's what we store.
+    mode: u32,
+
+    // Linux can store file system time stamps in nanosecond
+    // resolution. We store them as two 64-bit integers.
+    mtime: i64,
+    mtime_ns: i64,
+    atime: i64,
+    atime_ns: i64,
+
+    // The target of a symbolic link, if any.
+    symlink_target: Option<PathBuf>,
+
+    // User and group owning the file. We store them as both the
+    // numeric id and the textual name corresponding to the numeric id
+    // at the time of the backup.
+    uid: u32,
+    gid: u32,
+    user: String,
+    group: String,
+}
+
+impl EntryBuilder {
+    pub(crate) fn new(kind: FilesystemKind) -> Self {
+        Self {
+            kind,
+            path: PathBuf::new(),
+            len: 0,
+            mode: 0,
+            mtime: 0,
+            mtime_ns: 0,
+            atime: 0,
+            atime_ns: 0,
+            symlink_target: None,
+            uid: 0,
+            user: "".to_string(),
+            gid: 0,
+            group: "".to_string(),
+        }
+    }
+
+    pub(crate) fn build(self) -> FilesystemEntry {
+        FilesystemEntry {
+            kind: self.kind,
+            path: self.path.into_os_string().into_vec(),
+            len: self.len,
+            mode: self.mode,
+            mtime: self.mtime,
+            mtime_ns: self.mtime_ns,
+            atime: self.atime,
+            atime_ns: self.atime_ns,
+            symlink_target: self.symlink_target,
+            uid: self.uid,
+            user: self.user,
+            gid: self.gid,
+            group: self.group,
+        }
+    }
+
+    pub(crate) fn path(mut self, path: PathBuf) -> Self {
+        self.path = path;
+        self
+    }
+
+    pub(crate) fn len(mut self, len: u64) -> Self {
+        self.len = len;
+        self
+    }
+
+    pub(crate) fn mode(mut self, mode: u32) -> Self {
+        self.mode = mode;
+        self
+    }
+
+    pub(crate) fn mtime(mut self, secs: i64, nsec: i64) -> Self {
+        self.mtime = secs;
+        self.mtime_ns = nsec;
+        self
+    }
+
+    pub(crate) fn atime(mut self, secs: i64, nsec: i64) -> Self {
+        self.atime = secs;
+        self.atime_ns = nsec;
+        self
+    }
+
+    pub(crate) fn symlink_target(mut self) -> Result<Self, FsEntryError> {
+        self.symlink_target = if self.kind == FilesystemKind::Symlink {
+            debug!("reading symlink target for {:?}", self.path);
+            let target = read_link(&self.path)
+                .map_err(|err| FsEntryError::ReadLink(self.path.clone(), err))?;
+            Some(target)
+        } else {
+            None
+        };
+        Ok(self)
+    }
+
+    pub(crate) fn user(mut self, uid: u32, cache: &mut UsersCache) -> Result<Self, FsEntryError> {
+        self.uid = uid;
+        self.user = if let Some(user) = cache.get_user_by_uid(uid) {
+            user.name().to_string_lossy().to_string()
+        } else {
+            "".to_string()
+        };
+        Ok(self)
+    }
+
+    pub(crate) fn group(mut self, gid: u32, cache: &mut UsersCache) -> Result<Self, FsEntryError> {
+        self.gid = gid;
+        self.group = if let Some(group) = cache.get_group_by_gid(gid) {
+            group.name().to_string_lossy().to_string()
+        } else {
+            "".to_string()
+        };
+        Ok(self)
     }
 }
 
