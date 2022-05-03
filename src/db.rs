@@ -353,13 +353,16 @@ impl Column {
     }
 }
 
+/// Type of plain integers that can be stored.
+pub type DbInt = u64;
+
 /// A value in a named column.
 #[derive(Debug)]
 pub enum Value<'a> {
     /// An integer primary key.
-    PrimaryKey(&'a str, u64),
+    PrimaryKey(&'a str, DbInt),
     /// An integer.
-    Int(&'a str, u64),
+    Int(&'a str, DbInt),
     /// A text string.
     Text(&'a str, &'a str),
     /// A binary string.
@@ -381,12 +384,12 @@ impl<'a> Value<'a> {
     }
 
     /// Create an integer primary key value.
-    pub fn primary_key(name: &'a str, value: u64) -> Self {
+    pub fn primary_key(name: &'a str, value: DbInt) -> Self {
         Self::PrimaryKey(name, value)
     }
 
     /// Create an integer value.
-    pub fn int(name: &'a str, value: u64) -> Self {
+    pub fn int(name: &'a str, value: DbInt) -> Self {
         Self::Int(name, value)
     }
 
@@ -406,6 +409,7 @@ impl<'a> Value<'a> {
     }
 }
 
+#[allow(clippy::useless_conversion)]
 impl<'a> ToSql for Value<'a> {
     // The trait defines to_sql to return a Result. However, for our
     // particular case, to_sql can't ever fail. We only store values
@@ -438,9 +442,9 @@ impl<'a> ToSql for Value<'a> {
 /// Like a Value, but owns the data.
 pub enum OwnedValue {
     /// An integer primary key.
-    PrimaryKey(String, u64),
+    PrimaryKey(String, DbInt),
     /// An integer.
-    Int(String, u64),
+    Int(String, DbInt),
     /// A text string.
     Text(String, String),
     /// A binary string.
@@ -462,6 +466,7 @@ impl From<&Value<'_>> for OwnedValue {
 }
 
 impl ToSql for OwnedValue {
+    #[allow(clippy::useless_conversion)]
     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput> {
         use rusqlite::types::Value;
         let v = match self {
@@ -547,7 +552,7 @@ mod test {
     use std::path::Path;
     use tempfile::tempdir;
 
-    fn get_bar(row: &rusqlite::Row) -> Result<u64, rusqlite::Error> {
+    fn get_bar(row: &rusqlite::Row) -> Result<DbInt, rusqlite::Error> {
         row.get("bar")
     }
 
@@ -566,12 +571,12 @@ mod test {
         Database::open(file).unwrap()
     }
 
-    fn insert(db: &mut Database, value: u64) {
+    fn insert(db: &mut Database, value: DbInt) {
         let table = table();
         db.insert(&table, &[Value::int("bar", value)]).unwrap();
     }
 
-    fn values(db: Database) -> Vec<u64> {
+    fn values(db: Database) -> Vec<DbInt> {
         let table = table();
         let mut rows = db.all_rows(&table, &get_bar).unwrap();
         let iter = rows.iter().unwrap();
@@ -606,7 +611,7 @@ mod test {
 
     #[test]
     fn inserts_many_rows() {
-        const N: u64 = 1000;
+        const N: DbInt = 1000;
 
         let tmp = tempdir().unwrap();
         let filename = tmp.path().join("test.db");
@@ -618,7 +623,7 @@ mod test {
 
         let db = open_db(&filename);
         let values = values(db);
-        assert_eq!(values.len() as u64, N);
+        assert_eq!(values.len() as DbInt, N);
 
         let mut expected = vec![];
         for i in 0..N {

@@ -2,7 +2,7 @@
 
 use crate::backup_reason::Reason;
 use crate::chunkid::ChunkId;
-use crate::db::{Column, Database, DatabaseError, SqlResults, Table, Value};
+use crate::db::{Column, Database, DatabaseError, DbInt, SqlResults, Table, Value};
 use crate::fsentry::FilesystemEntry;
 use crate::genmeta::{GenerationMeta, GenerationMetaError};
 use crate::label::LabelChecksumKind;
@@ -28,8 +28,8 @@ pub const DEFAULT_SCHEMA_MAJOR: VersionComponent = V0_0::MAJOR;
 /// Major schema versions supported by this version of Obnam.
 pub const SCHEMA_MAJORS: &[VersionComponent] = &[0, 1];
 
-/// An identifier for a file in a generation.
-pub type FileId = u64;
+/// An integer identifier for a file in a generation.
+pub type FileId = DbInt;
 
 /// Possible errors from using generation databases.
 #[derive(Debug, thiserror::Error)]
