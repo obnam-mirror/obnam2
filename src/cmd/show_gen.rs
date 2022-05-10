@@ -3,6 +3,7 @@
 use crate::chunk::ClientTrust;
 use crate::client::BackupClient;
 use crate::config::ClientConfig;
+use crate::db::DbInt;
 use crate::error::ObnamError;
 use crate::fsentry::FilesystemKind;
 use crate::generation::GenId;
@@ -66,7 +67,7 @@ impl ShowGeneration {
 #[derive(Debug, Default, Serialize)]
 struct Output {
     generation_id: String,
-    file_count: u64,
+    file_count: DbInt,
     file_bytes: String,
     file_bytes_raw: u64,
     db_bytes: String,
@@ -81,7 +82,7 @@ impl Output {
         }
     }
 
-    fn file_count(mut self, n: u64) -> Self {
+    fn file_count(mut self, n: DbInt) -> Self {
         self.file_count = n;
         self
     }

@@ -297,7 +297,7 @@ fn path_to_cstring(path: &Path) -> CString {
 
 fn create_progress_bar(file_count: FileId, verbose: bool) -> ProgressBar {
     let progress = if verbose {
-        ProgressBar::new(file_count)
+        ProgressBar::new(file_count as u64)
     } else {
         ProgressBar::hidden()
     };
