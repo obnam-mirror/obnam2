@@ -5,6 +5,7 @@ use crate::chunk::{
 };
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
+use crate::chunkstore::{ChunkStore, StoreError};
 use crate::cipher::{CipherEngine, CipherError};
 use crate::config::{ClientConfig, ClientConfigError};
 use crate::generation::{FinishedGeneration, GenId, LocalGeneration, LocalGenerationError};
@@ -100,10 +101,15 @@ pub enum ClientError {
     /// Failed to write a file.
     #[error("failed to write to file {0}: {1}")]
     FileWrite(PathBuf, std::io::Error),
+
+    /// Error from a chunk store.
+    #[error(transparent)]
+    ChunkStore(#[from] StoreError),
 }
 
 /// Client for the Obnam server HTTP API.
 pub struct BackupClient {
+    store: ChunkStore,
     client: reqwest::Client,
     base_url: String,
     cipher: CipherEngine,
@@ -121,6 +127,7 @@ impl BackupClient {
             .build()
             .map_err(ClientError::ReqwestError)?;
         Ok(Self {
+            store: ChunkStore::remote(config)?,
             client,
             base_url: config.server_url.to_string(),
             cipher: CipherEngine::new(&pass),
@@ -137,21 +144,8 @@ impl BackupClient {
 
     /// Does the server have a chunk?
     pub async fn has_chunk(&self, meta: &ChunkMeta) -> Result<Option<ChunkId>, ClientError> {
-        let body = match self.get("", &[("label", meta.label())]).await {
-            Ok((_, body)) => body,
-            Err(err) => return Err(err),
-        };
-
-        let hits: HashMap<String, ChunkMeta> =
-            serde_json::from_slice(&body).map_err(ClientError::JsonParse)?;
-        let mut iter = hits.iter();
-        let has = if let Some((chunk_id, _)) = iter.next() {
-            Some(chunk_id.into())
-        } else {
-            None
-        };
-
-        Ok(has)
+        let mut ids = self.store.find_by_label(meta).await?;
+        Ok(ids.pop())
     }
 
     /// Upload a data chunk to the server.
