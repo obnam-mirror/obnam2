@@ -50,7 +50,11 @@ impl ChunkStore {
     /// Store a chunk in the store.
     ///
     /// The store chooses an id for the chunk.
-    pub async fn put(&mut self, chunk: EncryptedChunk, meta: &ChunkMeta) -> Result<ChunkId, StoreError> {
+    pub async fn put(
+        &mut self,
+        chunk: EncryptedChunk,
+        meta: &ChunkMeta,
+    ) -> Result<ChunkId, StoreError> {
         match self {
             Self::Local(store) => store.put(chunk, meta),
             Self::Remote(store) => store.put(chunk, meta).await,
