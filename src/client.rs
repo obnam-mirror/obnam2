@@ -214,9 +214,7 @@ impl BackupClient {
 
     /// Fetch a data chunk from the server, given the chunk identifier.
     pub async fn fetch_chunk(&self, chunk_id: &ChunkId) -> Result<DataChunk, ClientError> {
-        let (headers, body) = self.get(&format!("/{}", chunk_id), &[]).await?;
-        let meta = self.get_chunk_meta_header(chunk_id, &headers)?;
-
+        let (body, meta) = self.store.get(chunk_id).await?;
         let meta_bytes = meta.to_json_vec();
         let chunk = self.cipher.decrypt_chunk(&body, &meta_bytes)?;
 
