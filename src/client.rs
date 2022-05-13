@@ -12,8 +12,7 @@ use crate::generation::{FinishedGeneration, GenId, LocalGeneration, LocalGenerat
 use crate::genlist::GenerationList;
 use crate::label::Label;
 
-use log::{debug, error, info};
-use std::collections::HashMap;
+use log::{error, info};
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
@@ -109,8 +108,6 @@ pub enum ClientError {
 /// Client for the Obnam server HTTP API.
 pub struct BackupClient {
     store: ChunkStore,
-    client: reqwest::Client,
-    base_url: String,
     cipher: CipherEngine,
 }
 
@@ -118,27 +115,11 @@ impl BackupClient {
     /// Create a new backup client.
     pub fn new(config: &ClientConfig) -> Result<Self, ClientError> {
         info!("creating backup client with config: {:#?}", config);
-
         let pass = config.passwords()?;
-
-        let client = reqwest::Client::builder()
-            .danger_accept_invalid_certs(!config.verify_tls_cert)
-            .build()
-            .map_err(ClientError::ReqwestError)?;
         Ok(Self {
             store: ChunkStore::remote(config)?,
-            client,
-            base_url: config.server_url.to_string(),
             cipher: CipherEngine::new(&pass),
         })
-    }
-
-    fn base_url(&self) -> &str {
-        &self.base_url
-    }
-
-    fn chunks_url(&self) -> String {
-        format!("{}/v1/chunks", self.base_url())
     }
 
     /// Does the server have a chunk?
@@ -148,26 +129,10 @@ impl BackupClient {
     }
 
     /// Upload a data chunk to the server.
-    pub async fn upload_chunk(&self, chunk: DataChunk) -> Result<ChunkId, ClientError> {
+    pub async fn upload_chunk(&mut self, chunk: DataChunk) -> Result<ChunkId, ClientError> {
         let enc = self.cipher.encrypt_chunk(&chunk)?;
-        let res = self
-            .client
-            .post(&self.chunks_url())
-            .header("chunk-meta", chunk.meta().to_json())
-            .body(enc.ciphertext().to_vec())
-            .send()
-            .await
-            .map_err(ClientError::ReqwestError)?;
-        debug!("upload_chunk: res={:?}", res);
-        let res: HashMap<String, String> = res.json().await.map_err(ClientError::ReqwestError)?;
-        let chunk_id = if let Some(chunk_id) = res.get("chunk_id") {
-            debug!("upload_chunk: id={}", chunk_id);
-            chunk_id.parse().unwrap()
-        } else {
-            return Err(ClientError::NoCreatedChunkId);
-        };
-        info!("uploaded_chunk {}", chunk_id);
-        Ok(chunk_id)
+        let id = self.store.put(enc, chunk.meta()).await?;
+        Ok(id)
     }
 
     /// Get current client trust chunk from repository, if there is one.

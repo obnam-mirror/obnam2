@@ -45,7 +45,7 @@ impl Backup {
         let major = self.backup_version.unwrap_or(DEFAULT_SCHEMA_MAJOR);
         let schema = schema_version(major)?;
 
-        let client = BackupClient::new(config)?;
+        let mut client = BackupClient::new(config)?;
         let trust = client
             .get_client_trust()
             .await?
@@ -68,7 +68,7 @@ impl Backup {
 
         let (is_incremental, outcome) = if let Some(old_id) = old_id {
             info!("incremental backup based on {}", old_id);
-            let mut run = BackupRun::incremental(config, &client)?;
+            let mut run = BackupRun::incremental(config, &mut client)?;
             let old = run.start(Some(&old_id), &oldtemp, perf).await?;
             (
                 true,
@@ -77,7 +77,7 @@ impl Backup {
             )
         } else {
             info!("fresh backup without a previous generation");
-            let mut run = BackupRun::initial(config, &client)?;
+            let mut run = BackupRun::initial(config, &mut client)?;
             let old = run.start(None, &oldtemp, perf).await?;
             (
                 false,
