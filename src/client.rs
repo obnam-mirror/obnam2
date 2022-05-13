@@ -190,15 +190,9 @@ impl BackupClient {
     }
 
     async fn find_client_trusts(&self) -> Result<Vec<ChunkId>, ClientError> {
-        let label = Label::literal("client-trust").serialize();
-        let body = match self.get("", &[("label", &label)]).await {
-            Ok((_, body)) => body,
-            Err(err) => return Err(err),
-        };
-
-        let hits: HashMap<String, ChunkMeta> =
-            serde_json::from_slice(&body).map_err(ClientError::JsonParse)?;
-        let ids = hits.iter().map(|(id, _)| id.into()).collect();
+        let label = Label::literal("client-trust");
+        let meta = ChunkMeta::new(&label);
+        let ids = self.store.find_by_label(&meta).await?;
         Ok(ids)
     }
 
