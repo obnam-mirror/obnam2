@@ -13,7 +13,6 @@ use crate::genlist::GenerationList;
 use crate::label::Label;
 
 use log::{debug, error, info};
-use reqwest::header::HeaderMap;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
@@ -242,62 +241,5 @@ impl BackupClient {
 
         let gen = LocalGeneration::open(dbname)?;
         Ok(gen)
-    }
-
-    async fn get(
-        &self,
-        path: &str,
-        query: &[(&str, &str)],
-    ) -> Result<(HeaderMap, Vec<u8>), ClientError> {
-        let url = format!("{}{}", &self.chunks_url(), path);
-        info!("GET {}", url);
-
-        // Build HTTP request structure.
-        let req = self
-            .client
-            .get(&url)
-            .query(query)
-            .build()
-            .map_err(ClientError::ReqwestError)?;
-
-        // Make HTTP request.
-        let res = self
-            .client
-            .execute(req)
-            .await
-            .map_err(ClientError::ReqwestError)?;
-
-        // Did it work?
-        if res.status() != 200 {
-            return Err(ClientError::NotFound(path.to_string()));
-        }
-
-        // Return headers and body.
-        let headers = res.headers().clone();
-        let body = res.bytes().await.map_err(ClientError::ReqwestError)?;
-        let body = body.to_vec();
-        Ok((headers, body))
-    }
-
-    fn get_chunk_meta_header(
-        &self,
-        chunk_id: &ChunkId,
-        headers: &HeaderMap,
-    ) -> Result<ChunkMeta, ClientError> {
-        let meta = headers.get("chunk-meta");
-
-        if meta.is_none() {
-            let err = ClientError::NoChunkMeta(chunk_id.clone());
-            error!("fetching chunk {} failed: {}", chunk_id, err);
-            return Err(err);
-        }
-
-        let meta = meta
-            .unwrap()
-            .to_str()
-            .map_err(ClientError::MetaHeaderToString)?;
-        let meta: ChunkMeta = serde_json::from_str(meta).map_err(ClientError::JsonParse)?;
-
-        Ok(meta)
     }
 }
