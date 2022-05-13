@@ -6,7 +6,6 @@
 
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
-use crate::cipher::EncryptedChunk;
 use crate::config::{ClientConfig, ClientConfigError};
 use crate::index::{Index, IndexError};
 
@@ -50,11 +49,7 @@ impl ChunkStore {
     /// Store a chunk in the store.
     ///
     /// The store chooses an id for the chunk.
-    pub async fn put(
-        &mut self,
-        chunk: EncryptedChunk,
-        meta: &ChunkMeta,
-    ) -> Result<ChunkId, StoreError> {
+    pub async fn put(&mut self, chunk: Vec<u8>, meta: &ChunkMeta) -> Result<ChunkId, StoreError> {
         match self {
             Self::Local(store) => store.put(chunk, meta),
             Self::Remote(store) => store.put(chunk, meta).await,
@@ -90,7 +85,7 @@ impl LocalStore {
             .map_err(StoreError::Index)
     }
 
-    fn put(&mut self, chunk: EncryptedChunk, meta: &ChunkMeta) -> Result<ChunkId, StoreError> {
+    fn put(&mut self, chunk: Vec<u8>, meta: &ChunkMeta) -> Result<ChunkId, StoreError> {
         let id = ChunkId::new();
         let (dir, filename) = self.filename(&id);
 
@@ -98,8 +93,7 @@ impl LocalStore {
             std::fs::create_dir_all(&dir).map_err(|err| StoreError::ChunkMkdir(dir, err))?;
         }
 
-        let data = chunk.ciphertext().to_vec();
-        std::fs::write(&filename, &data)
+        std::fs::write(&filename, &chunk)
             .map_err(|err| StoreError::WriteChunk(filename.clone(), err))?;
         self.index
             .insert_meta(id.clone(), meta.clone())
@@ -162,12 +156,12 @@ impl RemoteStore {
         Ok(ids)
     }
 
-    async fn put(&self, chunk: EncryptedChunk, meta: &ChunkMeta) -> Result<ChunkId, StoreError> {
+    async fn put(&self, chunk: Vec<u8>, meta: &ChunkMeta) -> Result<ChunkId, StoreError> {
         let res = self
             .client
             .post(&self.chunks_url())
             .header("chunk-meta", meta.to_json())
-            .body(chunk.ciphertext().to_vec())
+            .body(chunk)
             .send()
             .await
             .map_err(StoreError::ReqwestError)?;

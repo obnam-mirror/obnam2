@@ -131,7 +131,8 @@ impl BackupClient {
     /// Upload a data chunk to the server.
     pub async fn upload_chunk(&mut self, chunk: DataChunk) -> Result<ChunkId, ClientError> {
         let enc = self.cipher.encrypt_chunk(&chunk)?;
-        let id = self.store.put(enc, chunk.meta()).await?;
+        let data = enc.ciphertext().to_vec();
+        let id = self.store.put(data, chunk.meta()).await?;
         Ok(id)
     }
 
