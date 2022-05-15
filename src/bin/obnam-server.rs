@@ -1,10 +1,9 @@
 use anyhow::Context;
 use clap::Parser;
 use log::{debug, error, info};
-use obnam::chunk::DataChunk;
 use obnam::chunkid::ChunkId;
 use obnam::chunkmeta::ChunkMeta;
-use obnam::indexedstore::IndexedStore;
+use obnam::chunkstore::ChunkStore;
 use obnam::server::{ServerConfig, ServerConfigError};
 use serde::Serialize;
 use std::collections::HashMap;
@@ -37,7 +36,7 @@ async fn main() -> anyhow::Result<()> {
         return Err(ServerConfigError::BadServerAddress.into());
     }
 
-    let store = IndexedStore::new(&config.chunks)?;
+    let store = ChunkStore::local(&config.chunks)?;
     let store = Arc::new(Mutex::new(store));
     let store = warp::any().map(move || Arc::clone(&store));
 
@@ -102,7 +101,7 @@ fn load_config(filename: &Path) -> Result<ServerConfig, anyhow::Error> {
 }
 
 pub async fn create_chunk(
-    store: Arc<Mutex<IndexedStore>>,
+    store: Arc<Mutex<ChunkStore>>,
     meta: String,
     data: Bytes,
 ) -> Result<impl warp::Reply, warp::Rejection> {
@@ -116,9 +115,7 @@ pub async fn create_chunk(
         }
     };
 
-    let chunk = DataChunk::new(data.to_vec(), meta);
-
-    let id = match store.save(&chunk) {
+    let id = match store.put(data.to_vec(), &meta).await {
         Ok(id) => id,
         Err(e) => {
             error!("couldn't save: {}", e);
@@ -132,11 +129,11 @@ pub async fn create_chunk(
 
 pub async fn fetch_chunk(
     id: String,
-    store: Arc<Mutex<IndexedStore>>,
+    store: Arc<Mutex<ChunkStore>>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let store = store.lock().await;
     let id: ChunkId = id.parse().unwrap();
-    match store.load(&id) {
+    match store.get(&id).await {
         Ok((data, meta)) => {
             info!("found chunk {}: {:?}", id, meta);
             Ok(ChunkResult::Fetched(meta, data))
@@ -233,7 +230,7 @@ pub async fn delete_chunk(
 
 enum ChunkResult {
     Created(ChunkId),
-    Fetched(ChunkMeta, DataChunk),
+    Fetched(ChunkMeta, Vec<u8>),
     Found(SearchHits),
     Deleted,
     NotFound,
@@ -264,7 +261,7 @@ impl warp::Reply for ChunkResult {
                 );
                 into_response(
                     StatusCode::OK,
-                    chunk.data(),
+                    &chunk,
                     "application/octet-stream",
                     Some(headers),
                 )
