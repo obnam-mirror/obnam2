@@ -6,8 +6,8 @@ For installation instructions and a quick start guide, see
 [tutorial.md][]. For more details on goals, requirements, and
 implementation details, see the [obnam.md][] subplot file.
 
-[tutorial.md]: https://doc.obnam.org/tutorial.html
-[obnam.md]: https://doc.obnam.org/obnam.html
+[tutorial.md]: https://doc.obnam.org/obnam/tutorial.html
+[obnam.md]: https://doc.obnam.org/obnam/obnam.html
 
 # Dependencies for build and test
 
