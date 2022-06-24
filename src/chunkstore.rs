@@ -13,6 +13,7 @@ use log::{debug, error, info};
 use reqwest::header::HeaderMap;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use tokio::sync::Mutex;
 
 /// A chunk store.
 ///
@@ -41,7 +42,7 @@ impl ChunkStore {
     /// Does the store have a chunk with a given label?
     pub async fn find_by_label(&self, meta: &ChunkMeta) -> Result<Vec<ChunkId>, StoreError> {
         match self {
-            Self::Local(store) => store.find_by_label(meta),
+            Self::Local(store) => store.find_by_label(meta).await,
             Self::Remote(store) => store.find_by_label(meta).await,
         }
     }
@@ -49,9 +50,9 @@ impl ChunkStore {
     /// Store a chunk in the store.
     ///
     /// The store chooses an id for the chunk.
-    pub async fn put(&mut self, chunk: Vec<u8>, meta: &ChunkMeta) -> Result<ChunkId, StoreError> {
+    pub async fn put(&self, chunk: Vec<u8>, meta: &ChunkMeta) -> Result<ChunkId, StoreError> {
         match self {
-            Self::Local(store) => store.put(chunk, meta),
+            Self::Local(store) => store.put(chunk, meta).await,
             Self::Remote(store) => store.put(chunk, meta).await,
         }
     }
@@ -59,7 +60,7 @@ impl ChunkStore {
     /// Get a chunk given its id.
     pub async fn get(&self, id: &ChunkId) -> Result<(Vec<u8>, ChunkMeta), StoreError> {
         match self {
-            Self::Local(store) => store.get(id),
+            Self::Local(store) => store.get(id).await,
             Self::Remote(store) => store.get(id).await,
         }
     }
@@ -68,24 +69,26 @@ impl ChunkStore {
 /// A local chunk store.
 pub struct LocalStore {
     path: PathBuf,
-    index: Index,
+    index: Mutex<Index>,
 }
 
 impl LocalStore {
     fn new(path: &Path) -> Result<Self, StoreError> {
         Ok(Self {
             path: path.to_path_buf(),
-            index: Index::new(path)?,
+            index: Mutex::new(Index::new(path)?),
         })
     }
 
-    fn find_by_label(&self, meta: &ChunkMeta) -> Result<Vec<ChunkId>, StoreError> {
+    async fn find_by_label(&self, meta: &ChunkMeta) -> Result<Vec<ChunkId>, StoreError> {
         self.index
+            .lock()
+            .await
             .find_by_label(meta.label())
             .map_err(StoreError::Index)
     }
 
-    fn put(&mut self, chunk: Vec<u8>, meta: &ChunkMeta) -> Result<ChunkId, StoreError> {
+    async fn put(&self, chunk: Vec<u8>, meta: &ChunkMeta) -> Result<ChunkId, StoreError> {
         let id = ChunkId::new();
         let (dir, filename) = self.filename(&id);
 
@@ -96,13 +99,15 @@ impl LocalStore {
         std::fs::write(&filename, &chunk)
             .map_err(|err| StoreError::WriteChunk(filename.clone(), err))?;
         self.index
+            .lock()
+            .await
             .insert_meta(id.clone(), meta.clone())
             .map_err(StoreError::Index)?;
         Ok(id)
     }
 
-    fn get(&self, id: &ChunkId) -> Result<(Vec<u8>, ChunkMeta), StoreError> {
-        let meta = self.index.get_meta(id)?;
+    async fn get(&self, id: &ChunkId) -> Result<(Vec<u8>, ChunkMeta), StoreError> {
+        let meta = self.index.lock().await.get_meta(id)?;
 
         let (_, filename) = &self.filename(id);
 
