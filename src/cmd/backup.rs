@@ -42,7 +42,7 @@ impl Backup {
     ) -> Result<(), ObnamError> {
         let runtime = SystemTime::now();
 
-        let major = self.backup_version.or(Some(DEFAULT_SCHEMA_MAJOR)).unwrap();
+        let major = self.backup_version.unwrap_or(DEFAULT_SCHEMA_MAJOR);
         let schema = schema_version(major)?;
 
         let client = BackupClient::new(config)?;

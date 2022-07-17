@@ -166,9 +166,7 @@ impl<'a> BackupRun<'a> {
     }
 
     fn checksum_kind(&self) -> LabelChecksumKind {
-        self.checksum_kind
-            .or(Some(LabelChecksumKind::Sha256))
-            .unwrap()
+        self.checksum_kind.unwrap_or(LabelChecksumKind::Sha256)
     }
 
     async fn fetch_previous_generation(
