@@ -62,11 +62,11 @@ impl ClientConfig {
         let exclude_cache_tag_directories = tentative.exclude_cache_tag_directories.unwrap_or(true);
 
         let config = Self {
-            chunk_size: tentative.chunk_size.or(Some(DEFAULT_CHUNK_SIZE)).unwrap(),
+            chunk_size: tentative.chunk_size.unwrap_or(DEFAULT_CHUNK_SIZE),
             filename: filename.to_path_buf(),
             roots,
             server_url: tentative.server_url,
-            verify_tls_cert: tentative.verify_tls_cert.or(Some(false)).unwrap(),
+            verify_tls_cert: tentative.verify_tls_cert.unwrap_or(false),
             log,
             exclude_cache_tag_directories,
         };
