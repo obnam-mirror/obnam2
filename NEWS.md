@@ -6,6 +6,58 @@ of Obnam, the backup software. The software is technically called
 ended in 2017 with version number 1.22.
 
 
+# Version 0.7.X, released 2022-07-24
+
+## Breaking changes
+
+Breaking changes are ones that mean existing backups can't be
+restored, or new backups can't be created.
+
+* The list of backups is stored in a special "root chunk". This means
+  backups are explicitly ordered. This also paves way for a future
+  feature to backups: only the root chunk will need to be updated.
+  Without a root chunk, the backups formed a linked list, and deleting
+  from the middle of the list would updating the whole list.
+
+* The server chunk metadata field `sha256` is now called `label`.
+  Labels include a type prefix, to allow for other chunk checksum
+  types in the future.
+
+* The server API is now explicitly versioned, to allow future changes
+  to cause less breakage.
+
+## New features
+
+* Users can now choose the backup schema version for new backups. A
+  repository can have backups with different schemas, and any existing
+  backup can be restored. The schema version only applies to new
+  backups.
+
+* New command `obnam inspect` shows metadata about a backup. Currently
+  only the schema version is shown.
+
+* New command `obnam list-backup-versions` shows all the backup schema
+  versions that this version of Obnam supports.
+
+* Obnam now logs some basic performance measurement for each run: how
+  many live files were found in total, backed up, chunks uploaded,
+  existing chunks reused, and how long various parts of the process
+  took.
+
+## Other changes
+
+* The `obnam show-generation` command now outputs data in the JSON
+  format. The output now includes data about the generation's SQLite
+  database size.
+
+## Thank you
+
+Several people have helped with this release, with changes or
+feedback.
+
+* Alexander Batischev
+* Lars Wirzenius
+
 # Version 0.7.1, released 2022-03-08
 
 ## Bug fixes
