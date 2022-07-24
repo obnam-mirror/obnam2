@@ -6,7 +6,7 @@ of Obnam, the backup software. The software is technically called
 ended in 2017 with version number 1.22.
 
 
-# Version 0.7.X, released 2022-07-24
+# Version 0.8.0, released 2022-07-24
 
 ## Breaking changes
 
