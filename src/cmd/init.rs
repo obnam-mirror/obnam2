@@ -20,7 +20,7 @@ impl Init {
     pub fn run(&self, config: &ClientConfig) -> Result<(), ObnamError> {
         let passphrase = match &self.insecure_passphrase {
             Some(x) => x.to_string(),
-            None => rpassword::read_password_from_tty(Some(PROMPT)).unwrap(),
+            None => rpassword::prompt_password(PROMPT).unwrap(),
         };
 
         let passwords = Passwords::new(&passphrase);
