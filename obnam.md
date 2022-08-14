@@ -204,6 +204,23 @@ This is mitigated in two ways:
 
 [CACHEDIR.TAG]: https://bford.info/cachedir/
 
+## Attacker can read backups via chunk server HTTP API
+
+This threat arises from the fact that the chunk server HTTP API
+currently has no authentication. This allows an attacker who can
+access the API to copy the backups and break their encryption at
+leisure.
+
+The mitigation is to add access control for the API.
+
+A simple approach is to have the chunk server admin to create an
+**access token** that the client must provide with each API request.
+The token can be stored in the client configuration by `obnam init`.
+
+This would be the simplest possible access control approach. More
+nuanced approaches will be added later.
+
+
 # Software architecture
 
 ## Effects of requirements
