@@ -587,6 +587,153 @@ using configuration management, and if necessary, backups can be
 triggered on each host by having the server reach out and run the
 Obnam client.
 
+## On splitting file data into chunks
+
+A backup program needs to split the data it backs up into chunks. This
+can be done in various ways.
+
+### A complete file as a single chunk
+
+This is a very simple approach, where the whole file is considered to
+be a chunk, regardless of its size.
+
+Using complete files is often impractical, since they need to be
+stored and transferred as a unit. If a file is enormous, transferring
+it completely can be a challenge: if there's a one-bit error in the
+transfer, the whole thing needs to be transferred again.
+
+There is no de-duplication except possibly of entire files.
+
+### Fixed size chunks
+
+Split a file into chunks of a fixed size. For example, if the chunk
+size is 1 MiB, a 1 GiB file is 1024 chunks. All chunks are of the same
+size, unless a file size is not a multiple of the chunk size.
+
+Fixed size chunks are very easy to implement and make de-duplication
+of partial files possible. However, that de-duplication tends to only
+work for the beginnings of file: inserting data in the file tends to
+result in chunks after the insertion not matching anymore.
+
+### Splitting based on a formula using content
+
+A rolling checksum function is computed on a sliding window of bytes
+from the input file. The window has a fixed size. The function is
+extremely efficient to compute when bytes are moved into or out of the
+window. When the value of the function, the checksum, matches a
+certain bit pattern, it is considered a chunk boundary. Such a pattern
+might for example be that the lowest N bits are zero. Any data that
+is pushed out of the sliding window also forms a chunk.
+
+The code to split into chunks may set minimum and maximum sizes of
+chunks, whether from checksum patterns or overflowed bytes. This
+prevents pathological input data, where the checksum has the boundary
+bit pattern after every byte, to not result in each input byte being
+its own chunk.
+
+This finds chunks efficiently even new data is inserted into the input
+data, with some caveats.
+
+Example: assume a sliding window of four bytes, and a 17-byte input
+file where there are four copies of the same 4-byte sequence with a
+random byte in between.
+
++------+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+|data  | a| b| c| d| a| b| c| d|ff| a| b| c| d| a| b| c| d|
++------+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+|offset|01|02|03|04|05|06|07|08|09|10|11|12|13|14|15|16|17|
++------+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+Bytes 1-4 are the same as bytes 5-8, 10-13, and 14-17. When we compute
+the checksum for each input byte, we get the results below, for a
+moving sum function.
+
++--------+------+----------+-----------------+
+| offset | byte | checksum | chunk boundary? |
++--------+------+----------+-----------------+
+| 0      | a    | a        | no              |
++--------+------+----------+-----------------+
+| 1      | b    | a+b      | no              |
++--------+------+----------+-----------------+
+| 2      | c    | a+b+c    | no              |
++--------+------+----------+-----------------+
+| 3      | d    | a+b+c+   | yes             |
++--------+------+----------+-----------------+
+| 4      | a    | a        | no              |
++--------+------+----------+-----------------+
+| 5      | b    | a+b      | no              |
++--------+------+----------+-----------------+
+| 6      | c    | a+b+c    | no              |
++--------+------+----------+-----------------+
+| 7      | d    | a+b+c+   | yes             |
++--------+------+----------+-----------------+
+| 9      | ff   | ff       | no              |
++--------+------+----------+-----------------+
+| 10     | a    | ff+a     | no              |
++--------+------+----------+-----------------+
+| 11     | b    | ff+a+b   | no              |
++--------+------+----------+-----------------+
+| 12     | c    | ff+a+b+c | no              |
++--------+------+----------+-----------------+
+| 13     | d    | a+b+c+d  | yes             |
++--------+------+----------+-----------------+
+| 14     | a    | a        | no              |
++--------+------+----------+-----------------+
+| 15     | b    | a+b      | no              |
++--------+------+----------+-----------------+
+| 16     | c    | a+b+c    | no              |
++--------+------+----------+-----------------+
+| 17     | d    | a+b+c+   | yes             |
++--------+------+----------+-----------------+
+
+Note that in this example, the byte at offset 9 (0xff) slides out of
+the window then byte at offset 13 slides in, and in results in bytes
+at offsets 10-13 being recognized as a chunk by the checksum function.
+This example is carefully constructed for that happy co-incidence. In
+a more realistic scenario, the data after the inserted bytes might not
+notice a chunk boundary until after the sliding window has been filled
+once.
+
+By choosing a suitable window size and checksum value pattern for
+chunk boundaries, the chunk splitting can find smaller or large
+chunks, balancing the possibility for more detailed de-duplication
+versus the overhead of storing many chunks.
+
+### Varying splitting method based on file type
+
+The data may contain files of different types, and this can be used to
+vary the way data is split into chunks. For example, compressed video
+files may use one way of chunking, while software source code may use
+another.
+
+For example:
+
+* emails in mbox or Maildir formats could be split based on headers,
+  body, and attachment and each of those into chunks
+* SQL dumps of databases tend to contain very large numbers containing
+  the same structure
+* video files are often split into frames, possibly those can be used
+  for intelligent chunking?
+* uncompressed tar files have a definite structure (header, followed
+  by file data) that can probably be used for splitting into chunks
+* ZIP files compress each file separately, which could be used to
+  split them into chunks: this way, two ZIP files with the same file
+  inside them might share the compressed file as a chunk
+* disk images often contain long sequences of zeroes, which could be
+  used for splitting into chunks
+
+### Next actions
+
+Obnam currently splits data using fixed size chunks. This can and will
+be improved, and the changes will only affect the client. Help is
+welcome.
+
+### Thanks
+
+Thank you to Daniel Silverstone who explained some of the mathematics
+about this to me.
+
+
 # File metadata
 
 Files in a file system contain data and have metadata: data about the
