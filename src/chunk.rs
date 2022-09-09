@@ -13,7 +13,7 @@ use std::default::Default;
 /// together. The identifier is used to find the chunk, and it's
 /// assigned by the server when the chunk is uploaded, so it's not
 /// stored in the chunk itself.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct DataChunk {
     data: Vec<u8>,
     meta: ChunkMeta,

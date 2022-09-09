@@ -115,7 +115,7 @@ impl Fetched {
 }
 
 /// Result of a search.
-#[derive(Debug, Default, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SearchHits {
     map: HashMap<String, ChunkMeta>,
 }

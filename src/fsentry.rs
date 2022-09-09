@@ -268,7 +268,7 @@ impl EntryBuilder {
 }
 
 /// Different types of file system entries.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum FilesystemKind {
     /// Regular file, including a hard link to one.
     Regular,

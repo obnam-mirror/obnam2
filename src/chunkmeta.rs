@@ -28,7 +28,7 @@ use std::str::FromStr;
 ///
 /// [ISO 8601]: https://en.wikipedia.org/wiki/ISO_8601
 /// [SHA256]: https://en.wikipedia.org/wiki/SHA-2
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ChunkMeta {
     label: String,
 }

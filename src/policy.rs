@@ -32,7 +32,7 @@ impl BackupPolicy {
     /// Does a given file need to be backed up?
     pub fn needs_backup(&self, old: &LocalGeneration, new_entry: &FilesystemEntry) -> Reason {
         let new_name = new_entry.pathbuf();
-        let reason = match old.get_file(&new_name) {
+        match old.get_file(&new_name) {
             Ok(None) => {
                 if self.new {
                     Reason::IsNew
@@ -58,8 +58,7 @@ impl BackupPolicy {
                 );
                 Reason::GenerationLookupError
             }
-        };
-        reason
+        }
     }
 }
 
