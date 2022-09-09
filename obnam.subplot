@@ -1,0 +1,22 @@
+title: "Obnam2&mdash;a backup system"
+author: Lars Wirzenius
+documentclass: report
+markdowns:
+  - obnam.md
+bindings:
+  - subplot/server.yaml
+  - subplot/client.yaml
+  - subplot/data.yaml
+  - lib/files.yaml
+  - lib/runcmd.yaml
+impls:
+  python:
+  - subplot/server.py
+  - subplot/client.py
+  - subplot/data.py
+  - lib/daemon.py
+  - lib/files.py
+  - lib/runcmd.py
+classes:
+  - json
+  - sql

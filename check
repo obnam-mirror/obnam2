@@ -50,11 +50,11 @@ $hideok cargo build --all-targets
 got_cargo_cmd fmt && $hideok cargo fmt -- --check
 $hideok cargo test
 
-subplot docgen obnam.md -o obnam.html
-subplot docgen obnam.md -o obnam.pdf
+subplot docgen obnam.subplot -o obnam.html
+subplot docgen obnam.subplot -o obnam.pdf
 
 target="$(cargo metadata --format-version=1 | python3 -c 'import sys, json; o = json.load(sys.stdin); print(o["target_directory"])')"
-subplot codegen obnam.md -o test.py
+subplot codegen obnam.subplot -o test.py
 rm -f test.log
 if [ "$(id -un)" = root ]; then
 	echo Not running tests as root.
