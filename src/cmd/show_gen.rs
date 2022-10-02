@@ -7,17 +7,17 @@ use crate::db::DbInt;
 use crate::error::ObnamError;
 use crate::fsentry::FilesystemKind;
 use crate::generation::GenId;
+use clap::Parser;
 use indicatif::HumanBytes;
 use serde::Serialize;
-use structopt::StructOpt;
 use tempfile::NamedTempFile;
 use tokio::runtime::Runtime;
 
 /// Show information about a generation.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct ShowGeneration {
     /// Reference to the generation. Defaults to latest.
-    #[structopt(default_value = "latest")]
+    #[clap(default_value = "latest")]
     gen_id: String,
 }
 

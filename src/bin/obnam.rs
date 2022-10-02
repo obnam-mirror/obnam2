@@ -1,3 +1,4 @@
+use clap::Parser;
 use directories_next::ProjectDirs;
 use log::{debug, error, info, LevelFilter};
 use log4rs::append::file::FileAppender;
@@ -19,7 +20,6 @@ use obnam::cmd::show_gen::ShowGeneration;
 use obnam::config::ClientConfig;
 use obnam::performance::{Clock, Performance};
 use std::path::{Path, PathBuf};
-use structopt::StructOpt;
 
 const QUALIFIER: &str = "";
 const ORG: &str = "";
@@ -38,7 +38,7 @@ fn main() {
 }
 
 fn main_program(perf: &mut Performance) -> anyhow::Result<()> {
-    let opt = Opt::from_args();
+    let opt = Opt::parse();
     let config = ClientConfig::read(&config_filename(&opt))?;
     setup_logging(&config.log)?;
 
@@ -96,17 +96,17 @@ fn default_config() -> PathBuf {
     }
 }
 
-#[derive(Debug, StructOpt)]
-#[structopt(name = "obnam-backup", about = "Simplistic backup client")]
+#[derive(Debug, Parser)]
+#[clap(name = "obnam-backup", about = "Simplistic backup client")]
 struct Opt {
-    #[structopt(long, short, parse(from_os_str))]
+    #[clap(long, short)]
     config: Option<PathBuf>,
 
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     cmd: Command,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 enum Command {
     Init(Init),
     Backup(Backup),

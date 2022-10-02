@@ -10,21 +10,21 @@ use crate::generation::GenId;
 use crate::performance::{Clock, Performance};
 use crate::schema::VersionComponent;
 
+use clap::Parser;
 use log::info;
 use std::time::SystemTime;
-use structopt::StructOpt;
 use tempfile::tempdir;
 use tokio::runtime::Runtime;
 
 /// Make a backup.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Backup {
     /// Force a full backup, instead of an incremental one.
-    #[structopt(long)]
+    #[clap(long)]
     full: bool,
 
     /// Backup schema major version to use.
-    #[structopt(long)]
+    #[clap(long)]
     backup_version: Option<VersionComponent>,
 }
 

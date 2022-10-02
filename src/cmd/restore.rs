@@ -9,6 +9,7 @@ use crate::dbgen::FileId;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
 use crate::generation::{LocalGeneration, LocalGenerationError};
+use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use libc::{chmod, mkfifo, timespec, utimensat, AT_FDCWD, AT_SYMLINK_NOFOLLOW};
 use log::{debug, error, info};
@@ -20,19 +21,16 @@ use std::os::unix::fs::symlink;
 use std::os::unix::net::UnixListener;
 use std::path::StripPrefixError;
 use std::path::{Path, PathBuf};
-use structopt::StructOpt;
 use tempfile::NamedTempFile;
 use tokio::runtime::Runtime;
 
 /// Restore a backup.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Restore {
     /// Reference to generation to restore.
-    #[structopt()]
     gen_id: String,
 
     /// Path to directory where restored files are written.
-    #[structopt(parse(from_os_str))]
     to: PathBuf,
 }
 

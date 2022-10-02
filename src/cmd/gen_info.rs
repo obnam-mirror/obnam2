@@ -4,16 +4,15 @@ use crate::chunk::ClientTrust;
 use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
+use clap::Parser;
 use log::info;
-use structopt::StructOpt;
 use tempfile::NamedTempFile;
 use tokio::runtime::Runtime;
 
 /// Show metadata for a generation.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct GenInfo {
     /// Reference of the generation.
-    #[structopt()]
     gen_ref: String,
 }
 

@@ -6,16 +6,15 @@ use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 
+use clap::Parser;
 use log::info;
-use structopt::StructOpt;
 use tempfile::NamedTempFile;
 use tokio::runtime::Runtime;
 
 /// Make a backup.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Inspect {
     /// Reference to generation to inspect.
-    #[structopt()]
     gen_id: String,
 }
 

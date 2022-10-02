@@ -4,13 +4,13 @@ use crate::config::ClientConfig;
 use crate::dbgen::{schema_version, DEFAULT_SCHEMA_MAJOR, SCHEMA_MAJORS};
 use crate::error::ObnamError;
 
-use structopt::StructOpt;
+use clap::Parser;
 
 /// List supported backup schema versions.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct ListSchemaVersions {
     /// List only the default version.
-    #[structopt(long)]
+    #[clap(long)]
     default_only: bool,
 }
 

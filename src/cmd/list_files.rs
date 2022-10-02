@@ -6,15 +6,15 @@ use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::fsentry::{FilesystemEntry, FilesystemKind};
-use structopt::StructOpt;
+use clap::Parser;
 use tempfile::NamedTempFile;
 use tokio::runtime::Runtime;
 
 /// List files in a backup.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct ListFiles {
     /// Reference to backup to list files in.
-    #[structopt(default_value = "latest")]
+    #[clap(default_value = "latest")]
     gen_id: String,
 }
 

@@ -4,15 +4,14 @@ use crate::chunkid::ChunkId;
 use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
+use clap::Parser;
 use std::io::{stdout, Write};
-use structopt::StructOpt;
 use tokio::runtime::Runtime;
 
 /// Fetch a chunk from the server.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct GetChunk {
     /// Identifier of chunk to fetch.
-    #[structopt()]
     chunk_id: String,
 }
 
