@@ -4,11 +4,11 @@ use crate::chunk::ClientTrust;
 use crate::client::BackupClient;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
-use structopt::StructOpt;
+use clap::Parser;
 use tokio::runtime::Runtime;
 
 /// List generations on the server.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct List {}
 
 impl List {

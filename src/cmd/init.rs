@@ -3,15 +3,15 @@
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
 use crate::passwords::{passwords_filename, Passwords};
-use structopt::StructOpt;
+use clap::Parser;
 
 const PROMPT: &str = "Obnam passphrase: ";
 
 /// Initialize client by setting passwords.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Init {
     /// Only for testing.
-    #[structopt(long)]
+    #[clap(long)]
     insecure_passphrase: Option<String>,
 }
 

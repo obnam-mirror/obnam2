@@ -4,10 +4,10 @@ use crate::config::ClientConfig;
 use crate::engine::Engine;
 use crate::error::ObnamError;
 use crate::workqueue::WorkQueue;
+use clap::Parser;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
-use structopt::StructOpt;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, BufReader};
 use tokio::runtime::Runtime;
@@ -18,7 +18,7 @@ use tokio::sync::mpsc;
 const Q: usize = 8;
 
 /// Split files into chunks and show their metadata.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Chunkify {
     /// Names of files to split into chunks.
     filenames: Vec<PathBuf>,

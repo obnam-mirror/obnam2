@@ -5,22 +5,19 @@ use crate::chunkmeta::ChunkMeta;
 use crate::cipher::CipherEngine;
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
+use clap::Parser;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
 /// Encrypt a chunk.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct EncryptChunk {
     /// The name of the file containing the cleartext chunk.
-    #[structopt(parse(from_os_str))]
     filename: PathBuf,
 
     /// Name of file where to write the encrypted chunk.
-    #[structopt(parse(from_os_str))]
     output: PathBuf,
 
     /// Chunk metadata as JSON.
-    #[structopt()]
     json: String,
 }
 
@@ -43,18 +40,15 @@ impl EncryptChunk {
 }
 
 /// Decrypt a chunk.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct DecryptChunk {
     /// Name of file containing encrypted chunk.
-    #[structopt(parse(from_os_str))]
     filename: PathBuf,
 
     /// Name of file where to write the cleartext chunk.
-    #[structopt(parse(from_os_str))]
     output: PathBuf,
 
     /// Chunk metadata as JSON.
-    #[structopt()]
     json: String,
 }
 

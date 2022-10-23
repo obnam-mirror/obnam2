@@ -2,10 +2,10 @@
 
 use crate::config::ClientConfig;
 use crate::error::ObnamError;
-use structopt::StructOpt;
+use clap::Parser;
 
 /// Show actual client configuration.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct ShowConfig {}
 
 impl ShowConfig {

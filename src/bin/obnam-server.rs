@@ -1,4 +1,5 @@
 use anyhow::Context;
+use clap::Parser;
 use log::{debug, error, info};
 use obnam::chunk::DataChunk;
 use obnam::chunkid::ChunkId;
@@ -11,16 +12,14 @@ use std::default::Default;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use structopt::StructOpt;
 use tokio::sync::Mutex;
 use warp::http::StatusCode;
 use warp::hyper::body::Bytes;
 use warp::Filter;
 
-#[derive(Debug, StructOpt)]
-#[structopt(name = "obnam2-server", about = "Backup server")]
+#[derive(Debug, Parser)]
+#[clap(name = "obnam2-server", about = "Backup server")]
 struct Opt {
-    #[structopt(parse(from_os_str))]
     config: PathBuf,
 }
 
@@ -28,7 +27,7 @@ struct Opt {
 async fn main() -> anyhow::Result<()> {
     pretty_env_logger::init_custom_env("OBNAM_SERVER_LOG");
 
-    let opt = Opt::from_args();
+    let opt = Opt::parse();
     let config = load_config(&opt.config)?;
 
     let addresses: Vec<SocketAddr> = config.address.to_socket_addrs()?.collect();
