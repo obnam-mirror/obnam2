@@ -76,7 +76,7 @@ async fn manage_workers<S, T, F>(
                     // We got a work item. Launch background task to
                     // work on it.
                     let tx = tx.clone();
-                    workers.push(do_work(work, tx, func));
+                    workers.push_back(do_work(work, tx, func));
 
                     // If queue is full, wait for at least one
                     // background task to finish.
