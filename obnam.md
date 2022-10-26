@@ -1259,21 +1259,6 @@ and content-type is application/json
 and the JSON body matches {"<ID>":{"label":"0abc"}}
 ~~~
 
-Finally, we must be able to delete it. After that, we must not be able
-to retrieve it, or find it using metadata.
-
-~~~scenario
-when I DELETE /v1/chunks/<ID>
-then HTTP status code is 200
-
-when I GET /v1/chunks/<ID>
-then HTTP status code is 404
-
-when I GET /v1/chunks?label=0abc
-then HTTP status code is 200
-and content-type is application/json
-and the JSON body matches {}
-~~~
 
 ## Retrieve a chunk that does not exist
 
@@ -1297,17 +1282,6 @@ then HTTP status code is 200
 and content-type is application/json
 and the JSON body matches {}
 ~~~
-
-## Delete chunk that does not exist
-
-We must get the right error when deleting a chunk that doesn't exist.
-
-~~~scenario
-given a working Obnam system
-when I try to DELETE /v1/chunks/any.random.string
-then HTTP status code is 404
-~~~
-
 
 ## Persistent across restarts
 

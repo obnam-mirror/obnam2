@@ -4,6 +4,7 @@ use log::{debug, error, info};
 use obnam::chunkid::ChunkId;
 use obnam::chunkmeta::ChunkMeta;
 use obnam::chunkstore::ChunkStore;
+use obnam::label::Label;
 use obnam::server::{ServerConfig, ServerConfigError};
 use serde::Serialize;
 use std::collections::HashMap;
@@ -69,16 +70,8 @@ async fn main() -> anyhow::Result<()> {
         .and(store.clone())
         .and_then(search_chunks);
 
-    let delete = warp::delete()
-        .and(warp::path("v1"))
-        .and(warp::path("chunks"))
-        .and(warp::path::param())
-        .and(warp::path::end())
-        .and(store.clone())
-        .and_then(delete_chunk);
-
     let log = warp::log("obnam");
-    let webroot = create.or(fetch).or(search).or(delete).with(log);
+    let webroot = create.or(fetch).or(search).with(log);
 
     debug!("starting warp");
     warp::serve(webroot)
@@ -105,7 +98,7 @@ pub async fn create_chunk(
     meta: String,
     data: Bytes,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let mut store = store.lock().await;
+    let store = store.lock().await;
 
     let meta: ChunkMeta = match meta.parse() {
         Ok(s) => s,
@@ -147,7 +140,7 @@ pub async fn fetch_chunk(
 
 pub async fn search_chunks(
     query: HashMap<String, String>,
-    store: Arc<Mutex<IndexedStore>>,
+    store: Arc<Mutex<ChunkStore>>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let store = store.lock().await;
 
@@ -158,7 +151,12 @@ pub async fn search_chunks(
             return Ok(ChunkResult::BadRequest);
         }
         if key == "label" {
-            store.find_by_label(value).expect("SQL lookup failed")
+            let label = Label::deserialize(value).unwrap();
+            let label = ChunkMeta::new(&label);
+            store
+                .find_by_label(&label)
+                .await
+                .expect("SQL lookup failed")
         } else {
             error!("unknown search key {:?}", key);
             return Ok(ChunkResult::BadRequest);
@@ -170,7 +168,7 @@ pub async fn search_chunks(
 
     let mut hits = SearchHits::default();
     for chunk_id in found {
-        let meta = match store.load_meta(&chunk_id) {
+        let (_, meta) = match store.get(&chunk_id).await {
             Ok(meta) => {
                 info!("search found chunk {}", chunk_id);
                 meta
@@ -209,30 +207,10 @@ impl SearchHits {
     }
 }
 
-pub async fn delete_chunk(
-    id: String,
-    store: Arc<Mutex<IndexedStore>>,
-) -> Result<impl warp::Reply, warp::Rejection> {
-    let mut store = store.lock().await;
-    let id: ChunkId = id.parse().unwrap();
-
-    match store.remove(&id) {
-        Ok(_) => {
-            info!("chunk deleted: {}", id);
-            Ok(ChunkResult::Deleted)
-        }
-        Err(e) => {
-            error!("could not delete chunk {}: {:?}", id, e);
-            Ok(ChunkResult::NotFound)
-        }
-    }
-}
-
 enum ChunkResult {
     Created(ChunkId),
     Fetched(ChunkMeta, Vec<u8>),
     Found(SearchHits),
-    Deleted,
     NotFound,
     BadRequest,
     InternalServerError,
@@ -267,7 +245,6 @@ impl warp::Reply for ChunkResult {
                 )
             }
             ChunkResult::Found(hits) => json_response(StatusCode::OK, hits.to_json(), None),
-            ChunkResult::Deleted => status_response(StatusCode::OK),
             ChunkResult::BadRequest => status_response(StatusCode::BAD_REQUEST),
             ChunkResult::NotFound => status_response(StatusCode::NOT_FOUND),
             ChunkResult::InternalServerError => status_response(StatusCode::INTERNAL_SERVER_ERROR),

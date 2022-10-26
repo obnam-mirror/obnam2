@@ -124,7 +124,7 @@ impl LocalStore {
         let b = bytes[1];
         let c = bytes[2];
         let dir = self.path.join(format!("{}/{}/{}", a, b, c));
-        let filename = dir.join(format!("{}", id));
+        let filename = dir.join(format!("{}.data", id));
         (dir, filename)
     }
 }
