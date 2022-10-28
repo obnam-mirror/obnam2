@@ -28,7 +28,6 @@ pub mod generation;
 pub mod genlist;
 pub mod genmeta;
 pub mod index;
-pub mod indexedstore;
 pub mod label;
 pub mod passwords;
 pub mod performance;
