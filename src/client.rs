@@ -5,15 +5,14 @@ use crate::chunk::{
 };
 use crate::chunkid::ChunkId;
 use crate::chunkmeta::ChunkMeta;
+use crate::chunkstore::{ChunkStore, StoreError};
 use crate::cipher::{CipherEngine, CipherError};
 use crate::config::{ClientConfig, ClientConfigError};
 use crate::generation::{FinishedGeneration, GenId, LocalGeneration, LocalGenerationError};
 use crate::genlist::GenerationList;
 use crate::label::Label;
 
-use log::{debug, error, info};
-use reqwest::header::HeaderMap;
-use std::collections::HashMap;
+use log::{error, info};
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
@@ -100,12 +99,15 @@ pub enum ClientError {
     /// Failed to write a file.
     #[error("failed to write to file {0}: {1}")]
     FileWrite(PathBuf, std::io::Error),
+
+    /// Error from a chunk store.
+    #[error(transparent)]
+    ChunkStore(#[from] StoreError),
 }
 
 /// Client for the Obnam server HTTP API.
 pub struct BackupClient {
-    client: reqwest::Client,
-    base_url: String,
+    store: ChunkStore,
     cipher: CipherEngine,
 }
 
@@ -113,68 +115,25 @@ impl BackupClient {
     /// Create a new backup client.
     pub fn new(config: &ClientConfig) -> Result<Self, ClientError> {
         info!("creating backup client with config: {:#?}", config);
-
         let pass = config.passwords()?;
-
-        let client = reqwest::Client::builder()
-            .danger_accept_invalid_certs(!config.verify_tls_cert)
-            .build()
-            .map_err(ClientError::ReqwestError)?;
         Ok(Self {
-            client,
-            base_url: config.server_url.to_string(),
+            store: ChunkStore::remote(config)?,
             cipher: CipherEngine::new(&pass),
         })
     }
 
-    fn base_url(&self) -> &str {
-        &self.base_url
-    }
-
-    fn chunks_url(&self) -> String {
-        format!("{}/v1/chunks", self.base_url())
-    }
-
     /// Does the server have a chunk?
     pub async fn has_chunk(&self, meta: &ChunkMeta) -> Result<Option<ChunkId>, ClientError> {
-        let body = match self.get("", &[("label", meta.label())]).await {
-            Ok((_, body)) => body,
-            Err(err) => return Err(err),
-        };
-
-        let hits: HashMap<String, ChunkMeta> =
-            serde_json::from_slice(&body).map_err(ClientError::JsonParse)?;
-        let mut iter = hits.iter();
-        let has = if let Some((chunk_id, _)) = iter.next() {
-            Some(chunk_id.into())
-        } else {
-            None
-        };
-
-        Ok(has)
+        let mut ids = self.store.find_by_label(meta).await?;
+        Ok(ids.pop())
     }
 
     /// Upload a data chunk to the server.
-    pub async fn upload_chunk(&self, chunk: DataChunk) -> Result<ChunkId, ClientError> {
+    pub async fn upload_chunk(&mut self, chunk: DataChunk) -> Result<ChunkId, ClientError> {
         let enc = self.cipher.encrypt_chunk(&chunk)?;
-        let res = self
-            .client
-            .post(&self.chunks_url())
-            .header("chunk-meta", chunk.meta().to_json())
-            .body(enc.ciphertext().to_vec())
-            .send()
-            .await
-            .map_err(ClientError::ReqwestError)?;
-        debug!("upload_chunk: res={:?}", res);
-        let res: HashMap<String, String> = res.json().await.map_err(ClientError::ReqwestError)?;
-        let chunk_id = if let Some(chunk_id) = res.get("chunk_id") {
-            debug!("upload_chunk: id={}", chunk_id);
-            chunk_id.parse().unwrap()
-        } else {
-            return Err(ClientError::NoCreatedChunkId);
-        };
-        info!("uploaded_chunk {}", chunk_id);
-        Ok(chunk_id)
+        let data = enc.ciphertext().to_vec();
+        let id = self.store.put(data, chunk.meta()).await?;
+        Ok(id)
     }
 
     /// Get current client trust chunk from repository, if there is one.
@@ -196,15 +155,9 @@ impl BackupClient {
     }
 
     async fn find_client_trusts(&self) -> Result<Vec<ChunkId>, ClientError> {
-        let label = Label::literal("client-trust").serialize();
-        let body = match self.get("", &[("label", &label)]).await {
-            Ok((_, body)) => body,
-            Err(err) => return Err(err),
-        };
-
-        let hits: HashMap<String, ChunkMeta> =
-            serde_json::from_slice(&body).map_err(ClientError::JsonParse)?;
-        let ids = hits.iter().map(|(id, _)| id.into()).collect();
+        let label = Label::literal("client-trust");
+        let meta = ChunkMeta::new(&label);
+        let ids = self.store.find_by_label(&meta).await?;
         Ok(ids)
     }
 
@@ -220,9 +173,7 @@ impl BackupClient {
 
     /// Fetch a data chunk from the server, given the chunk identifier.
     pub async fn fetch_chunk(&self, chunk_id: &ChunkId) -> Result<DataChunk, ClientError> {
-        let (headers, body) = self.get(&format!("/{}", chunk_id), &[]).await?;
-        let meta = self.get_chunk_meta_header(chunk_id, &headers)?;
-
+        let (body, meta) = self.store.get(chunk_id).await?;
         let meta_bytes = meta.to_json_vec();
         let chunk = self.cipher.decrypt_chunk(&body, &meta_bytes)?;
 
@@ -256,62 +207,5 @@ impl BackupClient {
 
         let gen = LocalGeneration::open(dbname)?;
         Ok(gen)
-    }
-
-    async fn get(
-        &self,
-        path: &str,
-        query: &[(&str, &str)],
-    ) -> Result<(HeaderMap, Vec<u8>), ClientError> {
-        let url = format!("{}{}", &self.chunks_url(), path);
-        info!("GET {}", url);
-
-        // Build HTTP request structure.
-        let req = self
-            .client
-            .get(&url)
-            .query(query)
-            .build()
-            .map_err(ClientError::ReqwestError)?;
-
-        // Make HTTP request.
-        let res = self
-            .client
-            .execute(req)
-            .await
-            .map_err(ClientError::ReqwestError)?;
-
-        // Did it work?
-        if res.status() != 200 {
-            return Err(ClientError::NotFound(path.to_string()));
-        }
-
-        // Return headers and body.
-        let headers = res.headers().clone();
-        let body = res.bytes().await.map_err(ClientError::ReqwestError)?;
-        let body = body.to_vec();
-        Ok((headers, body))
-    }
-
-    fn get_chunk_meta_header(
-        &self,
-        chunk_id: &ChunkId,
-        headers: &HeaderMap,
-    ) -> Result<ChunkMeta, ClientError> {
-        let meta = headers.get("chunk-meta");
-
-        if meta.is_none() {
-            let err = ClientError::NoChunkMeta(chunk_id.clone());
-            error!("fetching chunk {} failed: {}", chunk_id, err);
-            return Err(err);
-        }
-
-        let meta = meta
-            .unwrap()
-            .to_str()
-            .map_err(ClientError::MetaHeaderToString)?;
-        let meta: ChunkMeta = serde_json::from_str(meta).map_err(ClientError::JsonParse)?;
-
-        Ok(meta)
     }
 }

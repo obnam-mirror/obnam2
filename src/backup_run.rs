@@ -31,7 +31,7 @@ const SQLITE_CHUNK_SIZE: usize = MIB as usize;
 /// A running backup.
 pub struct BackupRun<'a> {
     checksum_kind: Option<LabelChecksumKind>,
-    client: &'a BackupClient,
+    client: &'a mut BackupClient,
     policy: BackupPolicy,
     buffer_size: usize,
     progress: Option<BackupProgress>,
@@ -106,7 +106,10 @@ pub struct RootsBackupOutcome {
 
 impl<'a> BackupRun<'a> {
     /// Create a new run for an initial backup.
-    pub fn initial(config: &ClientConfig, client: &'a BackupClient) -> Result<Self, BackupError> {
+    pub fn initial(
+        config: &ClientConfig,
+        client: &'a mut BackupClient,
+    ) -> Result<Self, BackupError> {
         Ok(Self {
             checksum_kind: Some(DEFAULT_CHECKSUM_KIND),
             client,
@@ -119,7 +122,7 @@ impl<'a> BackupRun<'a> {
     /// Create a new run for an incremental backup.
     pub fn incremental(
         config: &ClientConfig,
-        client: &'a BackupClient,
+        client: &'a mut BackupClient,
     ) -> Result<Self, BackupError> {
         Ok(Self {
             checksum_kind: None,
@@ -189,7 +192,7 @@ impl<'a> BackupRun<'a> {
 
     /// Back up all the roots for this run.
     pub async fn backup_roots(
-        &self,
+        &mut self,
         config: &ClientConfig,
         old: &LocalGeneration,
         newpath: &Path,
@@ -236,7 +239,7 @@ impl<'a> BackupRun<'a> {
     }
 
     async fn backup_one_root(
-        &self,
+        &mut self,
         config: &ClientConfig,
         old: &LocalGeneration,
         new: &mut NascentGeneration,
@@ -287,7 +290,7 @@ impl<'a> BackupRun<'a> {
     }
 
     async fn backup_if_needed(
-        &self,
+        &mut self,
         entry: AnnotatedFsEntry,
         old: &LocalGeneration,
     ) -> Result<Option<FsEntryBackupOutcome>, BackupError> {
@@ -322,7 +325,7 @@ impl<'a> BackupRun<'a> {
     }
 
     async fn backup_one_entry(
-        &self,
+        &mut self,
         entry: &AnnotatedFsEntry,
         path: &Path,
         reason: Reason,
@@ -351,7 +354,7 @@ impl<'a> BackupRun<'a> {
 
     /// Upload any file content for a file system entry.
     pub async fn upload_filesystem_entry(
-        &self,
+        &mut self,
         e: &FilesystemEntry,
         size: usize,
     ) -> Result<Vec<ChunkId>, BackupError> {
@@ -370,7 +373,7 @@ impl<'a> BackupRun<'a> {
 
     /// Upload the metadata for the backup of this run.
     pub async fn upload_generation(
-        &self,
+        &mut self,
         filename: &Path,
         size: usize,
     ) -> Result<ChunkId, BackupError> {
@@ -384,7 +387,7 @@ impl<'a> BackupRun<'a> {
     }
 
     async fn upload_regular_file(
-        &self,
+        &mut self,
         filename: &Path,
         size: usize,
     ) -> Result<Vec<ChunkId>, BackupError> {
@@ -407,7 +410,7 @@ impl<'a> BackupRun<'a> {
         Ok(chunk_ids)
     }
 
-    async fn upload_nascent_generation(&self, filename: &Path) -> Result<ChunkId, ObnamError> {
+    async fn upload_nascent_generation(&mut self, filename: &Path) -> Result<ChunkId, ObnamError> {
         let progress = BackupProgress::upload_generation();
         let gen_id = self.upload_generation(filename, SQLITE_CHUNK_SIZE).await?;
         progress.finish();

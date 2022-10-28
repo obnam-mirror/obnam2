@@ -87,7 +87,9 @@ def delete_chunk_by_id(ctx, chunk_id=None):
 def make_chunk_file_be_empty(ctx, chunk_id=None):
     chunk_id = ctx["vars"][chunk_id]
     chunks = ctx["config"]["chunks"]
-    for (dirname, _, _) in os.walk(chunks):
+    logging.debug(f"trying to empty chunk {chunk_id}")
+    for (dirname, _, filenames) in os.walk(chunks):
+        logging.debug(f"found directory {dirname}, with {filenames}")
         filename = os.path.join(dirname, chunk_id + ".data")
         if os.path.exists(filename):
             logging.debug(f"emptying chunk file {filename}")
@@ -136,7 +138,7 @@ def server_has_n_chunks(ctx, n=None):
     assert_eq = globals()["assert_eq"]
     n = int(n)
     files = find_files(ctx["config"]["chunks"])
-    files = [json.load(open(x)) for x in files if x.endswith(".meta")]
+    files = [x for x in files if x.endswith(".data")]
     logging.debug(f"server_has_n_file_chunks: n={n}")
     logging.debug(f"server_has_n_file_chunks: len(files)={len(files)}")
     logging.debug(f"server_has_n_file_chunks: files={files}")
