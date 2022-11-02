@@ -97,7 +97,7 @@ fn default_config() -> PathBuf {
 }
 
 #[derive(Debug, Parser)]
-#[clap(name = "obnam-backup", about = "Simplistic backup client")]
+#[clap(name = "obnam-backup", version, about = "Simplistic backup client")]
 struct Opt {
     #[clap(long, short)]
     config: Option<PathBuf>,
