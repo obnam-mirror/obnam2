@@ -1,5 +1,6 @@
 title: "Obnam2&mdash;a backup system"
-author: Lars Wirzenius
+authors:
+  - Lars Wirzenius
 documentclass: report
 markdowns:
   - obnam.md
