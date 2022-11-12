@@ -195,7 +195,7 @@ impl BackupClient {
         let gen = self.fetch_generation_chunk(gen_id).await?;
 
         // Fetch the SQLite file, storing it in the named file.
-        let mut dbfile = File::create(&dbname)
+        let mut dbfile = File::create(dbname)
             .map_err(|err| ClientError::FileCreate(dbname.to_path_buf(), err))?;
         for id in gen.chunk_ids() {
             let chunk = self.fetch_chunk(id).await?;

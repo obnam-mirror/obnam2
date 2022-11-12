@@ -146,7 +146,7 @@ pub async fn search_chunks(
 
     let mut query = query.iter();
     let found = if let Some((key, value)) = query.next() {
-        if query.next() != None {
+        if query.next().is_some() {
             error!("search has more than one key to search for");
             return Ok(ChunkResult::BadRequest);
         }

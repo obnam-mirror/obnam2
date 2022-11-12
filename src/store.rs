@@ -48,18 +48,18 @@ impl Store {
             std::fs::create_dir_all(dir)?;
         }
 
-        std::fs::write(&metaname, chunk.meta().to_json())?;
-        std::fs::write(&dataname, chunk.data())?;
+        std::fs::write(metaname, chunk.meta().to_json())?;
+        std::fs::write(dataname, chunk.data())?;
         Ok(())
     }
 
     /// Load a chunk from a store.
     pub fn load(&self, id: &ChunkId) -> Result<DataChunk, StoreError> {
         let (_, metaname, dataname) = &self.filenames(id);
-        let meta = std::fs::read(&metaname)?;
+        let meta = std::fs::read(metaname)?;
         let meta = serde_json::from_slice(&meta)?;
 
-        let data = std::fs::read(&dataname)?;
+        let data = std::fs::read(dataname)?;
         let data = DataChunk::new(data, meta);
         Ok(data)
     }
@@ -67,8 +67,8 @@ impl Store {
     /// Delete a chunk from a store.
     pub fn delete(&self, id: &ChunkId) -> Result<(), StoreError> {
         let (_, metaname, dataname) = &self.filenames(id);
-        std::fs::remove_file(&metaname)?;
-        std::fs::remove_file(&dataname)?;
+        std::fs::remove_file(metaname)?;
+        std::fs::remove_file(dataname)?;
         Ok(())
     }
 }

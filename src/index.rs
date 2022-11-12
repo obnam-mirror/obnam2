@@ -139,7 +139,7 @@ mod sql {
             params![],
         )?;
         conn.execute("CREATE INDEX label_idx ON chunks (label)", params![])?;
-        conn.pragma_update(None, "journal_mode", &"WAL")?;
+        conn.pragma_update(None, "journal_mode", "WAL")?;
         Ok(conn)
     }
 
@@ -147,7 +147,7 @@ mod sql {
     pub fn open_db(filename: &Path) -> Result<Connection, IndexError> {
         let flags = OpenFlags::SQLITE_OPEN_READ_WRITE;
         let conn = Connection::open_with_flags(filename, flags)?;
-        conn.pragma_update(None, "journal_mode", &"WAL")?;
+        conn.pragma_update(None, "journal_mode", "WAL")?;
         Ok(conn)
     }
 

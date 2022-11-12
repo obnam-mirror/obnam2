@@ -112,7 +112,7 @@ impl LocalStore {
         let (_, filename) = &self.filename(id);
 
         let raw =
-            std::fs::read(&filename).map_err(|err| StoreError::ReadChunk(filename.clone(), err))?;
+            std::fs::read(filename).map_err(|err| StoreError::ReadChunk(filename.clone(), err))?;
 
         Ok((raw, meta))
     }
