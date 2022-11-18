@@ -16,7 +16,7 @@ anyhow = "1"
 blake2 = "0.10.4"
 bytesize = "1"
 chrono = "0.4"
-clap = { version = "3", features = ["derive"] }
+clap = { version = "4", features = ["derive"] }
 directories-next = "2"
 futures = "0.3.15"
 indicatif = "0.16"
