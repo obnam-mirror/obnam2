@@ -20,15 +20,17 @@ pub struct BackupPolicy {
     old_if_changed: bool,
 }
 
-impl BackupPolicy {
+impl Default for BackupPolicy {
     /// Create a default policy.
-    pub fn default() -> Self {
+    fn default() -> Self {
         Self {
             new: true,
             old_if_changed: true,
         }
     }
+}
 
+impl BackupPolicy {
     /// Does a given file need to be backed up?
     pub fn needs_backup(&self, old: &LocalGeneration, new_entry: &FilesystemEntry) -> Reason {
         let new_name = new_entry.pathbuf();
