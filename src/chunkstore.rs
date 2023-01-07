@@ -157,7 +157,7 @@ impl RemoteStore {
 
         let hits: HashMap<String, ChunkMeta> =
             serde_json::from_slice(&body).map_err(StoreError::JsonParse)?;
-        let ids = hits.iter().map(|(id, _)| ChunkId::recreate(id)).collect();
+        let ids = hits.keys().map(|id| ChunkId::recreate(id)).collect();
         Ok(ids)
     }
 
